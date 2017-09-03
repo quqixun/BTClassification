@@ -1,6 +1,7 @@
 # Test load volume from files
 
 import os
+import numpy as np
 import nibabel as nib
 import matplotlib.pyplot as plt
 
@@ -10,16 +11,18 @@ data_path = os.path.join(work_path, "dataset")
 file_name = os.listdir(data_path)
 file_path = [os.path.join(data_path, f) for f in file_name]
 
-
 volm = nib.load(file_path[1])
-data = volm.get_data()
-data_shape = data.shape
+data = np.array(volm.get_data())
+data = np.rot90(data, 1, axes=(0, 1))
 
-plt.ion()
-plt.figure(file_name[1])
+idxs = range(56, 90)
+plt.figure(file_name[1], figsize=(3, 3))
 plt.axis("off")
-for i in range(data_shape[2]):
-    img = data[:, :, i]
+for i in idxs:
+    img = np.flip(data[:, :, i], 0)
     plt.imshow(img, cmap="gray")
-    plt.pause(0.5)
+    plt.title(str(i))
+    plt.pause(.2)
     plt.draw()
+ 
+plt.waitforbuttonpress()
