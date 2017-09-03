@@ -20,8 +20,8 @@ data = np.rot90(data, 1, axes=(1, 2))
 dmax = np.max(data)
 
 mips = []
-angles_num = 180
-img_size = (300, 300)
+angles_num = 360
+img_size = (200, 200)
 angles = range(0, angles_num)
 for a in tqdm(angles):
 	rdata = rot(data, a, axes=(0, 2), reshape=False)
