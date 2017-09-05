@@ -24,7 +24,7 @@ data = np.rot90(data, 1, axes=(0, 1))
 
 idxs = range(45, 75)  # vidx = 0
 # idxs = range(55, 90)  # vidx = 1
-plt.figure(file_name[1], figsize=(3, 3))
+plt.figure(file_name[vidx], figsize=(3, 3))
 plt.axis("off")
 for i in idxs:
     img = np.flip(data[:, :, i], 0)
