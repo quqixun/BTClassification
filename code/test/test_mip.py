@@ -29,10 +29,10 @@ end = 180
 img_size = (200, 200)
 angles = range(start, end)
 for a in tqdm(angles):
-	rdata = rot(data, a, axes=(0, 2), reshape=False)
-	temp = np.amax(rdata, axis=0) / dmax * 255
-	temp = cv2.resize(temp, dsize=img_size, interpolation=cv2.INTER_LINEAR)
-	mips.append(temp.astype(np.uint8))
+    rdata = rot(data, a, axes=(0, 2), reshape=False)
+    temp = np.amax(rdata, axis=0) / dmax * 255
+    temp = cv2.resize(temp, dsize=img_size, interpolation=cv2.INTER_LINEAR)
+    mips.append(temp.astype(np.uint8))
 
 print("Save projections into gif file")
 gif_name = "mips_" + str(vidx) + "_" + str(start) + "-" + str(end) + ".gif"

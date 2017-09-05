@@ -27,11 +27,11 @@ idxs = range(45, 75)  # vidx = 0
 plt.figure(file_name[vidx], figsize=(3, 3))
 plt.axis("off")
 for i in idxs:
-  img = np.flip(data[:, :, i], 0)
-  plt.imshow(img, cmap="gray")
-  plt.title(i)
-  plt.draw()
-  plt.pause(.2)
+    img = np.flip(data[:, :, i], 0)
+    plt.imshow(img, cmap="gray")
+    plt.title(i)
+    plt.draw()
+    plt.pause(.2)
 
 plt.show()
 print("Done")
