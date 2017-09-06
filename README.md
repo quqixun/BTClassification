@@ -1,6 +1,6 @@
 # Brain Tumor Detection
 
-<img src="https://github.com/quqixun/BrainTumor/blob/master/code/test/mips.gif" width="150">
+<img src="https://github.com/quqixun/BrainTumor/blob/master/code/test/mips_s_1.gif" width="150">
 
 
 ### Preprocessing
