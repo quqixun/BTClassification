@@ -32,21 +32,6 @@ def plot_img(img, name=None, title=None):
 	return
 
 
-def plot_hist(img, t=1):
-
-	img[np.where(img < t)] = 0
-	hist = cv2.calcHist([img], [0], None, [255], [1, 255])
-	plt.figure(figsize=(15, 6))
-	plt.subplot(1, 2, 1)
-	plt.axis("off")
-	plt.imshow(img, cmap="gray")
-	plt.subplot(1, 2, 2)
-	plt.bar(np.arange(1, 256), hist)
-	plt.show()
-
-	return
-
-
 def plot_imgs(imgs, titles):
 
     plt.figure(figsize=(15, 6))
@@ -56,6 +41,43 @@ def plot_imgs(imgs, titles):
         plt.title(titles[i])
         plt.imshow(imgs[i], cmap="gray")
 
+    plt.show()
+
+    return
+
+
+def plot_img_hist(img, t=1):
+
+	img = np.round(img).astype(np.uint16);
+	imax = np.max(img)
+	img[np.where(img < t)] = 0
+	hist = [len(np.where(img == i)[0]) for i in range(1, imax + 1)]
+
+	plt.figure(figsize=(15, 6))
+	plt.subplot(1, 2, 1)
+	plt.axis("off")
+	plt.imshow(img, cmap="gray")
+	plt.subplot(1, 2, 2)
+	plt.bar(np.arange(1, imax + 1), hist)
+	plt.show()
+
+	return
+
+
+def plot_vol_hist(vol, t=1):
+
+    vol = np.round(vol).astype(np.uint16)
+    vmax = np.max(vol)
+    vol[np.where(vol < t)] = 0
+    hist = [len(np.where(vol == v)[0]) for v in range(1, vmax + 1)]
+    cdf = [np.sum(hist[:h+1]) for h in range(len(hist))]
+    cdf = cdf / np.max(cdf)
+
+    plt.figure(figsize=(15, 6))
+    plt.subplot(1, 2, 1)
+    plt.bar(np.arange(1, vmax + 1), hist)
+    plt.subplot(1, 2, 2)
+    plt.plot(np.arange(1, vmax + 1), cdf)
     plt.show()
 
     return
@@ -115,6 +137,16 @@ def mip(data, start, end, size):
 	return mips
 
 
+def mip_gif(path, data, start, end, size):
+
+    if not os.path.exists(path):
+        print("Save images into gifs")
+        mips = mip(data, start, end, size)
+        imageio.mimsave(path, mips)
+
+    return
+
+
 def remove_bias(img_path, output_path, bias_path):
 
     if not os.path.exists(output_path):
@@ -153,27 +185,25 @@ start, end, size = 0, 180, 200
 
 print("Load data: ", file_path[vidx])
 data = load_volume(file_path[vidx])
-print("Save images into gifs")
-smips = mip(data, start, end, size)
-imageio.mimsave(str(vidx) + "\mips_s_" + str(vidx) + ".gif", smips)
+
+data_gif_path = str(vidx) + "\mips_s_" + str(vidx) + ".gif"
+mip_gif(data_gif_path, data, start, end, size)
 
 bias_path = str(vidx) + "\\" + file_name[vidx].replace(".nii", "_b.nii")
 output_path = str(vidx) + "\\" + file_name[vidx].replace(".nii", "_rb.nii")
+
 
 '''
 Part 1. Test DFT
 '''
 
-print("Filter each slice")
-filt_data = vol_filt(data, 0.01, "highpass")
+# print("Filter each slice")
+# filt_data = vol_filt(data, 0.01, "highpass")
 
-print("Maximum intensity projection")
-mips = mip(filt_data, start, end, size)
+# filt_data_gif_path = str(vidx) + "\mips_dft_" + str(vidx) + ".gif"
+# mip_gif(filt_data_gif_path, filt_data, start, end, size)
 
-print("Save projections into gif file")
-imageio.mimsave(str(vidx) + "\mips_dft_" + str(vidx) + ".gif", mips)
-
-print("Done")
+# print("Done")
 
 
 '''
@@ -186,39 +216,44 @@ remove_bias(file_path[vidx], output_path, bias_path)
 output = load_volume(output_path)
 bias = load_volume(bias_path)
 
-stemp = np.rot90(data, 3, axes=(1, 2))
-otemp = np.rot90(output, 3, axes=(1, 2))
-btemp = np.rot90(bias, 3, axes=(1, 2))
-imgs = [stemp[:, :, idx], otemp[:, :, idx], btemp[:, :, idx]]
-imgs = [np.flip(np.rot90(i, 3), 1) for i in imgs]
-plot_imgs(imgs, ["Original", "Removed Bias", "Bias"])
+# stemp = np.rot90(data, 3, axes=(1, 2))
+# otemp = np.rot90(output, 3, axes=(1, 2))
+# btemp = np.rot90(bias, 3, axes=(1, 2))
+# imgs = [stemp[:, :, idx], otemp[:, :, idx], btemp[:, :, idx]]
+# imgs = [np.flip(np.rot90(i, 3), 1) for i in imgs]
+# plot_imgs(imgs, ["Original", "Removed Bias", "Bias"])
 
-print("Maximum intensity projection")
-omips = mip(output, start, end, size)
-bmips = mip(bias, start, end, size)
+output_gif_path = str(vidx) + "\mips_rb_" + str(vidx) + ".gif"
+bias_gif_path = str(vidx) + "\mips_b_" + str(vidx) + ".gif"
 
-print("Save projections into gif file")
-imageio.mimsave(str(vidx) + "\mips_rb_" + str(vidx) + ".gif", omips)
-imageio.mimsave(str(vidx) + "\mips_b_" + str(vidx) + ".gif", bmips)
+mip_gif(output_gif_path, output, start, end, size)
+mip_gif(bias_gif_path, bias, start, end, size)
 
 print("Done")
+
+
+'''
+'''
+
+# otemp = np.rot90(output, 3, axes=(1, 2))
+# itemp = np.flip(np.rot90(otemp[:, :, idx], 3), 1)
+# plot_hist(itemp, t=340)
+
+plot_vol_hist(output)
 
 
 '''
 Part 3. 
 '''
 
-print("Filter the output without bias")
-filt_output = vol_filt(output, 0.01, "highpass")
+# print("Filter the output without bias")
+# filt_output = vol_filt(output, 0.01, "highpass")
 
-fdtemp = np.rot90(filt_data, 3, axes=(1, 2))
-fotemp = np.rot90(filt_output, 3, axes=(1, 2))
-imgs = [fdtemp[:, :, idx], fotemp[:, :, idx]]
-imgs = [np.flip(np.rot90(i, 3), 1) for i in imgs]
-plot_imgs(imgs, ["DFT of Original", "DFT of Removed Bias"])
+# fdtemp = np.rot90(filt_data, 3, axes=(1, 2))
+# fotemp = np.rot90(filt_output, 3, axes=(1, 2))
+# imgs = [fdtemp[:, :, idx], fotemp[:, :, idx]]
+# imgs = [np.flip(np.rot90(i, 3), 1) for i in imgs]
+# plot_imgs(imgs, ["DFT of Original", "DFT of Removed Bias"])
 
-print("Maximum intensity projection")
-fomips = mip(filt_output, start, end, size)
-
-print("Save projections into gif file")
-imageio.mimsave(str(vidx) + "\mips_dft_rb_" + str(vidx) + ".gif", fomips)
+# filt_output_gif_path = str(vidx) + "\mips_dft_rb_" + str(vidx) + ".gif"
+# mip_gif(filt_output_gif_path, filt_output, start, end, size)
