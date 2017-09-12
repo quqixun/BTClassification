@@ -1,15 +1,15 @@
-## Dataset
+# Dataset
 
-### HGG
+## HGG
 
-### LGG
+## LGG
 
-### HGGPre
+## HGGPre
 
-### LGGPre
+## LGGPre
 
-### Train
+## Train
 
-### Validate
+## Validate
 
-### Test
+## Test
