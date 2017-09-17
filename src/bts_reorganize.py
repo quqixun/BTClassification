@@ -1,7 +1,8 @@
 # Brain Tumor Segmentation
 # Script for Reorganizing
 # Author: Qixun Qu
-# Date: 2017/09/12
+# Create on: 2017/09/12
+# Modify on: 2017/09/17
 
 '''
 
@@ -33,11 +34,11 @@ Target Folder:
 ----- data
   |----- HGG
      |----- xxx
-        |----- xxx_Flair.mha
-        |----- xxx_T1.mha
-        |----- xxx_T1c.mha
-        |----- xxx_T2.mha
-        |----- xxx_Mask.mha
+        |----- Flair.mha
+        |----- T1.mha
+        |----- T1c.mha
+        |----- T2.mha
+        |----- Mask.mha
   |----- LGG
      |----- (same structure as HGG)
 
@@ -59,12 +60,47 @@ class BTSReorganize():
 
     def __init__(self, input_dir, output_dir):
 
+        '''__INIT__
+
+            Copy brain volume files from input folder
+            to output folder to reorganize the structure
+            of all files.
+
+            Inputs:
+
+            - input_dir: original path of directory where
+                         keeps brain volume data
+            - output_dir: volume data files will be copied
+                          to this directory
+
+        '''
+
         self._reorganize(input_dir, output_dir)
 
         return
 
 
     def _reorganize(self, input_dir, output_dir):
+
+        '''_REPRGANIZE
+
+            The process of this function:
+
+            for target in ["HGG", "LGG"]:
+                for patient in [1, ..., n]:
+                    for volume in ["Flair", "T1", "T1c", "T2"]:
+                        Obtain path for original volume
+                        Generate path for copied volume
+                        Copy volume from original path to new path
+
+            Inputs:
+
+            - input_dir: original path of directory where
+                         keeps brain volume data
+            - output_dir: volume data files will be copied
+                          to this directory
+
+        '''
 
         sub_target = os.listdir(input_dir)
 
@@ -97,7 +133,7 @@ class BTSReorganize():
 
                     source_path = os.path.join(sub_sub_from_path, source_file)
 
-                    target_file = str(n) + "_" + VOLUME_NAMES[i] + ".mha"
+                    target_file = VOLUME_NAMES[i] + ".mha"
                     target_path = os.path.join(sub_to_path, target_file)
                     copy(source_path, target_path)
 
