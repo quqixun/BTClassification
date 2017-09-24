@@ -1,1 +1,1 @@
-# Brain Tumor Segmentation
+# Brain Tumor Classification
