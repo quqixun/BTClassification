@@ -2,7 +2,7 @@
 # Script for Reorganizing
 # Author: Qixun Qu
 # Create on: 2017/09/12
-# Modify on: 2017/09/23
+# Modify on: 2017/09/24
 
 '''
 
@@ -93,16 +93,18 @@ class BTCReorganize():
 
         '''
 
-        sub_target = os.listdir(input_dir)
+        to_path = os.path.join(output_dir, "Original")
+        if not os.path.isdir(to_path):
+            os.makedirs(to_path)
 
-        for st in sub_target:
+        print("Copy files from: " + input_dir)
+        print("to: " + to_path)
+
+        sub_source = os.listdir(input_dir)
+        for st in sub_source:
             print("Starting copy files in ", st)
-            to_path = os.path.join(output_dir, st)
             from_path = os.path.join(input_dir, st)
             from_dirs = os.listdir(from_path)
-
-            if not os.path.isdir(to_path):
-                os.makedirs(to_path)
 
             for fd in tqdm(from_dirs):
                 sub_to_path = os.path.join(to_path, fd)

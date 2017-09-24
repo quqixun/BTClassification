@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/09/23
+# Modify on: 2017/09/24
 
 '''
 
@@ -46,6 +46,7 @@ N4_ITERATION = [100, 100, 60, 40]
 
 # Parameters for Intensity Normalization
 PCTS = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.998]
+PCTS_COLUMNS = [str(p) for p in PCTS]
 
 
 '''

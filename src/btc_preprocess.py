@@ -2,7 +2,7 @@
 # Script for Preprocessing
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/09/23
+# Modify on: 2017/09/24
 
 '''
 
@@ -52,6 +52,7 @@ Pipline of Preprocessing:
 import os
 import shutil
 import numpy as np
+import pandas as pd
 import nibabel as nib
 from btc_settings import *
 from multiprocessing import Pool, cpu_count
@@ -112,13 +113,14 @@ class BTCPreprocess():
         # Output folder of ensemble volumes
         self.full_folder = os.path.join(output_dir, "full")
 
+        # Preprocess pipline
         self._create_folders(temp_dir)
         self._bias_field_correction_multi(input_dir, temp_dir)
         self._intensity_normalization_multi(temp_dir)
         self._merge_to_one_volume_multi(input_dir, temp_dir)
 
         # Delete template folder and all files in it
-        # shutil.rmtree(temp_dir)
+        self._delete_temp_files(temp_dir)
 
         return
 
@@ -317,7 +319,15 @@ class BTCPreprocess():
 
         '''
 
+        # Compute landmarks for each type volumes
         landmarks, all_volume_pct = self._get_volume_landmarks(temp_dir, vtype)
+
+        # Save landmarks into csv files
+        landmarks_dict = dict(zip(PCTS_COLUMNS, landmarks))
+        landmarks_df = pd.DataFrame(data=landmarks_dict, columns=PCTS_COLUMNS, index=[0])
+        landmarks_df.to_csv(os.path.join(temp_dir, vtype + "_landmarks.csv"))
+
+        # Transform volumes' intensity
         self._intensity_transform(temp_dir, vtype, landmarks, all_volume_pct)
 
         return
@@ -585,17 +595,33 @@ class BTCPreprocess():
 
         return new_full, new_mask
 
+    def _delete_temp_files(self, temp_dir):
+        '''_DELETE_TEMP_FILES
+
+            Delete template files in template folder except
+            the csv file of landmarks.
+
+            Input:
+
+            - temp_dir: path of template folder
+
+        '''
+
+        sub_temp_dirs = os.listdir(temp_dir)
+        for std in sub_temp_dirs:
+            path = os.path.join(temp_dir, std)
+            # Delete all directories
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+
+        return
+
 
 if __name__ == "__main__":
 
     parent_dir = os.path.dirname(os.getcwd())
 
-    input_dir = os.path.join(parent_dir, "data", "HGG")
-    output_dir = os.path.join(parent_dir, "data", "HGGPre")
-    temp_dir = "HGGTemp"
+    input_dir = os.path.join(parent_dir, "data", "Original")
+    output_dir = os.path.join(parent_dir, "data", "Preprocessed")
+    temp_dir = "Temp"
     BTCPreprocess(input_dir, output_dir, temp_dir)
-
-    # input_dir = os.path.join(parent_dir, "data", "LGG")
-    # output_dir = os.path.join(parent_dir, "data", "LGGPre")
-    # temp_dir = "LGGTemp"
-    # BTCPreprocess(input_dir, output_dir, temp_dir)
