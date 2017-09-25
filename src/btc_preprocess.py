@@ -539,6 +539,7 @@ class BTCPreprocess():
 
             Normalize the input volume by substract its mean
             and diveded by its standard deviation.
+            Background will not be taken into consideration.
 
             Input:
 
@@ -550,7 +551,12 @@ class BTCPreprocess():
 
         '''
 
-        return (volume - np.mean(volume)) / np.std(volume)
+        # Compute mean and std of foreground object
+        non_zero_index = np.where(volume > 0)
+        volume_mean = np.mean(volume[non_zero_index])
+        volume_std = np.std(volume[non_zero_index])
+
+        return (volume - volume_mean) / volume_std
 
     def _keep_minimum_volume(self, full, mask):
         '''_KEEP_MINIMUM_VOLUME

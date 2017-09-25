@@ -36,7 +36,7 @@ Settings for Preprocessing
 
 # General Settings
 DATA_FOLDER = "data"
-TEMP_FOLDER = "temp"
+TEMP_FOLDER = "Temp"
 MASK_FOLDER = "mask"
 FULL_FOLDER = "full"
 TARGET_EXTENSION = ".npy"
@@ -60,4 +60,7 @@ PCTS_COLUMNS = [str(p) for p in PCTS]
 '''
 Settings for Patches Generation
 '''
+
+# General Settings
+TUMOR_FOLDER = "Tumor"
 PATCH_SIZE = [33, 33, 33, 4]
