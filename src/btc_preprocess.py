@@ -2,7 +2,7 @@
 # Script for Preprocessing
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/09/24
+# Modify on: 2017/09/25
 
 '''
 
@@ -109,9 +109,9 @@ class BTCPreprocess():
         self.volume_no = os.listdir(input_dir)
 
         # Output folder of mask volumes
-        self.mask_folder = os.path.join(output_dir, "mask")
+        self.mask_folder = os.path.join(output_dir, MASK_FOLDER)
         # Output folder of ensemble volumes
-        self.full_folder = os.path.join(output_dir, "full")
+        self.full_folder = os.path.join(output_dir, FULL_FOLDER)
 
         # Preprocess pipline
         self._create_folders(temp_dir)
@@ -451,7 +451,7 @@ class BTCPreprocess():
             volume[lower_idx] = 0
 
             # Save transformed volumes into template folder
-            file_name = self.volume_no[i] + "_" + vtype + ".npy"
+            file_name = self.volume_no[i] + "_" + vtype + TARGET_EXTENSION
             np.save(os.path.join(temp_dir, vtype, file_name), volume)
 
         print(vtype + ": Done")
@@ -505,7 +505,7 @@ class BTCPreprocess():
         full_volume = np.zeros(FULL_SHAPE)
         for i in range(len(VOLUME_TYPES)):
             # Load intensity-transformed volume
-            file_name = vno + "_" + VOLUME_TYPES[i] + ".npy"
+            file_name = vno + "_" + VOLUME_TYPES[i] + TARGET_EXTENSION
             path = os.path.join(temp_dir, VOLUME_TYPES[i], file_name)
             volume = np.load(path)
             volume = np.rot90(volume, 3, axes=(0, 1))
@@ -518,7 +518,7 @@ class BTCPreprocess():
             full_volume[..., i] = volume
 
         # Load relevant mask
-        mask_path = os.path.join(input_dir, vno, vno + "_mask" + SOURCE_EXTENSION)
+        mask_path = os.path.join(input_dir, vno, vno + "_" + MASK_NAME + SOURCE_EXTENSION)
         mask_volume = nib.load(mask_path).get_data()
         mask_volume = np.rot90(mask_volume, 3, axes=(0, 1))
 
@@ -526,8 +526,8 @@ class BTCPreprocess():
         full_volume, mask_volume = self._keep_minimum_volume(full_volume, mask_volume)
 
         # Save volume into output folders
-        full_volume_path = os.path.join(self.full_folder, vno + ".npy")
-        mask_volume_path = os.path.join(self.mask_folder, vno + ".npy")
+        full_volume_path = os.path.join(self.full_folder, vno + TARGET_EXTENSION)
+        mask_volume_path = os.path.join(self.mask_folder, vno + TARGET_EXTENSION)
 
         np.save(full_volume_path, full_volume)
         np.save(mask_volume_path, mask_volume)
@@ -621,7 +621,7 @@ if __name__ == "__main__":
 
     parent_dir = os.path.dirname(os.getcwd())
 
-    input_dir = os.path.join(parent_dir, "data", "Original")
-    output_dir = os.path.join(parent_dir, "data", "Preprocessed")
-    temp_dir = "Temp"
+    input_dir = os.path.join(parent_dir, DATA_FOLDER, ORIGINAL_FOLDER)
+    output_dir = os.path.join(parent_dir, DATA_FOLDER, PREPROCESSED_FOLDER)
+    temp_dir = TEMP_FOLDER
     BTCPreprocess(input_dir, output_dir, temp_dir)

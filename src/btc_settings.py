@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/09/24
+# Modify on: 2017/09/25
 
 '''
 
@@ -22,6 +22,8 @@ Basic Settings for Classification Process
 Settings for Reorganization
 '''
 
+MASK_NAME = "mask"
+ORIGINAL_FOLDER = "Original"
 SOURCE_EXTENSION = ".nii.gz"
 NON_USEFUL_VOLUME = "GlistrBoost"
 REPLACE_MASK_NAME = "ManuallyCorrected"
@@ -33,6 +35,12 @@ Settings for Preprocessing
 '''
 
 # General Settings
+DATA_FOLDER = "data"
+TEMP_FOLDER = "temp"
+MASK_FOLDER = "mask"
+FULL_FOLDER = "full"
+TARGET_EXTENSION = ".npy"
+PREPROCESSED_FOLDER = "Preprocessed"
 FULL_SHAPE = [240, 240, 155, 4]
 
 

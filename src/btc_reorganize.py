@@ -93,7 +93,7 @@ class BTCReorganize():
 
         '''
 
-        to_path = os.path.join(output_dir, "Original")
+        to_path = os.path.join(output_dir, ORIGINAL_FOLDER)
         if not os.path.isdir(to_path):
             os.makedirs(to_path)
 
@@ -123,17 +123,20 @@ class BTCReorganize():
                     source_type = source_name.split(".")[0]
 
                     if has_manually_corrected:
-                        # Drop GlistrBoost.nii.gz
+                        # Drop GlistrBoost.nii.gz if
+                        # ManuallyCorrected.nii.gz is exist
                         if source_type == NON_USEFUL_VOLUME:
                             continue
                         elif source_type == REPLACE_MASK_NAME:
                             # Rename ManuallyCorrected.nii.gz as mask.nii.gz
-                            target_file = "mask" + SOURCE_EXTENSION
+                            target_file = MASK_NAME + SOURCE_EXTENSION
                         else:
                             target_file = source_name
                     else:
+                        # Set GlistrBoost.nii.gz as mask if
+                        # ManuallyCorrected.nii.gz is not exist
                         if source_type == NON_USEFUL_VOLUME:
-                            target_file = "mask" + SOURCE_EXTENSION
+                            target_file = MASK_NAME + SOURCE_EXTENSION
                         else:
                             target_file = source_name
 
@@ -151,6 +154,6 @@ class BTCReorganize():
 if __name__ == "__main__":
 
     input_dir = "/home/quqixun/data/BraTS2017"
-    output_dir = os.path.join(os.path.dirname(os.getcwd()), "data")
+    output_dir = os.path.join(os.path.dirname(os.getcwd()), DATA_FOLDER)
 
     BTCReorganize(input_dir, output_dir)
