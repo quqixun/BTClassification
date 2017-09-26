@@ -120,23 +120,81 @@ class BTCTumorPatches():
         '''
 
         def remove_small_object(mask):
-            temp = (mask > 0) * 1.0
+            # temp = (mask > 0) * 1.0
+            temp = np.logical_and(mask != 2, mask != 0) * 1.0
             blobs = measure.label(temp, background=0)
             labels = np.unique(blobs)[1:]
             labels_num = [len(np.where(blobs == l)[0]) for l in labels]
-            label_idx = np.where(np.array(labels_num) > 10000)[0]
+            label_idx = np.where(np.array(labels_num) > 600)[0]
             temp = np.zeros(mask.shape)
             for li in label_idx:
                 temp[blobs == labels[li]] = 1.0
 
             return np.where(temp > 0)
 
+        def compute_dims_range(index):
+            dims_min = np.array([np.min(i) for i in index])
+            dims_max = np.array([np.max(i) + 1 for i in index])
+            dims_len = dims_max - dims_min + 1
+            dims_len_max = np.max(dims_len)
+            dims_begin = []
+            dims_end = []
+            for dmin, dmax, dlen in zip(dims_min, dims_max, dims_len):
+                if dlen == dims_len_max:
+                    dims_begin.append(dmin)
+                    dims_end.append(dmax)
+                else:
+                    diff = dims_len_max - dlen
+                    diff_left = int(diff / 2)
+                    diff_right = diff - diff_left
+                    dims_begin.append(dmin - diff_left)
+                    dims_end.append(dmax + diff_right)
+
+            return dims_begin, dims_end
+
         # Function to extract sub-array from given array
         # according to ranges of indices of three axes
-        def sub_array(arr, index_begin, index_end):
-            return arr[index_begin[0]:index_end[0],
-                       index_begin[1]:index_end[1],
-                       index_begin[2]:index_end[2]]
+        def sub_array(arr, begin, end):
+            arr_shape = arr.shape
+            if len(arr_shape) == CHANNELS:
+                arr_min = [np.min(arr[..., i]) for i in range(CHANNELS)]
+                arr_min = np.array(arr_min)
+            else:
+                arr_min = np.min(arr)
+            new_begin = []
+            begin_diff = []
+            new_end = []
+            end_diff = []
+            for i in range(len(begin)):
+                if begin[i] >= 0:
+                    new_begin.append(begin[i])
+                    begin_diff.append(0)
+                else:
+                    new_begin.append(0)
+                    begin_diff.append(np.abs(begin[i]))
+                if end[i] <= arr_shape[i] - 1:
+                    new_end.append(end[i] + 1)
+                    end_diff.append(0)
+                else:
+                    new_end.append(arr_shape[i] - 1)
+                    end_diff.append(end[i] - arr_shape[i] + 2)
+
+            sub_arr = arr[new_begin[0]:new_end[0],
+                          new_begin[1]:new_end[1],
+                          new_begin[2]:new_end[2]]
+
+            for i in range(len(begin_diff)):
+                temp_shape = list(sub_arr.shape)
+                if begin_diff[i] > 0:
+                    temp_shape[i] = begin_diff[i]
+                    temp_arr = np.multiply(np.ones(temp_shape), arr_min)
+                    sub_arr = np.concatenate((temp_arr, sub_arr), axis=i)
+                if end_diff[i] > 0:
+                    temp_shape[i] = end_diff[i]
+                    temp_arr = np.multiply(np.ones(temp_shape), arr_min)
+                    sub_arr = np.concatenate((sub_arr, temp_arr), axis=i)
+
+            return sub_arr.astype(arr.dtype)
 
         print("Extract tumor from patient: " + volume_no)
 
@@ -144,8 +202,7 @@ class BTCTumorPatches():
         full = np.load(full_path)
 
         tumor_index = remove_small_object(mask)
-        dims_begin = [np.min(ti) for ti in tumor_index]
-        dims_end = [np.max(ti) + 1 for ti in tumor_index]
+        dims_begin, dims_end = compute_dims_range(tumor_index)
 
         tumor_mask = sub_array(mask, dims_begin, dims_end)
         tumor_full = sub_array(full, dims_begin, dims_end)

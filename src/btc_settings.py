@@ -41,7 +41,7 @@ MASK_FOLDER = "mask"
 FULL_FOLDER = "full"
 TARGET_EXTENSION = ".npy"
 PREPROCESSED_FOLDER = "Preprocessed"
-FULL_SHAPE = [240, 240, 155, 4]
+BRAIN_SHAPE = [240, 240, 155]
 
 
 # Parameters for N4BiasFieldCorrection
@@ -62,5 +62,6 @@ Settings for Patches Generation
 '''
 
 # General Settings
+CHANNELS = 4
 TUMOR_FOLDER = "Tumor"
 PATCH_SIZE = [33, 33, 33, 4]
