@@ -2,14 +2,16 @@
 # Script for Extracting Tumor Patches
 # Author: Qixun Qu
 # Create on: 2017/09/18
-# Modify on: 2017/09/25
+# Modify on: 2017/09/27
 
 
 import os
 import numpy as np
 from btc_settings import *
 from skimage import measure
+# from scipy.misc import imresize
 from multiprocessing import Pool, cpu_count
+from scipy.ndimage.interpolation import zoom
 
 
 # Helper function to do multiprocessing of
@@ -18,9 +20,15 @@ def unwrap_extract_tumors(arg, **kwarg):
     return BTCTumorPatches._extract_tumors(*arg, **kwarg)
 
 
+# Helper function to do multiprocessing of
+# BTCTumorPatches._resize_tumors
+def unwrap_resize_tumor(arg, **kwarg):
+    return BTCTumorPatches._resize_tumor(*arg, **kwarg)
+
+
 class BTCTumorPatches():
 
-    def __init__(self, input_dir, output_dir, temp_dir):
+    def __init__(self, input_dir, output_dir, temp_dir="temp"):
         '''__INIT__
 
             Initialization of class BTCTumorPatches, and finish
@@ -31,7 +39,7 @@ class BTCTumorPatches():
             - Create folders to keep output files.
             - Extract primary tumor region from volume according
               to its mask.
-            (- Mapping all tumor region to a size-fixed volume.)
+            - Resize all tumor region to a size-fixed volume.
 
             Inputs:
 
@@ -39,12 +47,16 @@ class BTCTumorPatches():
                          preprocessed data
             - output_dir: path for the directory that all outputs
                           will be saved in
+            - temp_dir: path of the directory which
+                        keeps template files during the
+                        preprocessing, default is "temp"
 
         '''
 
         # Set template directory
         self.temp_mask = os.path.join(temp_dir, MASK_FOLDER)
         self.temp_full = os.path.join(temp_dir, FULL_FOLDER)
+        self.temp_resize = os.path.join(temp_dir, RESIZE_FOLDER)
 
         # Set sub-directory of output folder
         self.output_mask = os.path.join(output_dir, MASK_FOLDER)
@@ -58,10 +70,13 @@ class BTCTumorPatches():
         self.mask_files = os.listdir(self.input_mask)
         self.full_files = os.listdir(self.input_full)
 
+        self.shape_file = os.path.join(TEMP_FOLDER, SHAPE_FILE)
+
         # Main process pipline
-        self._check_volumes_amount()
-        self._create_folders()
-        self._extract_tumors_multi()
+        # self._check_volumes_amount()
+        # self._create_folders()
+        # self._extract_tumors_multi()
+        # self._resize_tumor_multi()
 
         return
 
@@ -79,6 +94,31 @@ class BTCTumorPatches():
 
     def _create_folders(self):
         '''_CREATE_FOLDERS
+
+            Create folders for template files and outputs.
+            All folders are as below.
+
+            Folder for template files:
+            ----- temp_dir (default is "temp")
+              |----- mask
+              |----- full
+              |----- resize
+
+            Folders for outputs:
+            ----- self.output_dir
+              |----- full
+              |----- mask
+
+            Input:
+
+            - temp_dir: path of the directory which
+                        keeps template files during the
+                        preprocessing, default is "temp"
+
+            The other two arguments, self.temp_mask, self.temp_full,
+            self.temp_resize, self.output_mask and self.output_full,
+            has already assigned while the instance is initialized.
+
         '''
 
         if not os.path.isdir(self.temp_mask):
@@ -86,6 +126,9 @@ class BTCTumorPatches():
 
         if not os.path.isdir(self.temp_full):
             os.makedirs(self.temp_full)
+
+        if not os.path.isdir(self.temp_resize):
+            os.makedirs(self.temp_resize)
 
         if not os.path.isdir(self.output_mask):
             os.makedirs(self.output_mask)
@@ -103,13 +146,14 @@ class BTCTumorPatches():
         full_paths = [os.path.join(self.input_full, ff) for ff in self.full_files]
         volume_no = [ff.split(".")[0] for ff in self.full_files]
 
-        open("Temp/shape.txt", 'a').close()
+        if os.path.isfile(self.shape_file):
+            os.remove(self.shape_file)
+
+        open(self.shape_file, "a").close()
 
         print("Extract tumor patches from full volume\n")
         paras = zip([self] * len(volume_no),
-                    mask_paths,
-                    full_paths,
-                    volume_no)
+                    mask_paths, full_paths, volume_no)
         pool = Pool(processes=cpu_count())
         pool.map(unwrap_extract_tumors, paras)
 
@@ -120,12 +164,11 @@ class BTCTumorPatches():
         '''
 
         def remove_small_object(mask):
-            # temp = (mask > 0) * 1.0
-            temp = np.logical_and(mask != 2, mask != 0) * 1.0
-            blobs = measure.label(temp, background=0)
+            temp = np.logical_and(mask != ED_MASK, mask != ELSE_MASK) * 1.0
+            blobs = measure.label(temp, background=ELSE_MASK)
             labels = np.unique(blobs)[1:]
             labels_num = [len(np.where(blobs == l)[0]) for l in labels]
-            label_idx = np.where(np.array(labels_num) > 600)[0]
+            label_idx = np.where(np.array(labels_num) > TUMOT_MIN_SIZE)[0]
             temp = np.zeros(mask.shape)
             for li in label_idx:
                 temp[blobs == labels[li]] = 1.0
@@ -214,8 +257,59 @@ class BTCTumorPatches():
         np.save(tumor_mask_path, tumor_mask)
         np.save(tumor_full_path, tumor_full)
 
-        with open("Temp/shape.txt", "a") as txt:
-            txt.write(",".join([str(n) for n in tumor_mask.shape]) + "\n")
+        with open(self.shape_file, "a") as txt:
+            txt.write(str(tumor_mask.shape[0]) + SHAPE_FILE_SPLIT)
+
+        return
+
+    def _resize_tumor_multi(self):
+        '''_RESIZE_TUMOR_MULTI
+        '''
+
+        all_shapes = open(self.shape_file, "r")
+        shapes_txt = all_shapes.read()
+        shapes_list = shapes_txt.split(SHAPE_FILE_SPLIT)
+        shapes_list = list(filter(None, shapes_list))
+        shapes_list = list(map(int, shapes_list))
+
+        median_shape = int(np.median(shapes_list))
+        new_shape = [median_shape] * 3 + [CHANNELS]
+
+        temp_mask_paths = [os.path.join(self.temp_mask, mf) for mf in self.mask_files]
+        temp_full_paths = [os.path.join(self.temp_full, ff) for ff in self.full_files]
+        volume_no = [ff.split(".")[0] for ff in self.full_files]
+
+        print("Resize tumor patches to ", new_shape, "\n")
+        paras = zip([self] * len(volume_no),
+                    temp_full_paths,
+                    temp_mask_paths,
+                    volume_no,
+                    [new_shape] * len(volume_no))
+        pool = Pool(processes=cpu_count())
+        pool.map(unwrap_resize_tumor, paras)
+
+        return
+
+    def _resize_tumor(self, full_path, mask_path, volume_no, shape):
+        '''_RESIZE_TUMOR
+        '''
+
+        print("Resize tumor on: " + volume_no)
+        full = np.load(full_path)
+        mask = np.load(mask_path)
+        background = np.array([np.min(full[..., i]) for i in range(CHANNELS)])
+        temp_full = np.multiply(np.ones(full.shape), background)
+        non_bg_index = np.where(mask > 0)
+        temp_full[non_bg_index] = full[non_bg_index]
+
+        full_shape = list(full.shape)
+        zoom_factor = [ns / float(vs) for ns, vs in zip(shape, full_shape)]
+        resize_full = zoom(temp_full, zoom=zoom_factor, order=3, prefilter=False)
+        resize_full = resize_full.astype(full.dtype)
+
+        file_name = volume_no + TARGET_EXTENSION
+        temp_path = os.path.join(self.temp_resize, file_name)
+        np.save(temp_path, resize_full)
 
         return
 

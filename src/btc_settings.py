@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/09/25
+# Modify on: 2017/09/27
 
 '''
 
@@ -63,5 +63,14 @@ Settings for Patches Generation
 
 # General Settings
 CHANNELS = 4
+TUMOT_MIN_SIZE = 600
 TUMOR_FOLDER = "Tumor"
-PATCH_SIZE = [33, 33, 33, 4]
+RESIZE_FOLDER = "resize"
+SHAPE_FILE = "shape.txt"
+SHAPE_FILE_SPLIT = "\n"
+
+# Values in Tumor Mask
+NCRNET_MASK = 1  # Necrotic and the Non-Enhancing tumor
+ED_MASK = 2      # the Peritumoral Edema
+ET_MASK = 4      # Enhancing Tumor
+ELSE_MASK = 0    # Everything Else
