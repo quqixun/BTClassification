@@ -452,6 +452,7 @@ class BTCPreprocess():
 
             # Save transformed volumes into template folder
             file_name = self.volume_no[i] + "_" + vtype + TARGET_EXTENSION
+            print(self.volume_no[i], ": ", np.min(volume))
             np.save(os.path.join(temp_dir, vtype, file_name), volume)
 
         print(vtype + ": Done")
@@ -510,7 +511,7 @@ class BTCPreprocess():
             volume = np.load(path)
             volume = np.rot90(volume, 3, axes=(0, 1))
             # Normalize the volue
-            volume = self._normalization(volume)
+            # volume = self._normalization(volume)
             # full_volume[..., 0] <== flair volume
             # full_volume[..., 1] <== t1 volume
             # full_volume[..., 2] <== t1Gd volume
@@ -552,7 +553,7 @@ class BTCPreprocess():
         '''
 
         # Compute mean and std of foreground object
-        non_zero_index = np.where(volume > 0)
+        non_zero_index = np.where(volume > np.min(volume))
         volume_mean = np.mean(volume[non_zero_index])
         volume_std = np.std(volume[non_zero_index])
 
