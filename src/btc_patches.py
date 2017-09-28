@@ -6,12 +6,16 @@
 
 
 import os
+import warnings
 import numpy as np
 from btc_settings import *
 from skimage import measure
-# from scipy.misc import imresize
 from multiprocessing import Pool, cpu_count
 from scipy.ndimage.interpolation import zoom
+
+
+# Ignore the warning caused by SciPy
+warnings.simplefilter("ignore", UserWarning)
 
 
 # Helper function to do multiprocessing of
@@ -73,10 +77,10 @@ class BTCTumorPatches():
         self.shape_file = os.path.join(TEMP_FOLDER, SHAPE_FILE)
 
         # Main process pipline
-        # self._check_volumes_amount()
-        # self._create_folders()
+        self._check_volumes_amount()
+        self._create_folders()
         # self._extract_tumors_multi()
-        # self._resize_tumor_multi()
+        self._resize_tumor_multi()
 
         return
 
@@ -200,10 +204,10 @@ class BTCTumorPatches():
         def sub_array(arr, begin, end):
             arr_shape = arr.shape
             if len(arr_shape) == CHANNELS:
-                arr_min = [np.min(arr[..., i]) for i in range(CHANNELS)]
-                arr_min = np.array(arr_min)
+                bg = [np.min(arr[..., i]) for i in range(CHANNELS)]
+                bg = np.array(bg)
             else:
-                arr_min = np.min(arr)
+                bg = np.min(arr)
             new_begin = []
             begin_diff = []
             new_end = []
@@ -230,11 +234,11 @@ class BTCTumorPatches():
                 temp_shape = list(sub_arr.shape)
                 if begin_diff[i] > 0:
                     temp_shape[i] = begin_diff[i]
-                    temp_arr = np.multiply(np.ones(temp_shape), arr_min)
+                    temp_arr = np.multiply(np.ones(temp_shape), bg)
                     sub_arr = np.concatenate((temp_arr, sub_arr), axis=i)
                 if end_diff[i] > 0:
                     temp_shape[i] = end_diff[i]
-                    temp_arr = np.multiply(np.ones(temp_shape), arr_min)
+                    temp_arr = np.multiply(np.ones(temp_shape), bg)
                     sub_arr = np.concatenate((sub_arr, temp_arr), axis=i)
 
             return sub_arr.astype(arr.dtype)
@@ -297,14 +301,14 @@ class BTCTumorPatches():
         print("Resize tumor on: " + volume_no)
         full = np.load(full_path)
         mask = np.load(mask_path)
-        background = np.array([np.min(full[..., i]) for i in range(CHANNELS)])
-        temp_full = np.multiply(np.ones(full.shape), background)
+        bg = np.array([np.min(full[..., i]) for i in range(CHANNELS)])
+        temp_full = np.multiply(np.ones(full.shape), bg)
         non_bg_index = np.where(mask > 0)
         temp_full[non_bg_index] = full[non_bg_index]
 
         full_shape = list(full.shape)
-        zoom_factor = [ns / float(vs) for ns, vs in zip(shape, full_shape)]
-        resize_full = zoom(temp_full, zoom=zoom_factor, order=3, prefilter=False)
+        factor = [ns / float(vs) for ns, vs in zip(shape, full_shape)]
+        resize_full = zoom(temp_full, zoom=factor, order=3, prefilter=False)
         resize_full = resize_full.astype(full.dtype)
 
         file_name = volume_no + TARGET_EXTENSION
