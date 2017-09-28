@@ -4,9 +4,9 @@
 
 ## LGG
 
-## HGGPre
+## Preprocess
 
-## LGGPre
+## Patches
 
 ## Train
 
