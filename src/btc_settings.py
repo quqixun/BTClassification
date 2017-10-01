@@ -2,7 +2,19 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/09/27
+# Modify on: 2017/10/01
+
+#     ,,,         ,,,
+#   ;"   ';     ;'   ",
+#   ;  @.ss$$$$$$s.@  ;
+#   `s$$$$$$$$$$$$$$$'
+#   $$$$$$$$$$$$$$$$$$
+#  $$$$P""Y$$$Y""W$$$$$
+#  $$$$  p"$$$"q  $$$$$
+#  $$$$  .$$$$$.  $$$$'
+#   $$$DaU$$O$$DaU$$$'
+#    '$$$$'.^.'$$$$'
+#       '&$$$$$&'
 
 '''
 
@@ -58,6 +70,10 @@ PCTS = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.998]
 PCTS_COLUMNS = [str(p) for p in PCTS]
 
 
+# Parameters for Keep Minimum Volume
+EDGE_SPACE = 10
+
+
 '''
 Settings for Patches Generation
 '''
@@ -75,3 +91,8 @@ NCRNET_MASK = 1  # Necrotic and the Non-Enhancing tumor
 ED_MASK = 2      # the Peritumoral Edema
 ET_MASK = 4      # Enhancing Tumor
 ELSE_MASK = 0    # Everything Else
+
+# Values in labels
+GRADE_II_LABEL = 0
+GRADE_III_LABEL = 1
+GRADE_IV_LABEL = 2
