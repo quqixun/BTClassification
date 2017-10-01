@@ -2,7 +2,7 @@
 # Script for Preprocessing
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/09/25
+# Modify on: 2017/10/01
 
 '''
 
@@ -452,7 +452,6 @@ class BTCPreprocess():
 
             # Save transformed volumes into template folder
             file_name = self.volume_no[i] + "_" + vtype + TARGET_EXTENSION
-            print(self.volume_no[i], ": ", np.min(volume))
             np.save(os.path.join(temp_dir, vtype, file_name), volume)
 
         print(vtype + ": Done")
@@ -594,6 +593,17 @@ class BTCPreprocess():
         non_bg_index = np.where(full_sum > min_full_sum)
         dims_begin = [np.min(nzi) for nzi in non_bg_index]
         dims_end = [np.max(nzi) + 1 for nzi in non_bg_index]
+
+        # Add a bit more space around the minimum brain volume
+        for i in range(len(dims_begin)):
+            dims_begin[i] = dims_begin[i] - EDGE_SPACE
+            # if the beginning index is lower than 0
+            if dims_begin[i] < 0:
+                dims_begin[i] = 0
+            dims_end[i] = dims_end[i] + EDGE_SPACE
+            # if the ending index is larger than the maximum index
+            if dims_end[i] > BRAIN_SHAPE[i] - 1:
+                dims_end[i] = BRAIN_SHAPE[i] - 1
 
         # Obtain sub-volumes from input volumes
         new_full = sub_array(full, dims_begin, dims_end)
