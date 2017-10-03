@@ -1,12 +1,12 @@
 import os
 import numpy as np
 import pandas as pd
-from skimage import measure
 from btc_settings import *
-import matplotlib.pyplot as plt
-import scipy.ndimage as sn
-import scipy.ndimage.morphology as snm
 from math import factorial
+import scipy.ndimage as sn
+from skimage import measure
+import matplotlib.pyplot as plt
+import scipy.ndimage.morphology as snm
 from scipy.ndimage.interpolation import zoom
 
 
@@ -127,8 +127,6 @@ def extract_tumors(mask, full):
 
         return dims_begin, dims_end
 
-    # Function to extract sub-array from given array
-    # according to ranges of indices of three axes
     def sub_array(arr, begin, end):
         arr_shape = arr.shape
         if len(arr_shape) == CHANNELS:
@@ -353,9 +351,9 @@ def plot_two_curves(x1, y1, label1, x2, y2, label2):
 def modify_intensity(volume):
     temp = np.reshape(volume, ((1, -1)))[0]
     non_bg_index = np.where(temp > 0)
+    sign = np.random.randint(2, size=1)[0] * 2 - 1
     for i in non_bg_index:
-        sign = np.random.randint(2, size=1)[0] * 2 - 1
-        scope = np.random.randint(3, 11, size=1)[0] / 100
+        scope = np.random.randint(5, 11, size=1)[0] / 100
         temp[i] = temp[i] * (1 + sign * scope)
     return np.reshape(temp, ((59, 59, 59)))
 
@@ -406,3 +404,66 @@ print("Axisymmetric mirror - modified mean: {0}, modified std: {1}".format(np.me
 plot_compare(original, mi_hmirror, x, ysg, "Original", mhx, mhysg, "Horizontal")
 plot_compare(original, mi_vmirror, x, ysg, "Original", mvx, mvysg, "Vertical")
 plot_compare(original, mi_amirror, x, ysg, "Original", maax, maysg, "Axisymmetric")
+
+
+# Partial extration
+fsize = 59
+findex = fsize - 1
+psize = 45
+pindex = psize - 1
+dsize = fsize - psize
+hdsize = int(dsize / 2) + 1
+
+partial_begins = []
+partial_ends = []
+
+# Group 1
+partial_begins.append([0, 0, 0])
+partial_begins.append([dsize, 0, 0])
+partial_begins.append([0, dsize, 0])
+partial_begins.append([dsize, dsize, 0])
+partial_begins.append([hdsize, hdsize, 0])
+# Group 2
+partial_begins.append([0, 0, dsize])
+partial_begins.append([dsize, 0, dsize])
+partial_begins.append([0, dsize, dsize])
+partial_begins.append([dsize, dsize, dsize])
+partial_begins.append([hdsize, hdsize, dsize])
+# Group 3
+partial_begins.append([hdsize, 0, hdsize])
+partial_begins.append([0, hdsize, hdsize])
+partial_begins.append([hdsize, dsize, hdsize])
+partial_begins.append([dsize, hdsize, hdsize])
+partial_begins.append([hdsize, hdsize, hdsize])
+
+for pb in partial_begins:
+    partial_ends.append(list(np.array([pindex] * 3) + pb))
+
+
+def partial_array(arr, begin, end):
+    return arr[begin[0]:end[0],
+               begin[1]:end[1],
+               begin[2]:end[2]]
+
+
+partials = []
+for pb, pe in zip(partial_begins, partial_ends):
+    partials.append(partial_array(original, pb, pe))
+
+
+def plot_partials(partials, psize):
+    no = int((psize + 1) / 2)
+
+    vmins = [np.min(p) for p in partials]
+    vmaxs = [np.max(p) for p in partials]
+    vmin = np.min(vmins)
+    vmax = np.max(vmaxs)
+
+    for i in range(len(partials)):
+        plt.subplot(3, 5, i + 1)
+        plt.axis("off")
+        plt.imshow(partials[i][:, :, no], cmap="gray", vmin=vmin, vmax=vmax)
+    plt.show()
+
+
+plot_partials(partials, psize)
