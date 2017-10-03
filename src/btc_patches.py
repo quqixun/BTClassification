@@ -21,7 +21,9 @@ import os
 import warnings
 import numpy as np
 from btc_settings import *
+import scipy.ndimage as sn
 from skimage import measure
+import scipy.ndimage.morphology as snm
 from multiprocessing import Pool, cpu_count
 from scipy.ndimage.interpolation import zoom
 
@@ -33,7 +35,7 @@ warnings.simplefilter("ignore", UserWarning)
 # Helper function to do multiprocessing of
 # BTCTumorPatches._extract_tumors
 def unwrap_extract_tumors(arg, **kwarg):
-    return BTCTumorPatches._extract_tumors(*arg, **kwarg)
+    return BTCTumorPatches._extract_tumor(*arg, **kwarg)
 
 
 # Helper function to do multiprocessing of
@@ -91,8 +93,9 @@ class BTCTumorPatches():
         # Main process pipline
         self._check_volumes_amount()
         self._create_folders()
-        # self._extract_tumors_multi()
-        self._resize_tumor_multi()
+        self._extract_tumors_multi()
+        # self._resize_tumors_multi()
+        # self._augment_patches_multi()
 
         return
 
@@ -175,13 +178,12 @@ class BTCTumorPatches():
 
         return
 
-    def _extract_tumors(self, mask_path, full_path, volume_no):
+    def _extract_tumor(self, mask_path, full_path, volume_no):
         '''_EXTRACT_TUMORS
         '''
 
         def remove_small_object(mask):
-            temp = np.logical_and(mask != ED_MASK, mask != ELSE_MASK) * 1.0
-            blobs = measure.label(temp, background=ELSE_MASK)
+            blobs = measure.label((mask > 0) * 1.0, background=ELSE_MASK)
             labels = np.unique(blobs)[1:]
             labels_num = [len(np.where(blobs == l)[0]) for l in labels]
             label_idx = np.where(np.array(labels_num) > TUMOT_MIN_SIZE)[0]
@@ -260,25 +262,52 @@ class BTCTumorPatches():
         mask = np.load(mask_path)
         full = np.load(full_path)
 
-        tumor_index = remove_small_object(mask)
-        dims_begin, dims_end = compute_dims_range(tumor_index)
+        kernel = sn.generate_binary_structure(3, 1).astype(np.float32)
+        original_core_mask = np.logical_and(mask != ED_MASK,
+                                            mask != ELSE_MASK) * 1.0
 
-        tumor_mask = sub_array(mask, dims_begin, dims_end)
-        tumor_full = sub_array(full, dims_begin, dims_end)
+        enable_eroded = True
+        for morp in MORPHOLOGY:
+            if morp == "dilated":
+                core_mask = snm.binary_dilation(original_core_mask,
+                                                structure=kernel,
+                                                iterations=5)
+            elif (morp == "eroded"):
+                if enable_eroded:
+                    core_mask = snm.binary_erosion(original_core_mask,
+                                                   structure=kernel,
+                                                   iterations=5)
+                else:
+                    continue
+            else:
+                core_mask = original_core_mask
 
-        file_name = volume_no + TARGET_EXTENSION
-        tumor_mask_path = os.path.join(self.temp_mask, file_name)
-        tumor_full_path = os.path.join(self.temp_full, file_name)
+            tumor_index = remove_small_object(core_mask)
+            if len(tumor_index[0]) == 0:
+                continue
 
-        np.save(tumor_mask_path, tumor_mask)
-        np.save(tumor_full_path, tumor_full)
+            dims_begin, dims_end = compute_dims_range(tumor_index)
+            if morp == "original":
+                if (dims_end[0] - dims_begin[0]) < 35:
+                    enable_eroded = False
 
-        with open(self.shape_file, "a") as txt:
-            txt.write(str(tumor_mask.shape[0]) + SHAPE_FILE_SPLIT)
+            tumor_mask = sub_array(mask, dims_begin, dims_end)
+            tumor_full = sub_array(full, dims_begin, dims_end)
+
+            file_name = volume_no + "_" + morp + TARGET_EXTENSION
+            tumor_mask_path = os.path.join(self.temp_mask, file_name)
+            tumor_full_path = os.path.join(self.temp_full, file_name)
+
+            np.save(tumor_mask_path, tumor_mask)
+            np.save(tumor_full_path, tumor_full)
+
+            if morp == "original":
+                with open(self.shape_file, "a") as txt:
+                    txt.write(str(tumor_mask.shape[0]) + SHAPE_FILE_SPLIT)
 
         return
 
-    def _resize_tumor_multi(self):
+    def _resize_tumors_multi(self):
         '''_RESIZE_TUMOR_MULTI
         '''
 
