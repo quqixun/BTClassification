@@ -1,4 +1,4 @@
 # Workflow
 
 
-<img src="https://github.com/quqixun/BrainTumorSegmentation/blob/master/docs/Workflow/Workflow%20of%20Brain%20Tumor%20Classification.png" width="700">
+<img src="https://github.com/quqixun/BrainTumorClassification/blob/master/docs/Workflow/Brain_Tumor_Classification.png" width="700">
