@@ -1,0 +1,12 @@
+Original
+mean: 123.90066528320312, original std: 223.3127899169922
+
+Horizontal mirror
+modified mean: 111.51061248779297, modified std: 200.9815216064453
+
+Vertical mirror
+modified mean: 136.2907257080078, modified std: 245.64407348632812
+
+Vxisymmetric mirror
+modified mean: 112.7496109008789, modified std: 203.21466064453125
+
