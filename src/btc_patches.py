@@ -72,13 +72,14 @@ class BTCTumorPatches():
         '''
 
         # Set template directory
-        self.temp_mask = os.path.join(temp_dir, MASK_FOLDER)
-        self.temp_full = os.path.join(temp_dir, FULL_FOLDER)
-        self.temp_resize = os.path.join(temp_dir, RESIZE_FOLDER)
+        temp_patches = os.path.join(temp_dir, PATCHES_FOLDER)
+        self.temp_mask = os.path.join(temp_patches, MASK_FOLDER)
+        self.temp_tumor = os.path.join(temp_patches, TUMOR_FOLDER)
+        # self.temp_resize = os.path.join(temp_patches, RESIZE_FOLDER)
 
         # Set sub-directory of output folder
-        self.output_mask = os.path.join(output_dir, MASK_FOLDER)
-        self.output_full = os.path.join(output_dir, FULL_FOLDER)
+        # self.output_mask = os.path.join(output_dir, MASK_FOLDER)
+        self.output_tumor = output_dir
 
         # Set sub-directory of input folder
         self.input_mask = os.path.join(input_dir, MASK_FOLDER)
@@ -93,9 +94,8 @@ class BTCTumorPatches():
         # Main process pipline
         self._check_volumes_amount()
         self._create_folders()
-        self._extract_tumors_multi()
-        # self._resize_tumors_multi()
-        # self._augment_patches_multi()
+        # self._extract_tumors_multi()
+        self._resize_tumors_multi()
 
         return
 
@@ -120,13 +120,10 @@ class BTCTumorPatches():
             Folder for template files:
             ----- temp_dir (default is "temp")
               |----- mask
-              |----- full
-              |----- resize
+              |----- tumor
 
             Folders for outputs:
             ----- self.output_dir
-              |----- full
-              |----- mask
 
             Input:
 
@@ -134,26 +131,26 @@ class BTCTumorPatches():
                         keeps template files during the
                         preprocessing, default is "temp"
 
-            The other two arguments, self.temp_mask, self.temp_full,
-            self.temp_resize, self.output_mask and self.output_full,
-            has already assigned while the instance is initialized.
+            The other two arguments, self.temp_mask, self.temp_tumor,
+            self.output_tumor, has already assigned while the instance
+            is initialized.
 
         '''
 
         if not os.path.isdir(self.temp_mask):
             os.makedirs(self.temp_mask)
 
-        if not os.path.isdir(self.temp_full):
-            os.makedirs(self.temp_full)
+        if not os.path.isdir(self.temp_tumor):
+            os.makedirs(self.temp_tumor)
 
-        if not os.path.isdir(self.temp_resize):
-            os.makedirs(self.temp_resize)
+        # if not os.path.isdir(self.temp_resize):
+            # os.makedirs(self.temp_resize)
 
-        if not os.path.isdir(self.output_mask):
-            os.makedirs(self.output_mask)
+        # if not os.path.isdir(self.output_mask):
+            # os.makedirs(self.output_mask)
 
-        if not os.path.isdir(self.output_full):
-            os.makedirs(self.output_full)
+        if not os.path.isdir(self.output_tumor):
+            os.makedirs(self.output_tumor)
 
         return
 
@@ -296,14 +293,14 @@ class BTCTumorPatches():
 
             file_name = volume_no + "_" + morp + TARGET_EXTENSION
             tumor_mask_path = os.path.join(self.temp_mask, file_name)
-            tumor_full_path = os.path.join(self.temp_full, file_name)
+            tumor_full_path = os.path.join(self.temp_tumor, file_name)
 
             np.save(tumor_mask_path, tumor_mask)
             np.save(tumor_full_path, tumor_full)
 
             if morp == "original":
                 with open(self.shape_file, "a") as txt:
-                    txt.write(str(tumor_mask.shape[0]) + SHAPE_FILE_SPLIT)
+                    txt.write(str(tumor_full.shape[0]) + SHAPE_FILE_SPLIT)
 
         return
 
@@ -320,41 +317,47 @@ class BTCTumorPatches():
         median_shape = int(np.median(shapes_list))
         new_shape = [median_shape] * 3 + [CHANNELS]
 
-        temp_mask_paths = [os.path.join(self.temp_mask, mf) for mf in self.mask_files]
-        temp_full_paths = [os.path.join(self.temp_full, ff) for ff in self.full_files]
-        volume_no = [ff.split(".")[0] for ff in self.full_files]
+        temp_file_names = os.listdir(self.temp_tumor)
+        temp_mask_paths = [os.path.join(self.temp_mask, tfn) for tfn in temp_file_names]
+        temp_tumor_paths = [os.path.join(self.temp_tumor, tfn) for tfn in temp_file_names]
+        volume_names = [tfn.split(".")[0] for tfn in temp_file_names]
 
         print("Resize tumor patches to ", new_shape, "\n")
-        paras = zip([self] * len(volume_no),
-                    temp_full_paths,
+        paras = zip([self] * len(volume_names),
+                    temp_tumor_paths,
                     temp_mask_paths,
-                    volume_no,
-                    [new_shape] * len(volume_no))
+                    volume_names,
+                    [new_shape] * len(volume_names))
         pool = Pool(processes=cpu_count())
         pool.map(unwrap_resize_tumor, paras)
 
         return
 
-    def _resize_tumor(self, full_path, mask_path, volume_no, shape):
+    def _resize_tumor(self, tumor_path, mask_path, volume_name, shape):
         '''_RESIZE_TUMOR
         '''
 
-        print("Resize tumor on: " + volume_no)
-        full = np.load(full_path)
+        print("Resize tumor on: " + volume_name)
+        tumor = np.load(tumor_path)
         mask = np.load(mask_path)
-        bg = np.array([np.min(full[..., i]) for i in range(CHANNELS)])
-        temp_full = np.multiply(np.ones(full.shape), bg)
+        bg = np.array([np.min(tumor[..., i]) for i in range(CHANNELS)])
+        temp_tumor = np.multiply(np.ones(tumor.shape), bg)
         non_bg_index = np.where(mask > 0)
-        temp_full[non_bg_index] = full[non_bg_index]
+        temp_tumor[non_bg_index] = tumor[non_bg_index]
 
-        full_shape = list(full.shape)
-        factor = [ns / float(vs) for ns, vs in zip(shape, full_shape)]
-        resize_full = zoom(temp_full, zoom=factor, order=3, prefilter=False)
-        resize_full = resize_full.astype(full.dtype)
+        tumor_shape = list(tumor.shape)
+        factor = [ns / float(vs) for ns, vs in zip(shape, tumor_shape)]
+        resize_tumor = zoom(temp_tumor, zoom=factor, order=3, prefilter=False)
+        resize_tumor = resize_tumor.astype(tumor.dtype)
 
-        file_name = volume_no + TARGET_EXTENSION
-        temp_path = os.path.join(self.temp_resize, file_name)
-        np.save(temp_path, resize_full)
+        volume_no = volume_name.split("_")[0]
+        morp_type = volume_name.split("_")[1]
+        volume_no_folder = os.path.join(self.output_tumor, volume_no)
+        if not os.path.isdir(volume_no_folder):
+            os.makedirs(volume_no_folder)
+        file_name = morp_type + TARGET_EXTENSION
+        output_path = os.path.join(volume_no_folder, file_name)
+        np.save(output_path, resize_tumor)
 
         return
 
@@ -364,7 +367,7 @@ if __name__ == "__main__":
     parent_dir = os.path.dirname(os.getcwd())
 
     input_dir = os.path.join(parent_dir, DATA_FOLDER, PREPROCESSED_FOLDER)
-    output_dir = os.path.join(parent_dir, DATA_FOLDER, TUMOR_FOLDER)
+    output_dir = os.path.join(parent_dir, DATA_FOLDER, PATCHES_FOLDER)
     temp_dir = TEMP_FOLDER
 
     BTCTumorPatches(input_dir, output_dir, temp_dir)
