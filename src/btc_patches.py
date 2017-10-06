@@ -75,10 +75,8 @@ class BTCTumorPatches():
         temp_patches = os.path.join(temp_dir, PATCHES_FOLDER)
         self.temp_mask = os.path.join(temp_patches, MASK_FOLDER)
         self.temp_tumor = os.path.join(temp_patches, TUMOR_FOLDER)
-        # self.temp_resize = os.path.join(temp_patches, RESIZE_FOLDER)
 
         # Set sub-directory of output folder
-        # self.output_mask = os.path.join(output_dir, MASK_FOLDER)
         self.output_tumor = output_dir
 
         # Set sub-directory of input folder
@@ -94,8 +92,10 @@ class BTCTumorPatches():
         # Main process pipline
         self._check_volumes_amount()
         self._create_folders()
-        # self._extract_tumors_multi()
+        self._extract_tumors_multi()
         self._resize_tumors_multi()
+
+        self._delete_temp_files()
 
         return
 
@@ -142,12 +142,6 @@ class BTCTumorPatches():
 
         if not os.path.isdir(self.temp_tumor):
             os.makedirs(self.temp_tumor)
-
-        # if not os.path.isdir(self.temp_resize):
-            # os.makedirs(self.temp_resize)
-
-        # if not os.path.isdir(self.output_mask):
-            # os.makedirs(self.output_mask)
 
         if not os.path.isdir(self.output_tumor):
             os.makedirs(self.output_tumor)
@@ -358,6 +352,19 @@ class BTCTumorPatches():
         file_name = morp_type + TARGET_EXTENSION
         output_path = os.path.join(volume_no_folder, file_name)
         np.save(output_path, resize_tumor)
+
+        return
+
+    def _delete_temp_files(self):
+        '''_DELETE_TEMP_FILES
+
+        '''
+
+        if os.path.isdir(self.temp_tumor):
+            shutil.rmtree(self.temp_tumor)
+
+        if os.path.isdir(self.temp_mask):
+            shutil.rmtree(self.temp_mask)
 
         return
 
