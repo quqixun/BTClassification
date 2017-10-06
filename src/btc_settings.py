@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/10/01
+# Modify on: 2017/10/06
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -80,9 +80,10 @@ Settings for Patches Generation
 
 # General Settings
 CHANNELS = 4
-TUMOT_MIN_SIZE = 600
-TUMOR_FOLDER = "Tumor"
+TUMOT_MIN_SIZE = 500
+PATCHES_FOLDER = "Patches"
 RESIZE_FOLDER = "resize"
+TUMOR_FOLDER = "tumor"
 SHAPE_FILE = "shape.txt"
 SHAPE_FILE_SPLIT = "\n"
 
@@ -92,7 +93,21 @@ ED_MASK = 2      # the Peritumoral Edema
 ET_MASK = 4      # Enhancing Tumor
 ELSE_MASK = 0    # Everything Else
 
-# Values in labels
-GRADE_II_LABEL = 0
-GRADE_III_LABEL = 1
-GRADE_IV_LABEL = 2
+# Morphology type
+MORPHOLOGY = ["original", "dilated", "eroded"]
+
+
+'''
+Settings for Data Augmentation
+'''
+
+# General Settings
+AUGMENT_FOLDER = "Augmented"
+LABEL_FILE = "labels.csv"
+CASE_NO = "Case"
+GRADE_LABEL = "Grade_Label"
+GRADE_IV = 2
+GRADE_III = 1
+GRADE_II = 0
+GRADE_UNKNOWN = -1
+PARTIAL_SIZE = 49
