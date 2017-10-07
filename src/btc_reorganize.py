@@ -72,7 +72,7 @@ class BTCReorganize():
             of all files.
 
             Inputs:
-
+            -------
             - input_dir: original path of directory where
                          keeps brain volume data
             - output_dir: volume data files will be copied
@@ -97,7 +97,7 @@ class BTCReorganize():
                         Copy volume from original path to new path
 
             Inputs:
-
+            -------
             - input_dir: original path of directory where
                          keeps brain volume data
             - output_dir: volume data files will be copied
@@ -105,6 +105,7 @@ class BTCReorganize():
 
         '''
 
+        # Create output folder
         to_path = os.path.join(output_dir, ORIGINAL_FOLDER)
         if not os.path.isdir(to_path):
             os.makedirs(to_path)

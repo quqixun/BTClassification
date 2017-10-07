@@ -96,7 +96,7 @@ class BTCPatches():
             - Resize all tumor region to a size-fixed volume.
 
             Inputs:
-
+            -------
             - input_dir: path of the directory which keeps
                          preprocessed data
             - output_dir: path for the directory that all outputs
@@ -169,7 +169,7 @@ class BTCPatches():
             ----- self.output_dir
 
             Input:
-
+            ------
             - temp_dir: path of the directory which
                         keeps template files during the
                         preprocessing, default is "temp"
@@ -244,7 +244,7 @@ class BTCPatches():
               template folder.
 
             Inputs:
-
+            -------
             - mask_path: the path of mask volume
             - full_path: the path of brain volume
             - case_no: the serial number of input volume, this is used to
@@ -289,7 +289,7 @@ class BTCPatches():
             dims_len_max = np.max(dims_len)
 
             # Compute new range to make sure each dimention
-            # has same size.
+            # has same size
             dims_begin, dims_end = [], []
             for dmin, dmax, dlen in zip(dims_min, dims_max, dims_len):
                 if dlen == dims_len_max:
@@ -311,7 +311,7 @@ class BTCPatches():
         # the extraction will be padded by its background.
         def sub_array(arr, begin, end):
 
-            # Get the background intensity of input array.
+            # Get the background intensity of input array
             arr_shape = arr.shape
             if len(arr_shape) == CHANNELS:  # Brainvolume
                 bg = np.array([np.min(arr[..., i]) for i in range(CHANNELS)])
@@ -319,7 +319,7 @@ class BTCPatches():
                 bg = np.min(arr)
 
             # Compute new range of indices, as well as how many slices
-            # of background will be padded in each dimentions.
+            # of background will be padded in each dimentions
             new_begin, begin_diff = [], []
             new_end, end_diff = [], []
             for i in range(len(begin)):
@@ -375,12 +375,12 @@ class BTCPatches():
 
         # If the size of tumor's core is too small,
         # enable_eroded will be assigned to False
-        # to disable erosion on this case.
+        # to disable erosion on this case
         enable_eroded = True
 
-        # Loop order can be found in bts_settings.py.
+        # Loop order can be found in bts_settings.py
         # --- NOTE ---
-        # "eroded" should always be the last item.
+        # "eroded" should always be the last item
         for morp in MORPHOLOGY:
             if morp == "dilated":  # Dilatation
                 core_mask = snm.binary_dilation(original_core_mask,
@@ -391,7 +391,7 @@ class BTCPatches():
                     core_mask = snm.binary_erosion(original_core_mask,
                                                    structure=kernel,
                                                    iterations=MORP_ITER_NUM)
-                else:  # The tumor cannot be eroded since it is too small.
+                else:  # The tumor cannot be eroded since it is too small
                     continue
             else:  # Original mask
                 core_mask = original_core_mask
@@ -407,14 +407,14 @@ class BTCPatches():
             if morp == "original":
                 if (dims_end[0] - dims_begin[0]) < ERODABLE_THRESH:
                     # If the size of tumor is smaller than the threshold
-                    # this tumor will not be eroded.
+                    # this tumor will not be eroded
                     enable_eroded = False
 
-            # Extract patch from brain and mask volumes.
+            # Extract patch from brain and mask volumes
             tumor_mask = sub_array(mask, dims_begin, dims_end)
             tumor_full = sub_array(full, dims_begin, dims_end)
 
-            # Save patches into template folder.
+            # Save patches into template folder
             file_name = case_no + "_" + morp + TARGET_EXTENSION
             tumor_mask_path = os.path.join(self.temp_mask, file_name)
             tumor_full_path = os.path.join(self.temp_tumor, file_name)
@@ -423,7 +423,7 @@ class BTCPatches():
             np.save(tumor_full_path, tumor_full)
 
             # Save the shape of patch extracted according to the original
-            # tumor core's mask into text file.
+            # tumor core's mask into text file
             if morp == "original":
                 with open(self.shape_file, "a") as txt:
                     txt.write(str(tumor_full.shape[0]) + SHAPE_FILE_SPLIT)
@@ -446,19 +446,19 @@ class BTCPatches():
 
         '''
 
-        # Read original tumors' shape from text file.
+        # Read original tumors' shape from text file
         all_shapes = open(self.shape_file, "r")
         shapes_txt = all_shapes.read()
         shapes_list = shapes_txt.split(SHAPE_FILE_SPLIT)
         shapes_list = list(filter(None, shapes_list))
         shapes_list = list(map(int, shapes_list))
 
-        # Compute median shape of all tumors as the new shape.
+        # Compute median shape of all tumors as the new shape
         median_shape = int(np.median(shapes_list))
         new_shape = [median_shape] * 3 + [CHANNELS]
 
         # Generate mask patches' path, tumor patches' path
-        # and patches' names.
+        # and patches' names
         temp_file_names = os.listdir(self.temp_tumor)
         temp_mask_paths = [os.path.join(self.temp_mask, tfn) for tfn in temp_file_names]
         temp_tumor_paths = [os.path.join(self.temp_tumor, tfn) for tfn in temp_file_names]
@@ -486,7 +486,7 @@ class BTCPatches():
             - Save resized patch into output folder.
 
             Inputs:
-
+            -------
             - mask_path: the path of mask patch
             - tumor_path: the path of tumor patch
             - patch_name: the name of patch file, which is used
@@ -502,31 +502,31 @@ class BTCPatches():
         mask = np.load(mask_path)
 
         # Remove surrounding brain tissues around tumor,
-        # and replace tissues with background.
+        # and replace tissues with background
         bg = np.array([np.min(tumor[..., i]) for i in range(CHANNELS)])
         temp_tumor = np.multiply(np.ones(tumor.shape), bg)
         non_bg_index = np.where(mask > 0)
         temp_tumor[non_bg_index] = tumor[non_bg_index]
 
         # Resize tumor into given shape.
-        # Settings can be found in btc_settings.py.
+        # Settings can be found in btc_settings.py
         tumor_shape = list(tumor.shape)
-        # Compute zoom factor, a warning may be appear.
-        # The warning has been ignored by the code at line 68.
+        # Compute zoom factor, a warning may be appear
+        # The warning has been ignored by the code at line 68
         factor = [ns / float(vs) for ns, vs in zip(shape, tumor_shape)]
         resize_tumor = zoom(temp_tumor, zoom=factor,
                             order=ZOOM_ORDER, prefilter=ZOOM_FILTER)
         resize_tumor = resize_tumor.astype(tumor.dtype)
 
-        # Generate the path of output folder.
+        # Generate the path of output folder
         case_no = patch_name.split("_")[0]
         case_no_folder = os.path.join(self.output_tumor, case_no)
 
-        # Create output folder for one case.
+        # Create output folder for one case
         if not os.path.isdir(case_no_folder):
             os.makedirs(case_no_folder)
 
-        # Save output into the folder.
+        # Save output into the folder
         morp_type = patch_name.split("_")[1]
         file_name = morp_type + TARGET_EXTENSION
         output_path = os.path.join(case_no_folder, file_name)

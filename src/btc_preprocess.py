@@ -106,7 +106,7 @@ class BTCPreprocess():
             - Delete all template files.
 
             Inputs:
-
+            -------
             - input_dir: path of the directory which
                          keeps original volumes
             - output_dir: path of the directory which
@@ -155,7 +155,7 @@ class BTCPreprocess():
               |----- mask
 
             Input:
-
+            ------
             - temp_dir: path of the directory which
                         keeps template files during the
                         preprocessing, default is "temp"
@@ -195,7 +195,7 @@ class BTCPreprocess():
               to function BTCPreprocess._bias_field_correction.
 
             Inputs:
-
+            -------
             - input_dir: path of the directory which
                          keeps original volumes
             - temp_dir: path of the directory which
@@ -234,7 +234,7 @@ class BTCPreprocess():
             https://www.ncbi.nlm.nih.gov/pubmed/20378467
 
             Inputs:
-
+            -------
             - orig_path: path for original volume
             - temp_path: path for template volume which is
                          the output of bias field correction
@@ -295,7 +295,7 @@ class BTCPreprocess():
             The number of subprocesses equals to the number of cpus.
 
             Input:
-
+            ------
             - temp_dir: path of the template directory that outputs
                         of bias field correction have been saved in
 
@@ -324,7 +324,7 @@ class BTCPreprocess():
             http://ieeexplore.ieee.org/abstract/document/836373/
 
             Inputs:
-
+            -------
             - temp_dir: path of template folder which keeps the outputs
                         of bias field correction
             - vtype: types of volume, flair, t1, t1GD or t2
@@ -355,13 +355,13 @@ class BTCPreprocess():
               of all Flair volumes.
 
             Inputs:
-
+            -------
             - temp_dir: path of template folder which keeps the outputs
                         of bias field correction
             - vtype: types of volume, flair, t1, t1Gd or t2
 
             Outputs:
-
+            --------
             - landmarks: mean percentile values of a certain type volumes
             - all_volume_pct: percentile values of all volumes in one type
 
@@ -375,15 +375,15 @@ class BTCPreprocess():
             path = os.path.join(temp_dir, vtype, file_name)
             volume = nib.load(path).get_data()
 
-            # Check whether volume's background has the minimum intensity.
-            # If not, set the background to the minimum intensity.
+            # Check whether volume's background has the minimum intensity
+            # If not, set the background to the minimum intensity
             volume_min = np.min(volume)
             if volume_min < 0:
                 volume[np.where(volume == 0)] = volume_min
                 volume = volume - np.min(volume)
 
             # Sort voxels by their intensities except background,
-            # which makes it easy to compute percentile values.
+            # which makes it easy to compute percentile values
             volume = volume[np.where(volume > 0)]
             sort = np.sort(volume)
             sort_len = len(sort)
@@ -396,10 +396,10 @@ class BTCPreprocess():
                     pct_idx = 0
                 one_volume_pct.append(sort[pct_idx])
 
-            # Ensembel all volumes' percentile values into one array.
+            # Ensembel all volumes' percentile values into one array
             all_volume_pct.append(one_volume_pct)
 
-        # Compute mean as landmarks of one certain type volume.
+        # Compute mean as landmarks of one certain type volume
         all_volume_pct = np.array(all_volume_pct)
         landmarks = np.mean(all_volume_pct, axis=0)
 
@@ -420,7 +420,7 @@ class BTCPreprocess():
             as landmarks via interpolation.
 
             Inputs:
-
+            -------
             - temp_dir: path of template folder which keeps the outputs
                         of bias field correction
             - vtype: types of volume, Flair, T1, T1c or T2
@@ -437,8 +437,8 @@ class BTCPreprocess():
             path = os.path.join(temp_dir, vtype, file_name)
             volume = nib.load(path).get_data()
 
-            # Check whether volume's background has the minimum intensity.
-            # If not, set the background to the minimum intensity.
+            # Check whether volume's background has the minimum intensity
+            # If not, set the background to the minimum intensity
             volume_min = np.min(volume)
             if volume_min < 0:
                 volume[np.where(volume == 0)] = volume_min
@@ -478,7 +478,7 @@ class BTCPreprocess():
             The number of subprocesses equals to the number of cpus.
 
             Inputs:
-
+            -------
             - input_dir: path of the directory which keeps mask volumes
             - temp_dir: path of template folder which keeps the outputs
                         of intensity transformation
@@ -504,7 +504,7 @@ class BTCPreprocess():
             into output folder as the result of preprocessing.
 
             Inputs:
-
+            -------
             - input_dir: path of the directory which keeps mask volumes
             - temp_dir: path of template folder which keeps the outputs
                         of intensity transformation
@@ -554,11 +554,11 @@ class BTCPreprocess():
             Background will not be taken into consideration.
 
             Input:
-
+            ------
             - volume: the volume needs to be normalized
 
             Output:
-
+            -------
             - normalized volume
 
         '''
@@ -579,12 +579,12 @@ class BTCPreprocess():
             of three axes, extract sub-volume and return it back.
 
             Inputs:
-
+            -------
             - full: ensemble volume
             - mask: relevant mask volume
 
             Outputs:
-
+            --------
             - new_full: new ensemble volume after being processed
             - new_mask: new mask volume after being processed
 
@@ -631,7 +631,7 @@ class BTCPreprocess():
             the csv file of landmarks.
 
             Input:
-
+            ------
             - temp_dir: path of template folder
 
         '''
