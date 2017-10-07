@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/10/06
+# Modify on: 2017/10/07
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -95,6 +95,12 @@ ELSE_MASK = 0    # Everything Else
 
 # Morphology type
 MORPHOLOGY = ["original", "dilated", "eroded"]
+MORP_ITER_NUM = 5
+ERODABLE_THRESH = 35
+
+# Resize the tumor
+ZOOM_ORDER = 3
+ZOOM_FILTER = False
 
 
 '''
@@ -111,3 +117,7 @@ GRADE_III = 1
 GRADE_II = 0
 GRADE_UNKNOWN = -1
 PARTIAL_SIZE = 49
+
+SCOPE_MIN = 5
+SCOPE_MAX = 11
+PARTIAL_NUM = 5
