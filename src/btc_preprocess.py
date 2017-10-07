@@ -2,7 +2,7 @@
 # Script for Preprocessing
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/10/01
+# Modify on: 2017/10/07
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -513,7 +513,7 @@ class BTCPreprocess():
 
         '''
 
-        print("NO." + vno + ": Save full volume and mask volume")
+        print("NO." + vno + ": Save brain volume and mask volume")
         full_volume = np.zeros(FULL_SHAPE)
         for i in range(len(VOLUME_TYPES)):
             # Load intensity-transformed volume
@@ -652,5 +652,5 @@ if __name__ == "__main__":
 
     input_dir = os.path.join(parent_dir, DATA_FOLDER, ORIGINAL_FOLDER)
     output_dir = os.path.join(parent_dir, DATA_FOLDER, PREPROCESSED_FOLDER)
-    temp_dir = TEMP_FOLDER
+    temp_dir = os.path.join(TEMP_FOLDER, PREPROCESSED_FOLDER)
     BTCPreprocess(input_dir, output_dir, temp_dir)
