@@ -124,3 +124,10 @@ SCOPE_MAX = 11
 GRADE_II_PARTIALS = 7
 GRADE_III_PARTIALS = 6
 GRADE_IV_PARTIALS = 4
+
+
+'''
+Settings for Creating TFRecords
+'''
+
+PROPORTION = 0.6
