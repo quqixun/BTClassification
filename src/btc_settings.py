@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/10/07
+# Modify on: 2017/10/08
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
