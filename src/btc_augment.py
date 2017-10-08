@@ -307,11 +307,23 @@ class BTCAugment():
         if not os.path.isdir(case_output_dir):
             os.makedirs(case_output_dir)
 
-        # Get the grade of the case, if the grade is unknown, no more process on this case
+        # Get the grade of the case
         case_grade = self.labels[GRADE_LABEL][self.labels[CASE_NO] == case_no].values[0]
+        # If the grade is unknown, no more process on this case
         if case_grade == GRADE_UNKNOWN:
             print("The grade of case " + case_no + " is unknown")
             return
+        # Set the number of partial partial patches to be generated
+        elif case_grade == GRADE_II:
+            partial_num = GRADE_II_PARTIALS
+        elif case_grade == GRADE_III:
+            partial_num = GRADE_III_PARTIALS
+        elif case_grade == GRADE_IV:
+            partial_num = GRADE_IV_PARTIALS
+        # If the grade is invalid, quit the program
+        else:
+            print("The grade of case " + case_no + " is invalid")
+            raise
 
         # Obtain patches' names of a case, met most three patches,
         # which are original, dilated and eroded tumor patches
@@ -362,7 +374,7 @@ class BTCAugment():
             for vm in volume_augmented:
                 # Randomly select several partial patches from 15 patches
                 all_partial_num = len(partial_begins)
-                ridx = np.random.randint(0, all_partial_num, PARTIAL_NUM)
+                ridx = np.random.randint(0, all_partial_num, partial_num)
 
                 # Get these patches indices
                 rbegins = [partial_begins[i] for i in ridx]
