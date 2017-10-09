@@ -29,7 +29,7 @@ Pipline of Patches Generation:
    Check whether All Input Brain Volumes
        Match with Input Mask Volumes
                      |
- Create Folders for Template and Output Files
+ Create Folders for Temporary and Output Files
                      |
         ----------------------------
         |        |        |        |
@@ -37,7 +37,7 @@ Pipline of Patches Generation:
         |        |        |        |          Extracting Minimum Tumor Patches
         ----------------------------
                      |
-       Save Outputs in Template Folder
+       Save Outputs in Temporary Folder
      Compute Median Shape of All Patches
                      |
         ----------------------------
@@ -47,7 +47,7 @@ Pipline of Patches Generation:
         ----------------------------
                      |
        Save Outputes in Output Folder
-          Delete Template Folder
+          Delete Temporary Folder
 
 '''
 
@@ -90,7 +90,7 @@ class BTCPatches():
 
             The structure as follows:
             - Check whether each brain volume has relevant mask.
-            - Create folders to keep template and output files.
+            - Create folders to keep temporary and output files.
             - Extract primary tumor region from volume according
               to its mask.
             - Resize all tumor region to a size-fixed volume.
@@ -102,12 +102,12 @@ class BTCPatches():
             - output_dir: path for the directory that all outputs
                           will be saved in
             - temp_dir: path of the directory which
-                        keeps template files during the
+                        keeps temporary files during the
                         preprocessing, default is "temp"
 
         '''
 
-        # Set template directory for both tumor and mask patches
+        # Set temporary directory for both tumor and mask patches
         self.temp_mask = os.path.join(temp_dir, MASK_FOLDER)
         self.temp_tumor = os.path.join(temp_dir, TUMOR_FOLDER)
 
@@ -131,7 +131,7 @@ class BTCPatches():
         self._extract_tumors_multi()
         self._resize_tumors_multi()
 
-        # Delete template folder and all files in it
+        # Delete temporary folder and all files in it
         self._delete_temp_files()
 
         return
@@ -157,10 +157,10 @@ class BTCPatches():
     def _create_folders(self):
         '''_CREATE_FOLDERS
 
-            Create folders for template files and outputs.
+            Create folders for temporary files and outputs.
             All folders are as below.
 
-            Folder for template files:
+            Folder for temporary files:
             ----- temp_dir (default is "temp")
               |----- mask
               |----- tumor
@@ -171,7 +171,7 @@ class BTCPatches():
             Input:
             ------
             - temp_dir: path of the directory which
-                        keeps template files during the
+                        keeps temporary files during the
                         preprocessing, default is "temp"
 
             The other two arguments, self.temp_mask, self.temp_tumor,
@@ -231,7 +231,7 @@ class BTCPatches():
         '''_EXTRACT_TUMORS
 
             Extract the patch of tumor's core according to its mask
-            and save outputs in template folder. There are three steps
+            and save outputs in temporary folder. There are three steps
             in this stage, which are:
             - Do morphology operations on tumor core's mask. Each of
               them will be dilated. Some masks shall be eroded if they
@@ -241,7 +241,7 @@ class BTCPatches():
             - Compute the range of tumor core's index based on each mask,
               and make sure that each dimention has same size.
             - Extract tumor patch according to indices and save it in
-              template folder.
+              temporary folder.
 
             Inputs:
             -------
@@ -414,7 +414,7 @@ class BTCPatches():
             tumor_mask = sub_array(mask, dims_begin, dims_end)
             tumor_full = sub_array(full, dims_begin, dims_end)
 
-            # Save patches into template folder
+            # Save patches into temporary folder
             file_name = case_no + "_" + morp + TARGET_EXTENSION
             tumor_mask_path = os.path.join(self.temp_mask, file_name)
             tumor_full_path = os.path.join(self.temp_tumor, file_name)
@@ -537,7 +537,7 @@ class BTCPatches():
     def _delete_temp_files(self):
         '''_DELETE_TEMP_FILES
 
-            Delete template files in template folder except
+            Delete temporary files in temporary folder except
             the text file of all original tumors' shapes.
 
         '''

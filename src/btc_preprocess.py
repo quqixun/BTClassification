@@ -29,7 +29,7 @@ Class BTCPreprocess
 Pipline of Preprocessing:
 
            Generate All Paths from Input Folder
-      Generate Folders for Template and Output Files
+      Generate Folders for Temporary and Output Files
                             |
     --------------------------------------------------
     |      |      |      |      |      |      |      |
@@ -37,7 +37,7 @@ Pipline of Preprocessing:
     |      |      |      |      |      |      |      |         N4BiasFieldCorrection
     --------------------------------------------------
                             |
-              Save Outputs in Template Folder
+              Save Outputs in Temporary Folder
                             |
                 -------------------------
                 |       |       |       |
@@ -45,7 +45,7 @@ Pipline of Preprocessing:
                 |       |       |       |       Intensity Normalization
                 -------------------------
                             |
-              Save Outputs in Template Folder
+              Save Outputs in Temporary Folder
                             |
     --------------------------------------------------
     |      |      |      |      |      |      |      |
@@ -56,7 +56,7 @@ Pipline of Preprocessing:
     --------------------------------------------------
                             |
               Save Outputs in Output Folder
-                 Delete Template Folder
+                 Delete Tempprary Folder
 
 '''
 
@@ -98,12 +98,12 @@ class BTCPreprocess():
             preprocessing of all brain volumes.
 
             The structure as follows:
-            - Create folders to keep template files and save
+            - Create folders to keep temporary files and save
               output files which has been preprocessed.
             - Multiprocess of function to correct bias field.
             - Multiprocess of function to normalize intensity.
             - Multiprocess of function to merge and save output.
-            - Delete all template files.
+            - Delete all temporary files.
 
             Inputs:
             -------
@@ -112,7 +112,7 @@ class BTCPreprocess():
             - output_dir: path of the directory which
                           outputs will be saved in
             - temp_dir: path of the directory which
-                        keeps template files during the
+                        keeps temporary files during the
                         preprocessing, default is "temp"
 
         '''
@@ -131,7 +131,7 @@ class BTCPreprocess():
         self._intensity_normalization_multi(temp_dir)
         self._merge_to_one_volume_multi(input_dir, temp_dir)
 
-        # Delete template folder and all files in it
+        # Delete temporary folder and all files in it
         self._delete_temp_files(temp_dir)
 
         return
@@ -139,10 +139,10 @@ class BTCPreprocess():
     def _create_folders(self, temp_dir):
         '''_CREATE_FOLDERS
 
-            Create folders for template files and outputs.
+            Create folders for temporary files and outputs.
             All folders are as below.
 
-            Folder for template files:
+            Folder for temporary files:
             ----- temp_dir (default is "temp")
               |----- flair
               |----- t1
@@ -157,7 +157,7 @@ class BTCPreprocess():
             Input:
             ------
             - temp_dir: path of the directory which
-                        keeps template files during the
+                        keeps temporary files during the
                         preprocessing, default is "temp"
 
             The other two arguments, self.mask_folder and
@@ -190,8 +190,8 @@ class BTCPreprocess():
             The number of subprocesses equals to the number of cpus.
 
             - Generate paths of all original volumes and
-              paths of template volumes that will be corrected.
-            - Map pairs of paths (original path and template path)
+              paths of temporary volumes that will be corrected.
+            - Map pairs of paths (original path and temporary path)
               to function BTCPreprocess._bias_field_correction.
 
             Inputs:
@@ -199,13 +199,13 @@ class BTCPreprocess():
             - input_dir: path of the directory which
                          keeps original volumes
             - temp_dir: path of the directory which
-                        keeps template files during the
+                        keeps temporary files during the
                         preprocessing, default is "temp"
 
         '''
 
         orig_volumes_path = []  # paths of original volumes
-        temp_volumes_path = []  # paths of template volumes
+        temp_volumes_path = []  # paths of temporary volumes
         for vtype in VOLUME_TYPES:
             for vno in self.volume_no:
                 file_name = vno + "_" + vtype + SOURCE_EXTENSION
@@ -227,7 +227,7 @@ class BTCPreprocess():
         '''_BIAS_FIELD_CORRECTION
 
             Apply N4BiasFieldCorrection method on a volume
-            and save the output into template folder.
+            and save the output into temporary folder.
             Settings can be found in btc_settings.py.
 
             Original paper can be found here:
@@ -236,7 +236,7 @@ class BTCPreprocess():
             Inputs:
             -------
             - orig_path: path for original volume
-            - temp_path: path for template volume which is
+            - temp_path: path for temporary volume which is
                          the output of bias field correction
 
             --- NOTE ---
@@ -296,7 +296,7 @@ class BTCPreprocess():
 
             Input:
             ------
-            - temp_dir: path of the template directory that outputs
+            - temp_dir: path of the temporary directory that outputs
                         of bias field correction have been saved in
 
         '''
@@ -325,7 +325,7 @@ class BTCPreprocess():
 
             Inputs:
             -------
-            - temp_dir: path of template folder which keeps the outputs
+            - temp_dir: path of temporary folder which keeps the outputs
                         of bias field correction
             - vtype: types of volume, flair, t1, t1GD or t2
 
@@ -356,7 +356,7 @@ class BTCPreprocess():
 
             Inputs:
             -------
-            - temp_dir: path of template folder which keeps the outputs
+            - temp_dir: path of temporary folder which keeps the outputs
                         of bias field correction
             - vtype: types of volume, flair, t1, t1Gd or t2
 
@@ -421,7 +421,7 @@ class BTCPreprocess():
 
             Inputs:
             -------
-            - temp_dir: path of template folder which keeps the outputs
+            - temp_dir: path of temporary folder which keeps the outputs
                         of bias field correction
             - vtype: types of volume, Flair, T1, T1c or T2
             - landmarks: new percentile values computed from
@@ -462,7 +462,7 @@ class BTCPreprocess():
             # Set 0 to lower-voxels
             volume[lower_idx] = 0
 
-            # Save transformed volumes into template folder
+            # Save transformed volumes into temporary folder
             file_name = self.volume_no[i] + "_" + vtype + TARGET_EXTENSION
             np.save(os.path.join(temp_dir, vtype, file_name), volume)
 
@@ -480,7 +480,7 @@ class BTCPreprocess():
             Inputs:
             -------
             - input_dir: path of the directory which keeps mask volumes
-            - temp_dir: path of template folder which keeps the outputs
+            - temp_dir: path of temporary folder which keeps the outputs
                         of intensity transformation
 
         '''
@@ -506,7 +506,7 @@ class BTCPreprocess():
             Inputs:
             -------
             - input_dir: path of the directory which keeps mask volumes
-            - temp_dir: path of template folder which keeps the outputs
+            - temp_dir: path of temporary folder which keeps the outputs
                         of intensity transformation
             - vno: serial number of volumes, which is also the folder name
                    of one patient's volumes
@@ -627,12 +627,12 @@ class BTCPreprocess():
     def _delete_temp_files(self, temp_dir):
         '''_DELETE_TEMP_FILES
 
-            Delete template files in template folder except
+            Delete temporary files in temporary folder except
             the csv file of landmarks.
 
             Input:
             ------
-            - temp_dir: path of template folder
+            - temp_dir: path of temporary folder
 
         '''
 
