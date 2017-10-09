@@ -2,7 +2,7 @@
 # Script for Data Augmentation
 # Author: Qixun Qu
 # Create on: 2017/10/06
-# Modify on: 2017/10/07
+# Modify on: 2017/10/09
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -206,7 +206,6 @@ class BTCAugment():
             # Compute parameters
             full_size = volume.shape[0]
             partial_size = PARTIAL_SIZE
-            partial_index = partial_size - 1
             diff_size = full_size - partial_size
             half_diff_size = int(diff_size / 2) - 1
 
@@ -239,7 +238,7 @@ class BTCAugment():
             # Compute last index of all dimentions
             # of each partial volume
             for pb in partial_begins:
-                partial_ends.append(list(np.array([partial_index] * 3) + pb))
+                partial_ends.append(list(np.array([partial_size] * 3) + pb))
 
             return partial_begins, partial_ends
 
