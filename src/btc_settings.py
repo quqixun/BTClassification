@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/10/09
+# Modify on: 2017/10/10
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -127,9 +127,10 @@ GRADE_IV_PARTIALS = 4
 
 
 '''
-Settings for Creating TFRecords
+Settings for Class of BTCTFRecords
 '''
 
+# Create TFRecords
 RANDOM_SEED = 0  # 0, 1, 2, ...
 PROPORTION = 0.6
 TFRECORDS_FOLDER = "TFRecords"
@@ -139,3 +140,6 @@ VALIDATE_SET_FILE = "validate_set.txt"
 CASES_FILE_SPLIT = "\n"
 TFRECORD_TRAIN = "train.tfrecord"
 TFRECORD_VALIDATE = "validate.tfrecord"
+
+# Decode TFRecords
+PATCH_SHAPE = [PARTIAL_SIZE] * 3 + [CHANNELS]
