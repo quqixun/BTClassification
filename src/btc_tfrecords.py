@@ -2,7 +2,7 @@
 # Script for Creating TFRecords
 # Author: Qixun Qu
 # Create on: 2017/10/09
-# Modify on: 2017/10/09
+# Modify on: 2017/10/10
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -27,8 +27,14 @@ from btc_settings import *
 
 class BTCTFRecords():
 
-    def __init__(self, input_dir, output_dir, temp_dir, label_file):
+    def __init__(self):
         '''__INIT__
+        '''
+
+        return
+
+    def create_tfrecord(self, input_dir, output_dir, temp_dir, label_file):
+        '''CREATE_TFRECORD
         '''
 
         # Check whether the input folder is exist
@@ -58,8 +64,8 @@ class BTCTFRecords():
         self._check_case_no()
         self._create_temp_files(temp_dir)
         train_set, validate_set = self._generate_cases_set()
-        self._create_tfrecord(input_dir, self.train_tfrecord, train_set, "train")
-        self._create_tfrecord(input_dir, self.validate_tfrecord, validate_set, "validate")
+        self._write_tfrecord(input_dir, self.train_tfrecord, train_set, "train")
+        self._write_tfrecord(input_dir, self.validate_tfrecord, validate_set, "validate")
 
         return
 
@@ -132,8 +138,8 @@ class BTCTFRecords():
 
         return train_set, validate_set
 
-    def _create_tfrecord(self, input_dir, tfrecord_path, cases, mode):
-        '''_CREATE_TFRECORD
+    def _write_tfrecord(self, input_dir, tfrecord_path, cases, mode):
+        '''_WRITE_TFRECORD
         '''
 
         def normalize(volume):
@@ -167,6 +173,38 @@ class BTCTFRecords():
 
         return
 
+    def decode_tfrecord(self, path, batch_size, num_epoches, patch_shape,
+                        min_after_dequeue, capacity):
+        if not num_epoches:
+            num_epoches = None
+
+        with tf.name_scope("input"):
+            queue = tf.train.string_input_producer([path], num_epochs=num_epoches)
+            volume, label = self._decode_example(queue, patch_shape)
+
+            volumes, labels = tf.train.shuffle_batch([volume, label],
+                                                     batch_size=batch_size,
+                                                     num_threads=4,
+                                                     capacity=capacity,
+                                                     min_after_dequeue=min_after_dequeue)
+        return volumes, labels
+
+    def _decode_example(self, queue, patch_shape):
+        reader = tf.TFRecordReader()
+        _, serialized_example = reader.read(queue)
+        features = tf.parse_single_example(
+            serialized_example,
+            features={
+                "label": tf.FixedLenFeature([], tf.int64),
+                "volume": tf.FixedLenFeature([], tf.string)
+            })
+
+        volume = tf.decode_raw(features["volume"], tf.float32)
+        volume = tf.reshape(volume, patch_shape)
+        label = tf.cast(features["label"], tf.uint8)
+
+        return volume, label
+
 
 if __name__ == "__main__":
 
@@ -177,4 +215,5 @@ if __name__ == "__main__":
     temp_dir = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER)
     label_file = os.path.join(parent_dir, DATA_FOLDER, LABEL_FILE)
 
-    BTCTFRecords(input_dir, output_dir, temp_dir, label_file)
+    tfr = BTCTFRecords()
+    tfr.create_tfrecord(input_dir, output_dir, temp_dir, label_file)
