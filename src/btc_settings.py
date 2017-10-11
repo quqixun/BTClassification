@@ -137,9 +137,13 @@ TFRECORDS_FOLDER = "TFRecords"
 GRADES_LIST = [GRADE_II, GRADE_III, GRADE_IV]
 TRAIN_SET_FILE = "train_set.txt"
 VALIDATE_SET_FILE = "validate_set.txt"
+VOLUMES_NUM_FILE = "volumes_num.json"
 CASES_FILE_SPLIT = "\n"
 TFRECORD_TRAIN = "train.tfrecord"
 TFRECORD_VALIDATE = "validate.tfrecord"
+TRAIN_MODE = "train"
+VALIDATE_MODE = "validate"
 
 # Decode TFRecords
 PATCH_SHAPE = [PARTIAL_SIZE] * 3 + [CHANNELS]
+NUM_THREADS = 4
