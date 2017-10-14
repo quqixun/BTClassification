@@ -20,6 +20,8 @@
 # import os
 # import numpy as np
 import tensorflow as tf
+from operator import mul
+from functools import reduce
 from tensorflow.contrib.layers import xavier_initializer
 
 
@@ -29,6 +31,10 @@ class BTCModels():
         '''__INIT__
         '''
         return
+
+    #
+    # Helper Functions
+    #
 
     def _conv3d(self, x, filters, kernel_size,
                 padding="same", name="conv"):
@@ -106,7 +112,7 @@ class BTCModels():
 
         '''
 
-        with tf.name_scope(name):
+        with tf.variable_scope(name):
             cba = self._conv3d(x, filters, kernel_size, padding)
             cba = self._batch_norm(cba, momentum, train_bn)
             cba = self._activate(cba, act, alpha)
@@ -125,14 +131,14 @@ class BTCModels():
 
         '''
 
-        with tf.name_scope(name):
+        with tf.variable_scope(name):
             fba = self._fully_connected(x, units)
             fba = self._batch_norm(fba, momentum, train_bn)
             fba = self._activate(fba, act, alpha)
 
             return fba
 
-    def _max_pool(self, x, psize=2, stride=1, name="max_pool"):
+    def _max_pool(self, x, psize=2, stride=2, name="max_pool"):
         '''_MAX_POOL
 
             Full:  self._max_pool(x, 2, 1, "max_pool")
@@ -146,7 +152,7 @@ class BTCModels():
                                        padding="valid",
                                        name=name)
 
-    def _average_pool(self, x, psize=2, stride=1, name="avg_pool"):
+    def _average_pool(self, x, psize=2, stride=2, name="avg_pool"):
         '''_AVERAGE_POOL
 
             Full:  self._average_pool(x, 2, 1, "avg_pool")
@@ -155,7 +161,7 @@ class BTCModels():
         '''
 
         return tf.layers.average_pooling3d(inputs=x,
-                                           ksize=psize,
+                                           pool_size=psize,
                                            strides=stride,
                                            padding="valid",
                                            name=name)
@@ -168,18 +174,31 @@ class BTCModels():
 
         '''
 
-        return tf.reshape(tensor=x, shape=[-1], name=name)
+        x_shape = x.get_shape().as_list()
+        f_shape = reduce(mul, x_shape[1:], 1)
 
-    def _dropout(self, x, drop_rate=0.5, name="dropout"):
+        return tf.reshape(tensor=x, shape=[-1, f_shape], name=name)
+
+    def _dropout(self, x, name="dropout", mode="train", drop_rate=0.5):
         '''_DROP_OUT
 
-            Full:  self._dropout(x, 0.5, "dropout")
-            Short: self._dropout(x)
+            Full:  self._dropout(x, "dropout", "train", 0.5)
+                   self._dropout(x, "dropout", "valid")
+                   self._dropout(x, "dropout", "inference")
+            Short: self._dropout(x, "dropout") # for training
 
         '''
 
+        if mode == "train":
+            is_train = True
+        elif mode == "valid" or mode == "inference":
+            is_train = False
+        else:
+            raise ValueError("Could not find mode in ['train', 'valid', 'inference']")
+
         return tf.layers.dropout(inputs=x,
                                  rate=drop_rate,
+                                 training=is_train,
                                  name=name)
 
     def _logits(self, x, classes=3, name="logits"):
@@ -192,27 +211,86 @@ class BTCModels():
 
         return self._fully_connected(x, classes, name)
 
-    def cnn(self, x):
+    #
+    # A Simple Test Case
+    #
+
+    def _test(self):
+        '''_TEST
+        '''
+
+        with tf.name_scope("test"):
+            x = tf.placeholder(tf.float32, [5, 36, 36, 36, 4], "input")
+            cba1 = self._conv3d_bn_act(x, 2, 3, "layer1")
+            max1 = self._max_pool(cba1, 2, 2, "max_pool1")
+            cba2 = self._conv3d_bn_act(max1, 2, 3, "layer2", "lrelu", 0.2)
+            avg2 = self._average_pool(cba2, 2, 2, "avg_pool2")
+            cba3 = self._conv3d_bn_act(avg2, 2, 3, "layer3", "lrelu", 0.3)
+            max3 = self._max_pool(cba3, 2, 2, "max_pool3")
+            flat = self._flatten(max3, "flatten")
+            fcn1 = self._fc_bn_act(flat, 64, "fcn1")
+            drp1 = self._dropout(fcn1, "drp1", "train", 0.5)
+            fcn2 = self._fc_bn_act(drp1, 64, "fcn2", "lrelu", 0.2)
+            drp2 = self._dropout(fcn2, "drp2", "valid")
+            outp = self._logits(drp2, 3, "logits")
+            probs = tf.nn.softmax(logits=outp, name="softmax")
+
+        print("Simple test of Class BTCModels")
+        print("Input 5 volumes in 3 classes")
+        print("Output probabilities' shape: ", probs.shape)
+
+        return
+
+    #
+    # Contruct Models
+    #
+
+    def cnn(self, x, mode="train"):
         '''CNN
         '''
 
         with tf.name_scope("cnn"):
-            cba1 = self._conv3d_bn_act(x, 2, 3, "layer1")
-            max1 = self._max_pool(cba1, 2, 1, "max_pool1")
-            cba2 = self._conv3d_bn_act(max1, 2, 3, "layer2", "lrelu", 0.2)
-            avg2 = self._avg_pool(cba2, 2, 1, "avg_pool2")
-            cba3 = self._conv3d_bn_act(avg2, 2, 3, "layer3", "lrelu", 0.3)
-            max3 = self._max_pool(cba3, 3, 1, "max_pool3")
+            cba1 = self._conv3d_bn_act(x, 32, 3, "layer1")
+            max1 = self._max_pool(cba1, 2, 2, "max_pool1")
+            cba2 = self._conv3d_bn_act(max1, 32, 3, "layer2")
+            max2 = self._max_pool(cba2, 2, 2, "max_pool2")
+            cba3 = self._conv3d_bn_act(max2, 32, 3, "layer3")
+            max3 = self._max_pool(cba3, 2, 2, "max_pool3")
             flat = self._flatten(max3, "flatten")
-            fcn1 = self._fc_bn_act(flat, 128, "fcn1")
-            drp1 = self._dropout(fcn1, 0.5, "drp1")
-            fcn2 = self._fc_bn_act(drp1, 128, "fcn2", "lrelu", 0.2)
-            drp2 = self._dropout(fcn2, 0.4, "drp2")
+            fcn1 = self._fc_bn_act(flat, 64, "fcn1")
+            drp1 = self._dropout(fcn1, "drp1", mode, 0.5)
+            fcn2 = self._fc_bn_act(drp1, 64, "fcn2")
+            drp2 = self._dropout(fcn2, "drp2", mode, 0.5)
             outp = self._logits(drp2, 3, "logits")
 
             return outp
 
+    def full_cnn(self, x, mode="train"):
+        '''FULL_CNN
+        '''
+
+        # To be finished
+
+        return
+
+    def res_cnn(self, x, mode="train"):
+        '''RES_CNN
+        '''
+
+        # To be finished
+
+        return
+
+    def dense_cnn(self, x, mode="train"):
+        '''DENSE_NET
+        '''
+
+        # To be finished
+
+        return
+
 
 if __name__ == "__main__":
 
-    model = BTCModels()
+    models = BTCModels()
+    models._test()
