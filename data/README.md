@@ -1,15 +1,9 @@
 # Dataset
 
-## HGG
+### Preprocessed
 
-## LGG
+### Patches
 
-## Preprocess
+### Augmented
 
-## Patches
-
-## Train
-
-## Validate
-
-## Test
+### TFRecords
