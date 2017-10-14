@@ -2,7 +2,7 @@
 # Script for Creating Models
 # Author: Qixun Qu
 # Create on: 2017/10/12
-# Modify on: 2017/10/13
+# Modify on: 2017/10/14
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -17,9 +17,10 @@
 #       '&$$$$$&'
 
 
-import os
-import numpy as np
+# import os
+# import numpy as np
 import tensorflow as tf
+from tensorflow.contrib.layers import xavier_initializer
 
 
 class BTCModels():
@@ -29,127 +30,185 @@ class BTCModels():
         '''
         return
 
-    def _weight_variable(self, shape, name):
-        '''_WEIGHT_VARIABLE
+    def _conv3d(self, x, filters, kernel_size,
+                padding="same", name="conv"):
+        '''_CONV3D
+
+            Full:  self._conv3d(x, 32, 3, "same", "conv")
+            Short: self._conv3d(x, 32, 3)
+
         '''
 
-        with tf.variable_scope(name):
+        return tf.layers.conv3d(inputs=x,
+                                filters=filters,
+                                kernel_size=kernel_size,
+                                padding=padding,
+                                kernel_initializer=xavier_initializer(),
+                                name=name)
 
-            return tf.get_variable(name="W", shape=shape, dtype=tf.float32,
-                                   initializer=tf.contrib.layers.xavier_initializer())
+    def _fully_connected(self, x, units, name="fcn"):
+        '''_FULLy_CONNECTED
 
-    def _bias_variable(self, shape, name):
-        '''_BIAS_VARIABLE
+            Full:  self._fully_connected(x, 128, "fc")
+            short: self._fully_connected(x, 128)
+
         '''
 
-        with tf.variable_scope(name):
+        return tf.layers.dense(inputs=x,
+                               units=units,
+                               kernel_initializer=xavier_initializer(),
+                               name=name)
 
-            return tf.get_variable(name="b", shape=shape, dtype=tf.float32,
-                                   initializer=tf.constant_initializer(0.1))
+    def _batch_norm(self, x, momentum=0.9, training=True, name="bn"):
+        '''_BATCH_NORM
 
-    def _conv3d_bn_act(self, x, filter_shape, in_channel, out_channels,
-                       padding="SAME", train_bn=True, act=tf.nn.relu, name="cba"):
+            Full:  self._batch_norm(x, 0.9, True, "bn")
+            Short: self._batch_norm(x)
+
+        '''
+
+        return tf.layers.batch_normalization(inputs=x,
+                                             momentum=momentum,
+                                             training=training,
+                                             name=name)
+
+    def _activate(self, x, act="relu", alpha=None, name="act"):
+        '''_ACTIVATE
+
+           Full:  self._activate(x, "relu", None, "act")
+                  self._activate(x, "lrelu", 0.2, "act")
+           Short: self._activate(x) # for relu
+                  self._activate(x, "lrelu", 0.2)
+
+        '''
+
+        if act == "relu":
+            return tf.nn.relu(x, "act")
+        elif act == "lrelu":
+            alpha = 0.2 if alpha is None else alpha
+            return tf.nn.leaky_relu(x, alpha, "act")
+        elif act is None:
+            return x
+        else:
+            raise ValueError("Could not find act in ['relu', 'lrelu', None]")
+
+        return
+
+    def _conv3d_bn_act(self, x, filters, kernel_size,
+                       name="cba", act="relu", alpha=None,
+                       padding="same", momentum=0.9, train_bn=True):
         '''_CONV3D_BN_ACT
+
+            Full:  self._conv3d_bn_act(x, 32, 3, "cba", "relu", None, "same", 0.9, True)
+                   self._conv3d_bn_act(x, 32, 3, "cba", "lrelu", 0.2, "same", 0.9, True)
+            Short: self._conv3d_bn_act(x, 32, 3, "cba") # for relu
+                   self._conv3d_bn_act(x, 32, 3, "cba", "lrelu", 0.2)
+
         '''
-
-        def activate(act, x, name):
-            return act(features=x, name=name)
-
-        conv_filter_shape = filter_shape + [in_channel, out_channels]
 
         with tf.name_scope(name):
-            W = self._weight_variable(conv_filter_shape, name)
-            b = self._bias_variable([out_channels], name)
-
-            cba = tf.nn.conv3d(input=x, filter=W, strides=[1] * 5,
-                               padding=padding, name="conv")
-            cba = tf.nn.bias_add(cba, b)
-            cba = tf.contrib.layers.batch_norm(cba, decay=0.9, is_training=train_bn,
-                                               zero_debias_moving_mean=True, scope="bn")
-            cba = activate(act=act, inputs=cba, name="act")
+            cba = self._conv3d(x, filters, kernel_size, padding)
+            cba = self._batch_norm(cba, momentum, train_bn)
+            cba = self._activate(cba, act, alpha)
 
             return cba
 
-    def _max_pool(self, x, wsize=2, stride=1, name="max_pool"):
+    def _fc_bn_act(self, x, units, name="fba",
+                   act="relu", alpha=None,
+                   momentum=0.9, train_bn=True):
+        '''_FULLY_CONNECTED
+
+            Full:  self._fc_bn_act(x, 128, "fba", "relu", None, 0.9, True)
+                   self._fc_bn_act(x, 128, "fba", "lrelu", 0.2, 0.9, True)
+            Short: self._fc_bn_act(x, 128, "fba") # for relu
+                   self._fc_bn_act(x, 128, "fba", "lrelu", 0.2)
+
+        '''
+
+        with tf.name_scope(name):
+            fba = self._fully_connected(x, units)
+            fba = self._batch_norm(fba, momentum, train_bn)
+            fba = self._activate(fba, act, alpha)
+
+            return fba
+
+    def _max_pool(self, x, psize=2, stride=1, name="max_pool"):
         '''_MAX_POOL
+
+            Full:  self._max_pool(x, 2, 1, "max_pool")
+            Short: self._max_pool(x)
+
         '''
 
-        return tf.nn.max_pool3d(input=x, ksize=self._get_ksize(wsize),
-                                strides=self._get_strides(stride),
-                                padding="VALID", name=name)
+        return tf.layers.max_pooling3d(inputs=x,
+                                       pool_size=psize,
+                                       strides=stride,
+                                       padding="valid",
+                                       name=name)
 
-    def _average_pool(self, x, wsize=2, stride=1, name="avg_pool"):
+    def _average_pool(self, x, psize=2, stride=1, name="avg_pool"):
         '''_AVERAGE_POOL
+
+            Full:  self._average_pool(x, 2, 1, "avg_pool")
+            Short: self._average_pool(x)
+
         '''
 
-        return tf.nn.avg_pool3d(input=x, ksize=self._get_ksize(wsize),
-                                strides=self._get_strides(stride),
-                                padding="VALID", name=name)
+        return tf.layers.average_pooling3d(inputs=x,
+                                           ksize=psize,
+                                           strides=stride,
+                                           padding="valid",
+                                           name=name)
 
-    def _get_ksize(self, wsize):
-        '''_GET_KSIZE
-        '''
-
-        return [1] + [wsize] * 3 + [1]
-
-    def _get_strides(self, stride):
-        '''_GET_STRIDES
-        '''
-
-        return [1] + [stride] * 3 + [1]
-
-    def _flatten(self, x, name):
+    def _flatten(self, x, name="flatten"):
         '''_FLATTEN
+
+            Full:  self._flatten(x, "flatten")
+            Short: self._flatten(x)
+
         '''
 
         return tf.reshape(tensor=x, shape=[-1], name=name)
 
-    def _fc_bn_act(self, x, units, train_bn=True, act=tf.nn.relu, name="fba"):
-        '''_FULLY_CONNECTED
-        '''
-
-        def activate(act, x, name):
-            return act(features=x, name=name)
-
-        with tf.name_scope(name):
-            fba = tf.contrib.layers.fully_connected(inputs=x, num_outputs=units,
-                                                    activation_fn=None, scope="fcn")
-            fba = tf.contrib.layers.batch_norm(fba, decay=0.9, is_training=train_bn,
-                                               zero_debias_moving_mean=True, scope="bn")
-            fba = activate(act=act, inputs=fba, name="act")
-
-            return fba
-
-    def _drop_out(self, x, keep_prob=0.5, name="dropout"):
+    def _dropout(self, x, drop_rate=0.5, name="dropout"):
         '''_DROP_OUT
+
+            Full:  self._dropout(x, 0.5, "dropout")
+            Short: self._dropout(x)
+
         '''
 
-        return tf.nn.dropout(x=x, keep_prob=keep_prob, name=name)
+        return tf.layers.dropout(inputs=x,
+                                 rate=drop_rate,
+                                 name=name)
 
-    def _output(self, x, classes=3, name="output"):
+    def _logits(self, x, classes=3, name="logits"):
         '''_OUTPUT
+
+            Full:  self._logits(x, 3, "logits")
+            Short: self._logits(x)
+
         '''
 
-        return tf.contrib.layers.fully_connected(inputs=x, num_outputs=classes,
-                                                 activation_fn=None, scope="out")
+        return self._fully_connected(x, classes, name)
 
     def cnn(self, x):
         '''CNN
         '''
 
         with tf.name_scope("cnn"):
-            cba1 = self._conv3d_bn_act(x, [3, 3, 3], 4, 2, name="layer1")
-            max1 = self._max_pool(cba1, name="max_pool1")
-            cba2 = self._conv3d_bn_act(max1, [3, 3, 3], 2, 2, name="layer2")
-            avg2 = self._avg_pool(cba2, name="avg_pool2")
-            cba3 = self._conv3d_bn_act(avg2, [3, 3, 3], 2, 2, name="layer3")
-            max3 = self._max_pool(cba3, wsize=3, name="max_pool3")
-            flat = self._flatten(max3, name="flatten")
-            fcn1 = self._fc_bn_act(flat, units=128, name="fcn1")
-            drp1 = self._drop_out(fcn1, keep_prob=0.5, name="drp1")
-            fcn2 = self._fc_bn_act(drp1, units=128, name="fcn2")
-            drp2 = self._drop_out(fcn2, keep_prob=0.5, name="drp2")
-            outp = self._output(drp2, classes=3, name="output")
+            cba1 = self._conv3d_bn_act(x, 2, 3, "layer1")
+            max1 = self._max_pool(cba1, 2, 1, "max_pool1")
+            cba2 = self._conv3d_bn_act(max1, 2, 3, "layer2", "lrelu", 0.2)
+            avg2 = self._avg_pool(cba2, 2, 1, "avg_pool2")
+            cba3 = self._conv3d_bn_act(avg2, 2, 3, "layer3", "lrelu", 0.3)
+            max3 = self._max_pool(cba3, 3, 1, "max_pool3")
+            flat = self._flatten(max3, "flatten")
+            fcn1 = self._fc_bn_act(flat, 128, "fcn1")
+            drp1 = self._dropout(fcn1, 0.5, "drp1")
+            fcn2 = self._fc_bn_act(drp1, 128, "fcn2", "lrelu", 0.2)
+            drp2 = self._dropout(fcn2, 0.4, "drp2")
+            outp = self._logits(drp2, 3, "logits")
 
             return outp
 
