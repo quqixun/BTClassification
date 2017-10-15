@@ -36,12 +36,13 @@ parameters = {
     # Basic settings
     "train_path": tpath,
     "validate_path": vpath,
-    "train_num": 236,  # volumes_num["train"]
-    "validate_num": 224,  # volumes_num["validate"]
+    "train_num": 236,  # volumes_num["train"],
+    "validate_num": 224,  # volumes_num["validate"],
+    "classes_num": 3,
     "patch_shape": PATCH_SHAPE,
     "capacity": 350,
     "min_after_dequeue": 300,
     # Hyper-parameters
-    "batch_size": 20,
-    "num_epoches": 3
+    "batch_size": 10,
+    "num_epoches": 2
 }
