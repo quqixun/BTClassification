@@ -17,8 +17,6 @@
 #       '&$$$$$&'
 
 
-# import os
-# import numpy as np
 import tensorflow as tf
 from operator import mul
 from functools import reduce
@@ -179,26 +177,18 @@ class BTCModels():
 
         return tf.reshape(tensor=x, shape=[-1, f_shape], name=name)
 
-    def _dropout(self, x, name="dropout", mode="train", drop_rate=0.5):
+    def _dropout(self, x, name="dropout", drop_rate=0.5):
         '''_DROP_OUT
 
-            Full:  self._dropout(x, "dropout", "train", 0.5)
-                   self._dropout(x, "dropout", "valid")
-                   self._dropout(x, "dropout", "inference")
+            Full:  self._dropout(x, "dropout", 0.5)
+                   self._dropout(x, "dropout", 0)
+                   self._dropout(x, "dropout", 0)
             Short: self._dropout(x, "dropout") # for training
 
         '''
 
-        if mode == "train":
-            is_train = True
-        elif mode == "valid" or mode == "inference":
-            is_train = False
-        else:
-            raise ValueError("Could not find mode in ['train', 'valid', 'inference']")
-
         return tf.layers.dropout(inputs=x,
                                  rate=drop_rate,
-                                 training=is_train,
                                  name=name)
 
     def _logits(self, x, classes=3, name="logits"):
@@ -219,7 +209,7 @@ class BTCModels():
         '''_TEST
         '''
 
-        with tf.name_scope("test"):
+        with tf.variable_scope("test"):
             x = tf.placeholder(tf.float32, [5, 36, 36, 36, 4], "input")
             cba1 = self._conv3d_bn_act(x, 2, 3, "layer1")
             max1 = self._max_pool(cba1, 2, 2, "max_pool1")
@@ -229,9 +219,9 @@ class BTCModels():
             max3 = self._max_pool(cba3, 2, 2, "max_pool3")
             flat = self._flatten(max3, "flatten")
             fcn1 = self._fc_bn_act(flat, 64, "fcn1")
-            drp1 = self._dropout(fcn1, "drp1", "train", 0.5)
+            drp1 = self._dropout(fcn1, "drp1", 0.5)
             fcn2 = self._fc_bn_act(drp1, 64, "fcn2", "lrelu", 0.2)
-            drp2 = self._dropout(fcn2, "drp2", "valid")
+            drp2 = self._dropout(fcn2, "drp2", 0)
             outp = self._logits(drp2, 3, "logits")
             probs = tf.nn.softmax(logits=outp, name="softmax")
 
@@ -245,22 +235,23 @@ class BTCModels():
     # Contruct Models
     #
 
-    def cnn(self, x, mode="train"):
+    def cnn(self, x, drop_rate=0.5):
         '''CNN
         '''
 
-        with tf.name_scope("cnn"):
-            cba1 = self._conv3d_bn_act(x, 32, 3, "layer1")
+        # Here is a very simple case to test first
+        with tf.variable_scope("cnn"):
+            cba1 = self._conv3d_bn_act(x, 2, 3, "layer1")
             max1 = self._max_pool(cba1, 2, 2, "max_pool1")
-            cba2 = self._conv3d_bn_act(max1, 32, 3, "layer2")
+            cba2 = self._conv3d_bn_act(max1, 2, 3, "layer2")
             max2 = self._max_pool(cba2, 2, 2, "max_pool2")
-            cba3 = self._conv3d_bn_act(max2, 32, 3, "layer3")
+            cba3 = self._conv3d_bn_act(max2, 2, 3, "layer3")
             max3 = self._max_pool(cba3, 2, 2, "max_pool3")
             flat = self._flatten(max3, "flatten")
-            fcn1 = self._fc_bn_act(flat, 64, "fcn1")
-            drp1 = self._dropout(fcn1, "drp1", mode, 0.5)
-            fcn2 = self._fc_bn_act(drp1, 64, "fcn2")
-            drp2 = self._dropout(fcn2, "drp2", mode, 0.5)
+            fcn1 = self._fc_bn_act(flat, 3, "fcn1")
+            drp1 = self._dropout(fcn1, "drp1", drop_rate)
+            fcn2 = self._fc_bn_act(drp1, 3, "fcn2")
+            drp2 = self._dropout(fcn2, "drp2", drop_rate)
             outp = self._logits(drp2, 3, "logits")
 
             return outp
