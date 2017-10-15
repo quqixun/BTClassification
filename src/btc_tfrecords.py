@@ -388,7 +388,7 @@ class BTCTFRecords():
         volume = tf.reshape(volume, patch_shape)
 
         # Extract its label
-        label = tf.cast(features["label"], tf.uint8)
+        label = features["label"]
 
         return volume, label
 
