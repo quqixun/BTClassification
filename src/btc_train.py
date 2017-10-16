@@ -17,6 +17,7 @@
 #       '&$$$$$&'
 
 
+import os
 import numpy as np
 import tensorflow as tf
 from btc_models import BTCModels
@@ -27,7 +28,7 @@ from btc_settings import PCW, PCG, PCO, PCB
 
 class BTCTrain():
 
-    def __init__(self, net, paras):
+    def __init__(self, net, paras, save_path):
         '''__INIT__
         '''
 
@@ -36,6 +37,10 @@ class BTCTrain():
         self.mode = "train"
         self.models = BTCModels()
         self.tfr = BTCTFRecords()
+
+        self.model_path = os.path.join(save_path, net)
+        if not os.path.isdir(self.model_path):
+            os.makedirs(self.model_path)
 
         self.train_path = paras["train_path"]
         self.validate_path = paras["validate_path"]
@@ -115,18 +120,21 @@ class BTCTrain():
         tra_iters, one_tra_iters, val_iters, epoch_no = 0, 0, 0, 0
 
         print(PCB + "Training and Validating model ...\n" + PCW)
+        tloss_list, taccuracy_list = [], []
         try:
             while not coord.should_stop():
                 tx, ty = sess.run([tra_volumes, tra_labels])
                 tra_fd = {x: tx, y_input_classes: ty, drop_rate: 0.5}
                 tloss = loss.eval(feed_dict=tra_fd)
                 taccuracy = accuracy.eval(feed_dict=tra_fd)
+                tloss_list.append(tloss)
+                taccuracy_list.append(taccuracy)
 
                 tra_iters += 1
                 one_tra_iters += 1
-                print((PCG + "Epoch {}\t").format(epoch_no + 1),
-                      "Train Step {}:\t".format(one_tra_iters),
-                      "Loss: {0:.10f},\t".format(tloss),
+                print((PCG + "[Epoch {}] ").format(epoch_no + 1),
+                      "Train Step {}: ".format(one_tra_iters),
+                      "Loss: {0:.10f}, ".format(tloss),
                       ("Accuracy: {0:.10f}" + PCW).format(taccuracy))
 
                 if tra_iters % self.tepoch_iters[epoch_no] == 0:
@@ -138,13 +146,22 @@ class BTCTrain():
                         vaccuracy_list.append(accuracy.eval(feed_dict=val_fd))
                         val_iters += 1
 
+                    tloss_mean = np.mean(tloss_list)
+                    taccuracy_mean = np.mean(taccuracy_list)
+                    tloss_list, taccuracy_list = [], []
+
+                    print((PCO + "[Epoch {}] ").format(epoch_no + 1),
+                          "Train Stage: ",
+                          "Mean Loss: {0:.10f}, ".format(tloss_mean),
+                          ("Mean Accuracy: {0:.10f}" + PCW).format(taccuracy_mean))
+
                     vloss_mean = np.mean(vloss_list)
                     vaccuracy_mean = np.mean(vaccuracy_list)
 
-                    print((PCO + "Epoch {}\t").format(epoch_no + 1),
-                          "Validate Step:\t",
-                          "Loss: {0:.10f},\t".format(vloss_mean),
-                          ("Accuracy: {0:.10f}" + PCW).format(vaccuracy_mean))
+                    print((PCO + "[Epoch {}] ").format(epoch_no + 1),
+                          "Validate Stage: ",
+                          "Mean Loss: {0:.10f}, ".format(vloss_mean),
+                          ("Mean Accuracy: {0:.10f}\n" + PCW).format(vaccuracy_mean))
 
                     epoch_no += 1
                     one_tra_iters = 0
@@ -163,5 +180,9 @@ class BTCTrain():
 
 
 if __name__ == "__main__":
-    btc = BTCTrain("cnn", parameters)
+
+    parent_dir = os.path.dirname(os.getcwd())
+    save_path = os.path.join(parent_dir, "models")
+
+    btc = BTCTrain("cnn", parameters, save_path)
     btc.train()
