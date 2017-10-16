@@ -35,7 +35,7 @@ class BTCModels():
     #
 
     def _conv3d(self, x, filters, kernel_size,
-                padding="same", name="conv"):
+                padding="same", name="conv_var"):
         '''_CONV3D
 
             Full:  self._conv3d(x, 32, 3, "same", "conv")
@@ -50,7 +50,7 @@ class BTCModels():
                                 kernel_initializer=xavier_initializer(),
                                 name=name)
 
-    def _fully_connected(self, x, units, name="fcn"):
+    def _fully_connected(self, x, units, name="fcn_var"):
         '''_FULLy_CONNECTED
 
             Full:  self._fully_connected(x, 128, "fc")
@@ -63,7 +63,7 @@ class BTCModels():
                                kernel_initializer=xavier_initializer(),
                                name=name)
 
-    def _batch_norm(self, x, momentum=0.9, training=True, name="bn"):
+    def _batch_norm(self, x, momentum=0.9, training=True, name="bn_var"):
         '''_BATCH_NORM
 
             Full:  self._batch_norm(x, 0.9, True, "bn")
@@ -111,9 +111,12 @@ class BTCModels():
         '''
 
         with tf.variable_scope(name):
-            cba = self._conv3d(x, filters, kernel_size, padding)
-            cba = self._batch_norm(cba, momentum, train_bn)
-            cba = self._activate(cba, act, alpha)
+            with tf.name_scope("conv3d"):
+                cba = self._conv3d(x, filters, kernel_size, padding)
+            with tf.name_scope("batch_norm"):
+                cba = self._batch_norm(cba, momentum, train_bn)
+            with tf.name_scope("activate"):
+                cba = self._activate(cba, act, alpha)
 
             return cba
 
@@ -130,9 +133,12 @@ class BTCModels():
         '''
 
         with tf.variable_scope(name):
-            fba = self._fully_connected(x, units)
-            fba = self._batch_norm(fba, momentum, train_bn)
-            fba = self._activate(fba, act, alpha)
+            with tf.name_scope("full_connection"):
+                fba = self._fully_connected(x, units)
+            with tf.name_scope("batch_norm"):
+                fba = self._batch_norm(fba, momentum, train_bn)
+            with tf.name_scope("activate"):
+                fba = self._activate(fba, act, alpha)
 
             return fba
 
@@ -209,21 +215,20 @@ class BTCModels():
         '''_TEST
         '''
 
-        with tf.variable_scope("test"):
-            x = tf.placeholder(tf.float32, [5, 36, 36, 36, 4], "input")
-            cba1 = self._conv3d_bn_act(x, 2, 3, "layer1")
-            max1 = self._max_pool(cba1, 2, 2, "max_pool1")
-            cba2 = self._conv3d_bn_act(max1, 2, 3, "layer2", "lrelu", 0.2)
-            avg2 = self._average_pool(cba2, 2, 2, "avg_pool2")
-            cba3 = self._conv3d_bn_act(avg2, 2, 3, "layer3", "lrelu", 0.3)
-            max3 = self._max_pool(cba3, 2, 2, "max_pool3")
-            flat = self._flatten(max3, "flatten")
-            fcn1 = self._fc_bn_act(flat, 64, "fcn1")
-            drp1 = self._dropout(fcn1, "drp1", 0.5)
-            fcn2 = self._fc_bn_act(drp1, 64, "fcn2", "lrelu", 0.2)
-            drp2 = self._dropout(fcn2, "drp2", 0)
-            outp = self._logits(drp2, 3, "logits")
-            probs = tf.nn.softmax(logits=outp, name="softmax")
+        x = tf.placeholder(tf.float32, [5, 36, 36, 36, 4], "input")
+        cba1 = self._conv3d_bn_act(x, 2, 3, "layer1")
+        max1 = self._max_pool(cba1, 2, 2, "max_pool1")
+        cba2 = self._conv3d_bn_act(max1, 2, 3, "layer2", "lrelu", 0.2)
+        avg2 = self._average_pool(cba2, 2, 2, "avg_pool2")
+        cba3 = self._conv3d_bn_act(avg2, 2, 3, "layer3", "lrelu", 0.3)
+        max3 = self._max_pool(cba3, 2, 2, "max_pool3")
+        flat = self._flatten(max3, "flatten")
+        fcn1 = self._fc_bn_act(flat, 64, "fcn1")
+        drp1 = self._dropout(fcn1, "drp1", 0.5)
+        fcn2 = self._fc_bn_act(drp1, 64, "fcn2", "lrelu", 0.2)
+        drp2 = self._dropout(fcn2, "drp2", 0)
+        outp = self._logits(drp2, 3, "logits")
+        probs = tf.nn.softmax(logits=outp, name="softmax")
 
         print("Simple test of Class BTCModels")
         print("Input 5 volumes in 3 classes")
@@ -239,22 +244,21 @@ class BTCModels():
         '''CNN
         '''
 
-        # Here is a very simple case to test first
-        with tf.variable_scope("cnn"):
-            cba1 = self._conv3d_bn_act(x, 2, 3, "layer1")
-            max1 = self._max_pool(cba1, 2, 2, "max_pool1")
-            cba2 = self._conv3d_bn_act(max1, 2, 3, "layer2")
-            max2 = self._max_pool(cba2, 2, 2, "max_pool2")
-            cba3 = self._conv3d_bn_act(max2, 2, 3, "layer3")
-            max3 = self._max_pool(cba3, 2, 2, "max_pool3")
-            flat = self._flatten(max3, "flatten")
-            fcn1 = self._fc_bn_act(flat, 3, "fcn1")
-            drp1 = self._dropout(fcn1, "drp1", drop_rate)
-            fcn2 = self._fc_bn_act(drp1, 3, "fcn2")
-            drp2 = self._dropout(fcn2, "drp2", drop_rate)
-            outp = self._logits(drp2, 3, "logits")
+        # Here is a very simple case to test btc_train first
+        cba1 = self._conv3d_bn_act(x, 1, 3, "layer1")
+        max1 = self._max_pool(cba1, 2, 2, "max_pool1")
+        cba2 = self._conv3d_bn_act(max1, 1, 3, "layer2")
+        max2 = self._max_pool(cba2, 2, 2, "max_pool2")
+        cba3 = self._conv3d_bn_act(max2, 1, 3, "layer3")
+        max3 = self._max_pool(cba3, 2, 2, "max_pool3")
+        flat = self._flatten(max3, "flatten")
+        fcn1 = self._fc_bn_act(flat, 3, "fcn1")
+        drp1 = self._dropout(fcn1, "drp1", drop_rate)
+        fcn2 = self._fc_bn_act(drp1, 3, "fcn2")
+        drp2 = self._dropout(fcn2, "drp2", drop_rate)
+        outp = self._logits(drp2, 3, "logits")
 
-            return outp
+        return outp
 
     def full_cnn(self, x, mode="train"):
         '''FULL_CNN
