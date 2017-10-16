@@ -29,7 +29,7 @@ from btc_settings import PCW, PCG, PCY, PCB, PCC
 
 class BTCTrain():
 
-    def __init__(self, net, paras, save_path):
+    def __init__(self, net, paras, save_path, logs_path):
         '''__INIT__
         '''
 
@@ -42,6 +42,10 @@ class BTCTrain():
         self.model_path = os.path.join(save_path, net)
         if not os.path.isdir(self.model_path):
             os.makedirs(self.model_path)
+
+        self.logs_path = os.path.join(logs_path, net)
+        if not os.path.isdir(self.logs_path):
+            os.makedirs(self.logs_path)
 
         self.train_path = paras["train_path"]
         self.validate_path = paras["validate_path"]
@@ -58,9 +62,6 @@ class BTCTrain():
         # Other settings
         self.tepoch_iters = self._get_epoch_iters(paras["train_num"])
         self.vepoch_iters = self._get_epoch_iters(paras["validate_num"])
-
-        # print("Train iters: ", self.tepoch_iters)
-        # print("Validate iters: ", self.vepoch_iters)
 
         return
 
@@ -88,34 +89,48 @@ class BTCTrain():
         '''TRAIN
         '''
 
-        x = tf.placeholder(tf.float32, [None] + self.patch_shape)
-        y_input_classes = tf.placeholder(tf.int64, [None])
-        drop_rate = tf.placeholder(tf.float32)
+        with tf.name_scope("inputs"):
+            x = tf.placeholder(tf.float32, [None] + self.patch_shape)
+            y_input_classes = tf.placeholder(tf.int64, [None])
+            drop_rate = tf.placeholder(tf.float32)
 
         y_output_logits = self.models.cnn(x, drop_rate)
-        y_input_onehot = tf.one_hot(indices=y_input_classes, depth=self.classes_num)
 
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_input_onehot,
-                                                                      logits=y_output_logits))
+        with tf.name_scope("loss"):
+            y_input_onehot = tf.one_hot(indices=y_input_classes, depth=self.classes_num)
+            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_input_onehot,
+                                                                          logits=y_output_logits))
+        tf.summary.scalar("loss", loss)
 
-        y_output_classes = tf.argmax(input=y_output_logits, axis=1)
-        correction_prediction = tf.equal(y_output_classes, y_input_classes)
-        accuracy = tf.reduce_mean(tf.cast(correction_prediction, tf.float32))
+        with tf.name_scope("accuracy"):
+            y_output_classes = tf.argmax(input=y_output_logits, axis=1)
+            correction_prediction = tf.equal(y_output_classes, y_input_classes)
+            accuracy = tf.reduce_mean(tf.cast(correction_prediction, tf.float32))
+        tf.summary.scalar("accuracy", accuracy)
 
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        with tf.control_dependencies(update_ops):
-            train_op = tf.train.AdamOptimizer(1e-2).minimize(loss)
+        merged = tf.summary.merge_all()
 
-        tra_volumes, tra_labels = self._load_data(self.train_path)
-        val_volumes, val_labels = self._load_data(self.validate_path)
+        with tf.name_scope("train"):
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
+                train_op = tf.train.AdamOptimizer(1e-2).minimize(loss)
 
-        init = tf.group(tf.local_variables_initializer(),
-                        tf.global_variables_initializer())
+        with tf.name_scope("tfrecords"):
+            tra_volumes, tra_labels = self._load_data(self.train_path)
+            val_volumes, val_labels = self._load_data(self.validate_path)
 
         # Create a saver to save model while training
         saver = tf.train.Saver()
 
+        with tf.name_scope("init"):
+            init = tf.group(tf.local_variables_initializer(),
+                            tf.global_variables_initializer())
+
         sess = tf.InteractiveSession()
+
+        tra_writer = tf.summary.FileWriter(os.path.join(self.logs_path, "train"), sess.graph)
+        val_writer = tf.summary.FileWriter(os.path.join(self.logs_path, "validate"), sess.graph)
+
         sess.run(init)
 
         coord = tf.train.Coordinator()
@@ -129,10 +144,10 @@ class BTCTrain():
             while not coord.should_stop():
                 tx, ty = sess.run([tra_volumes, tra_labels])
                 tra_fd = {x: tx, y_input_classes: ty, drop_rate: 0.5}
-                tloss = loss.eval(feed_dict=tra_fd)
-                taccuracy = accuracy.eval(feed_dict=tra_fd)
+                tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op], feed_dict=tra_fd)
                 tloss_list.append(tloss)
                 taccuracy_list.append(taccuracy)
+                tra_writer.add_summary(tsummary, tra_iters)
 
                 tra_iters += 1
                 one_tra_iters += 1
@@ -144,11 +159,13 @@ class BTCTrain():
                 if tra_iters % self.tepoch_iters[epoch_no] == 0:
                     vloss_list, vaccuracy_list = [], []
                     while val_iters < self.vepoch_iters[epoch_no]:
+                        val_iters += 1
                         vx, vy = sess.run([val_volumes, val_labels])
                         val_fd = {x: vx, y_input_classes: vy, drop_rate: 0.0}
-                        vloss_list.append(loss.eval(feed_dict=val_fd))
-                        vaccuracy_list.append(accuracy.eval(feed_dict=val_fd))
-                        val_iters += 1
+                        vsummary, vloss, vaccuracy = sess.run([merged, loss, accuracy], feed_dict=val_fd)
+                        vloss_list.append(vloss)
+                        vaccuracy_list.append(vaccuracy)
+                        val_writer.add_summary(vsummary, tra_iters)
 
                     tloss_mean = np.mean(tloss_list)
                     taccuracy_mean = np.mean(taccuracy_list)
@@ -180,10 +197,9 @@ class BTCTrain():
                     epoch_no += 1
                     one_tra_iters = 0
 
-                sess.run(train_op, feed_dict=tra_fd)
-
         except tf.errors.OutOfRangeError:
             print(PCB + "Training has stopped." + PCW)
+            print((PCB + "Logs have been saved in: {}" + PCW).format(self.logs_path))
         finally:
             coord.request_stop()
 
@@ -197,6 +213,7 @@ if __name__ == "__main__":
 
     parent_dir = os.path.dirname(os.getcwd())
     save_path = os.path.join(parent_dir, "models")
+    logs_path = os.path.join(parent_dir, "logs")
 
-    btc = BTCTrain("cnn", parameters, save_path)
+    btc = BTCTrain("cnn", parameters, save_path, logs_path)
     btc.train()
