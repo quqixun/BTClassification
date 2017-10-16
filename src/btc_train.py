@@ -18,12 +18,13 @@
 
 
 import os
+import shutil
 import numpy as np
 import tensorflow as tf
 from btc_models import BTCModels
 from btc_parameters import parameters
 from btc_tfrecords import BTCTFRecords
-from btc_settings import PCW, PCG, PCO, PCB
+from btc_settings import PCW, PCG, PCY, PCB, PCC
 
 
 class BTCTrain():
@@ -111,6 +112,9 @@ class BTCTrain():
         init = tf.group(tf.local_variables_initializer(),
                         tf.global_variables_initializer())
 
+        # Create a saver to save model while training
+        saver = tf.train.Saver()
+
         sess = tf.InteractiveSession()
         sess.run(init)
 
@@ -150,7 +154,7 @@ class BTCTrain():
                     taccuracy_mean = np.mean(taccuracy_list)
                     tloss_list, taccuracy_list = [], []
 
-                    print((PCO + "[Epoch {}] ").format(epoch_no + 1),
+                    print((PCY + "[Epoch {}] ").format(epoch_no + 1),
                           "Train Stage: ",
                           "Mean Loss: {0:.10f}, ".format(tloss_mean),
                           ("Mean Accuracy: {0:.10f}" + PCW).format(taccuracy_mean))
@@ -158,10 +162,20 @@ class BTCTrain():
                     vloss_mean = np.mean(vloss_list)
                     vaccuracy_mean = np.mean(vaccuracy_list)
 
-                    print((PCO + "[Epoch {}] ").format(epoch_no + 1),
+                    print((PCY + "[Epoch {}] ").format(epoch_no + 1),
                           "Validate Stage: ",
                           "Mean Loss: {0:.10f}, ".format(vloss_mean),
-                          ("Mean Accuracy: {0:.10f}\n" + PCW).format(vaccuracy_mean))
+                          ("Mean Accuracy: {0:.10f}" + PCW).format(vaccuracy_mean))
+
+                    ckpt_dir = os.path.join(self.model_path, "epoch-" + str(epoch_no + 1))
+                    if os.path.isdir(ckpt_dir):
+                        shutil.rmtree(ckpt_dir)
+                    os.makedirs(ckpt_dir)
+
+                    save_path = os.path.join(ckpt_dir, self.net)
+                    saver.save(sess, save_path, global_step=epoch_no + 1)
+                    print((PCC + "[Epoch {}] ").format(epoch_no + 1),
+                          ("Model was saved in: {}\n" + PCW).format(ckpt_dir))
 
                     epoch_no += 1
                     one_tra_iters = 0
