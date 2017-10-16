@@ -153,9 +153,10 @@ NUM_THREADS = 4
 Settings for Printing
 '''
 
-PCW = "\033[0m"
-PCR = "\033[31m"
+PCW = "\033[0;0m"
+PCR = "\033[1;31m"
 PCG = "\033[32m"
-PCO = "\033[33m"
-PCB = "\033[34m"
-PCP = "\033[35m"
+PCY = "\033[1;33m"
+PCB = "\033[1;34m"
+PCP = "\033[1;35m"
+PCC = "\033[1;36m"
