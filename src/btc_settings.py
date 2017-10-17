@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/10/10
+# Modify on: 2017/10/17
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -160,3 +160,13 @@ PCY = "\033[1;33m"
 PCB = "\033[1;34m"
 PCP = "\033[1;35m"
 PCC = "\033[1;36m"
+
+
+'''
+Settings of Models' Names
+'''
+
+CNN = "cnn"
+FULL_CNN = "full_cnn"
+RES_CNN = "res_cnn"
+DENSE_CNN = "dense_cnn"
