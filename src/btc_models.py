@@ -2,7 +2,7 @@
 # Script for Creating Models
 # Author: Qixun Qu
 # Create on: 2017/10/12
-# Modify on: 2017/10/14
+# Modify on: 2017/10/17
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -17,6 +17,7 @@
 #       '&$$$$$&'
 
 
+import math
 import tensorflow as tf
 from operator import mul
 from functools import reduce
@@ -197,11 +198,26 @@ class BTCModels():
                                  rate=drop_rate,
                                  name=name)
 
-    def _logits(self, x, classes=3, name="logits"):
-        '''_OUTPUT
+    def _logits_conv(self, x, classes, name="logits"):
+        '''_LOGITS_CONV
 
-            Full:  self._logits(x, 3, "logits")
-            Short: self._logits(x)
+            Full:  self._logits_conv(x, 3, "logits")
+            Short: self._logits_conv(x, 3)
+
+        '''
+
+        x_shape = x.get_shape().as_list()
+
+        with tf.variable_scope(name):
+            with tf.name_scope("conv3d"):
+                return self._conv3d(x, classes, x_shape[1:-1],
+                                    padding="valid")
+
+    def _logits_fc(self, x, classes, name="logits"):
+        '''_LOGITS_FC
+
+            Full:  self._logits_fc(x, 3, "logits")
+            Short: self._logits_fc(x, 3)
 
         '''
 
@@ -227,7 +243,7 @@ class BTCModels():
         drp1 = self._dropout(fcn1, "drp1", 0.5)
         fcn2 = self._fc_bn_act(drp1, 64, "fcn2", "lrelu", 0.2)
         drp2 = self._dropout(fcn2, "drp2", 0)
-        outp = self._logits(drp2, 3, "logits")
+        outp = self._logits_fc(drp2, 3, "logits")
         probs = tf.nn.softmax(logits=outp, name="softmax")
 
         print("Simple test of Class BTCModels")
@@ -240,35 +256,43 @@ class BTCModels():
     # Contruct Models
     #
 
-    def cnn(self, x, drop_rate=0.5):
+    def cnn(self, x, classes, drop_rate=0.5):
         '''CNN
         '''
 
         # Here is a very simple case to test btc_train first
-        cba1 = self._conv3d_bn_act(x, 1, 3, "layer1")
-        max1 = self._max_pool(cba1, 2, 2, "max_pool1")
-        cba2 = self._conv3d_bn_act(max1, 1, 3, "layer2")
-        max2 = self._max_pool(cba2, 2, 2, "max_pool2")
-        cba3 = self._conv3d_bn_act(max2, 1, 3, "layer3")
-        max3 = self._max_pool(cba3, 2, 2, "max_pool3")
-        flat = self._flatten(max3, "flatten")
-        fcn1 = self._fc_bn_act(flat, 3, "fcn1")
-        drp1 = self._dropout(fcn1, "drp1", drop_rate)
-        fcn2 = self._fc_bn_act(drp1, 3, "fcn2")
-        drp2 = self._dropout(fcn2, "drp2", drop_rate)
-        outp = self._logits(drp2, 3, "logits")
+        net = self._conv3d_bn_act(x, 1, 3, "layer1")
+        net = self._max_pool(net, 2, 2, "max_pool1")
+        net = self._conv3d_bn_act(net, 1, 3, "layer2")
+        net = self._max_pool(net, 2, 2, "max_pool2")
+        net = self._conv3d_bn_act(net, 1, 3, "layer3")
+        net = self._max_pool(net, 2, 2, "max_pool3")
+        net = self._flatten(net, "flatten")
+        net = self._fc_bn_act(net, 3, "fcn1")
+        net = self._dropout(net, "drp1", drop_rate)
+        net = self._fc_bn_act(net, 3, "fcn2")
+        net = self._dropout(net, "drp2", drop_rate)
+        net = self._logits_fc(net, classes, "logits")
 
-        return outp
+        return net
 
-    def full_cnn(self, x, mode="train"):
+    def full_cnn(self, x, classes, drop_rate=0.5):
         '''FULL_CNN
         '''
 
-        # To be finished
+        # Here is a very simple case to test btc_train first
+        net = self._conv3d_bn_act(x, 1, 3, "layer1", padding="valid")
+        net = self._max_pool(net, 2, 2, "max_pool1")
+        net = self._conv3d_bn_act(net, 1, 3, "layer2", padding="valid")
+        net = self._max_pool(net, 2, 2, "max_pool2")
+        net = self._conv3d_bn_act(net, 1, 3, "layer3", padding="valid")
+        net = self._max_pool(net, 2, 2, "max_pool3")
+        net = self._logits_conv(net, classes, "logits_conv")
+        net = self._flatten(net, "logits_flatten")
 
-        return
+        return net
 
-    def res_cnn(self, x, mode="train"):
+    def res_cnn(self, x, classes, drop_rate=0.5):
         '''RES_CNN
         '''
 
@@ -276,7 +300,7 @@ class BTCModels():
 
         return
 
-    def dense_cnn(self, x, mode="train"):
+    def dense_cnn(self, x, classes, drop_rate=0.5):
         '''DENSE_NET
         '''
 
