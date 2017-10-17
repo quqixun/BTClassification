@@ -2,7 +2,7 @@
 # Script for Training Models
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/10/14
+# Modify on: 2017/10/17
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -21,10 +21,10 @@ import os
 import shutil
 import numpy as np
 import tensorflow as tf
+from btc_settings import *
 from btc_models import BTCModels
 from btc_parameters import parameters
 from btc_tfrecords import BTCTFRecords
-from btc_settings import PCW, PCG, PCY, PCB, PCC
 
 
 class BTCTrain():
@@ -35,7 +35,6 @@ class BTCTrain():
 
         # Basic settings
         self.net = net
-        self.mode = "train"
         self.models = BTCModels()
         self.tfr = BTCTFRecords()
 
@@ -44,8 +43,9 @@ class BTCTrain():
             os.makedirs(self.model_path)
 
         self.logs_path = os.path.join(logs_path, net)
-        if not os.path.isdir(self.logs_path):
-            os.makedirs(self.logs_path)
+        if os.path.isdir(self.logs_path):
+            shutil.rmtree(self.logs_path)
+        os.makedirs(self.logs_path)
 
         self.train_path = paras["train_path"]
         self.validate_path = paras["validate_path"]
@@ -94,7 +94,12 @@ class BTCTrain():
             y_input_classes = tf.placeholder(tf.int64, [None])
             drop_rate = tf.placeholder(tf.float32)
 
-        y_output_logits = self.models.cnn(x, drop_rate)
+        if self.net == CNN:
+            y_output_logits = self.models.cnn(x, self.classes_num, drop_rate)
+        elif self.net == FULL_CNN:
+            y_output_logits = self.models.full_cnn(x, self.classes_num, drop_rate)
+        else:
+            raise ValueError("Could not found model.")
 
         with tf.name_scope("loss"):
             y_input_onehot = tf.one_hot(indices=y_input_classes, depth=self.classes_num)
@@ -138,13 +143,14 @@ class BTCTrain():
 
         tra_iters, one_tra_iters, val_iters, epoch_no = 0, 0, 0, 0
 
-        print(PCB + "Training and Validating model ...\n" + PCW)
+        print((PCB + "Training and Validating model: {}\n" + PCW).format(self.net))
         tloss_list, taccuracy_list = [], []
         try:
             while not coord.should_stop():
                 tx, ty = sess.run([tra_volumes, tra_labels])
                 tra_fd = {x: tx, y_input_classes: ty, drop_rate: 0.5}
-                tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op], feed_dict=tra_fd)
+                tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op],
+                                                         feed_dict=tra_fd)
                 tloss_list.append(tloss)
                 taccuracy_list.append(taccuracy)
                 tra_writer.add_summary(tsummary, tra_iters)
@@ -162,7 +168,8 @@ class BTCTrain():
                         val_iters += 1
                         vx, vy = sess.run([val_volumes, val_labels])
                         val_fd = {x: vx, y_input_classes: vy, drop_rate: 0.0}
-                        vsummary, vloss, vaccuracy = sess.run([merged, loss, accuracy], feed_dict=val_fd)
+                        vsummary, vloss, vaccuracy = sess.run([merged, loss, accuracy],
+                                                              feed_dict=val_fd)
                         vloss_list.append(vloss)
                         vaccuracy_list.append(vaccuracy)
                         val_writer.add_summary(vsummary, tra_iters)
@@ -194,8 +201,8 @@ class BTCTrain():
                     print((PCC + "[Epoch {}] ").format(epoch_no + 1),
                           ("Model was saved in: {}\n" + PCW).format(ckpt_dir))
 
-                    epoch_no += 1
                     one_tra_iters = 0
+                    epoch_no += 1
 
         except tf.errors.OutOfRangeError:
             print(PCB + "Training has stopped." + PCW)
@@ -215,5 +222,10 @@ if __name__ == "__main__":
     save_path = os.path.join(parent_dir, "models")
     logs_path = os.path.join(parent_dir, "logs")
 
-    btc = BTCTrain("cnn", parameters, save_path, logs_path)
+    # model = "cnn"
+    model = "full_cnn"
+    # model = "res_cnn"
+    # model = "dense_cnn"
+
+    btc = BTCTrain(model, parameters, save_path, logs_path)
     btc.train()
