@@ -2,7 +2,7 @@
 # Script for Hyper Parameters
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/10/14
+# Modify on: 2017/10/18
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -44,5 +44,7 @@ parameters = {
     "min_after_dequeue": 300,
     # Hyper-parameters
     "batch_size": 10,
-    "num_epoches": 2
+    "num_epoches": 1,
+    "activation": "relu",  # "lrelu",
+    "alpha": 0.2  # for "lrelu"
 }
