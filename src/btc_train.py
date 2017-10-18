@@ -2,7 +2,7 @@
 # Script for Training Models
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/10/17
+# Modify on: 2017/10/18
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -58,6 +58,8 @@ class BTCTrain():
         # Hyper-parameters
         self.batch_size = paras["batch_size"]
         self.num_epoches = paras["num_epoches"]
+        self.activation = paras["activation"]
+        self.alpha = paras["alpha"]
 
         # Other settings
         self.tepoch_iters = self._get_epoch_iters(paras["train_num"])
@@ -95,11 +97,15 @@ class BTCTrain():
             drop_rate = tf.placeholder(tf.float32)
 
         if self.net == CNN:
-            y_output_logits = self.models.cnn(x, self.classes_num, drop_rate)
+            network = self.models.cnn
         elif self.net == FULL_CNN:
-            y_output_logits = self.models.full_cnn(x, self.classes_num, drop_rate)
+            network = self.models.full_cnn
+        elif self.net == RES_CNN:
+            network = self.models.res_cnn
         else:
             raise ValueError("Could not found model.")
+
+        y_output_logits = network(x, self.classes_num, drop_rate, self.activation, self.alpha)
 
         with tf.name_scope("loss"):
             y_input_onehot = tf.one_hot(indices=y_input_classes, depth=self.classes_num)
@@ -149,14 +155,15 @@ class BTCTrain():
             while not coord.should_stop():
                 tx, ty = sess.run([tra_volumes, tra_labels])
                 tra_fd = {x: tx, y_input_classes: ty, drop_rate: 0.5}
-                tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op],
-                                                         feed_dict=tra_fd)
+                tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op], feed_dict=tra_fd)
+
+                tra_iters += 1
+                one_tra_iters += 1
+
                 tloss_list.append(tloss)
                 taccuracy_list.append(taccuracy)
                 tra_writer.add_summary(tsummary, tra_iters)
 
-                tra_iters += 1
-                one_tra_iters += 1
                 print((PCG + "[Epoch {}] ").format(epoch_no + 1),
                       "Train Step {}: ".format(one_tra_iters),
                       "Loss: {0:.10f}, ".format(tloss),
@@ -168,8 +175,7 @@ class BTCTrain():
                         val_iters += 1
                         vx, vy = sess.run([val_volumes, val_labels])
                         val_fd = {x: vx, y_input_classes: vy, drop_rate: 0.0}
-                        vsummary, vloss, vaccuracy = sess.run([merged, loss, accuracy],
-                                                              feed_dict=val_fd)
+                        vsummary, vloss, vaccuracy = sess.run([merged, loss, accuracy], feed_dict=val_fd)
                         vloss_list.append(vloss)
                         vaccuracy_list.append(vaccuracy)
                         val_writer.add_summary(vsummary, tra_iters)
