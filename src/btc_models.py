@@ -19,15 +19,26 @@
 
 import tensorflow as tf
 from operator import mul
+from btc_settings import *
 from functools import reduce
 from tensorflow.contrib.layers import xavier_initializer
 
 
 class BTCModels():
 
-    def __init__(self):
+    def __init__(self, net, act="relu", alpha=None,
+                 momentum=0.99, train_bn=True, bc=True):
         '''__INIT__
         '''
+
+        self.act = act
+        self.alpha = alpha
+        self.momentum = momentum
+        self.train_bn = train_bn
+
+        if net == DENSE_CNN:
+            self.bc = bc
+
         return
 
     #
@@ -64,51 +75,43 @@ class BTCModels():
                                kernel_initializer=xavier_initializer(),
                                name=name)
 
-    def _batch_norm(self, x, momentum=0.9, training=True, name="bn_var"):
+    def _batch_norm(self, x, name="bn_var"):
         '''_BATCH_NORM
 
-            Full:  self._batch_norm(x, 0.9, True, "bn")
+            Full:  self._batch_norm(x, "bn")
             Short: self._batch_norm(x)
 
         '''
 
         return tf.layers.batch_normalization(inputs=x,
-                                             momentum=momentum,
-                                             training=training,
+                                             momentum=self.momentum,
+                                             training=self.train_bn,
                                              name=name)
 
-    def _activate(self, x, act="relu", alpha=None, name="act"):
+    def _activate(self, x, name="act"):
         '''_ACTIVATE
 
-           Full:  self._activate(x, "relu", None, "act")
-                  self._activate(x, "lrelu", 0.2, "act")
-           Short: self._activate(x)  # for relu
-                  self._activate(x, "lrelu")  # alpha default: 0.2
-                  self._activate(x, "lrelu", 0.2)
+           Full:  self._activate(x, "act")
+           Short: self._activate(x)
 
         '''
 
-        if act == "relu":
-            return tf.nn.relu(x, "act")
-        elif act == "lrelu":
-            alpha = 0.2 if alpha is None else alpha
-            return tf.nn.leaky_relu(x, alpha, "act")
-        elif act is None:
-            return x
+        if self.act == "relu":
+            return tf.nn.relu(x, name)
+        elif self.act == "lrelu":
+            alpha = 0.2 if self.alpha is None else self.alpha
+            return tf.nn.leaky_relu(x, alpha, name)
         else:
-            raise ValueError("Could not find act in ['relu', 'lrelu', None]")
+            raise ValueError("Could not find act in ['relu', 'lrelu']")
 
         return
 
-    def _conv3d_bn_act(self, x, filters, kernel_size, strides=1, name="cba", act="relu",
-                       alpha=None, padding="same", momentum=0.9, train_bn=True):
+    def _conv3d_bn_act(self, x, filters, kernel_size, strides=1,
+                       name="cba", padding="same", act=True):
         '''_CONV3D_BN_ACT
 
-            Full:  self._conv3d_bn_act(x, 32, 3, 1, "cba", "relu", None, "same", 0.9, True)
-                   self._conv3d_bn_act(x, 32, 3, 1, "cba", "lrelu", 0.2, "same", 0.9, True)
-            Short: self._conv3d_bn_act(x, 32, 3, 1, "cba")  # for relu
-                   self._conv3d_bn_act(x, 32, 3, 1, "cba", "lrelu", 0.2)
-                   self._conv3d_bn_act(x, 32, 3, 1, "cba", None)  # no activation
+            Full:  self._conv3d_bn_act(x, 32, 3, 1, "cba", same", True)
+            Short: self._conv3d_bn_act(x, 32, 3, 1, "cba")
 
         '''
 
@@ -116,21 +119,18 @@ class BTCModels():
             with tf.name_scope("conv3d"):
                 cba = self._conv3d(x, filters, kernel_size, strides, padding)
             with tf.name_scope("batch_norm"):
-                cba = self._batch_norm(cba, momentum, train_bn)
+                cba = self._batch_norm(cba)
             if act:  # check for residual block
                 with tf.name_scope("activate"):
-                    cba = self._activate(cba, act, alpha)
+                    cba = self._activate(cba)
 
             return cba
 
-    def _fc_bn_act(self, x, units, name="fba", act="relu",
-                   alpha=None, momentum=0.9, train_bn=True):
+    def _fc_bn_act(self, x, units, name="fba"):
         '''_FULLY_CONNECTED
 
-            Full:  self._fc_bn_act(x, 128, "fba", "relu", None, 0.9, True)
-                   self._fc_bn_act(x, 128, "fba", "lrelu", 0.2, 0.9, True)
-            Short: self._fc_bn_act(x, 128, "fba") # for relu
-                   self._fc_bn_act(x, 128, "fba", "lrelu", 0.2)
+            Full:  self._fc_bn_act(x, 128, "fba")
+            Short: self._fc_bn_act(x, 128)
 
         '''
 
@@ -138,9 +138,9 @@ class BTCModels():
             with tf.name_scope("full_connection"):
                 fba = self._fully_connected(x, units)
             with tf.name_scope("batch_norm"):
-                fba = self._batch_norm(fba, momentum, train_bn)
+                fba = self._batch_norm(fba)
             with tf.name_scope("activate"):
-                fba = self._activate(fba, act, alpha)
+                fba = self._activate(fba)
 
             return fba
 
@@ -196,6 +196,10 @@ class BTCModels():
 
         return tf.layers.dropout(inputs=x, rate=drop_rate, name=name)
 
+    #
+    # Helper function for cnn
+    #
+
     def _logits_fc(self, x, classes, name="logits"):
         '''_LOGITS_FC
 
@@ -222,21 +226,17 @@ class BTCModels():
 
         with tf.variable_scope(name):
             with tf.name_scope("conv3d"):
-                return self._conv3d(x, classes, x_shape[1:-1], padding="valid")
+                return self._conv3d(x, classes, x_shape[1:-1], 1, "valid")
 
     #
     # Helper function for residual cnn
     #
 
-    def _res_block(self, x, filters, strides=1, name="res", act="relu",
-                   alpha=None, padding="same", momentum=0.9, train_bn=True):
+    def _res_block(self, x, filters, strides=1, name="res"):
         '''_RES_BLOCK
 
-            Full:  self._res_block(x, [8, 16, 32], 1, "res", "relu", None, "same", 0.9, True)
-                   self._res_block(x, [8, 16, 32], 1, "res", "lrelu", 0.2, "same", 0.9, True)
-            Short: self._res_block(x, [8, 16, 32], 1, "res")  # for relu
-                   self._res_block(x, [8, 16, 32], 1, "res", "relu")
-                   self._res_block(x, [8, 16, 32], 1, "res", "lrelu", 0.2)
+            Full:  self._res_block(x, [8, 16, 32], 1, "res")
+                   self._res_block(x, [8, 16, 32])
 
         '''
 
@@ -244,17 +244,17 @@ class BTCModels():
         if (x.get_shape().as_list()[-1] != filters[2]) or strides != 1:
             shortcut = True
 
-        res = self._conv3d_bn_act(x, filters[0], 1, strides, name + "_conv1", act, alpha, "valid")
-        res = self._conv3d_bn_act(res, filters[1], 3, 1, name + "_conv2", act, alpha, "same")
-        res = self._conv3d_bn_act(res, filters[2], 1, 1, name + "_conv3", None, None, "valid")
+        res = self._conv3d_bn_act(x, filters[0], 1, strides, name + "_conv1", "valid")
+        res = self._conv3d_bn_act(res, filters[1], 3, 1, name + "_conv2", "same")
+        res = self._conv3d_bn_act(res, filters[2], 1, 1, name + "_conv3", "valid", False)
 
         if shortcut:
-            x = self._conv3d_bn_act(x, filters[2], 1, strides, name + "_shortcut", None, None, "valid")
+            x = self._conv3d_bn_act(x, filters[2], 1, strides, name + "_shortcut", "valid", False)
 
         with tf.name_scope(name + "_add"):
             res = tf.add(res, x)
         with tf.name_scope(name + "_activate"):
-            return self._activate(res, act, alpha)
+            return self._activate(res)
 
     #
     # A Simple Test Case
@@ -267,21 +267,21 @@ class BTCModels():
         x = tf.placeholder(tf.float32, [5, 36, 36, 36, 4], "input")
         cba1 = self._conv3d_bn_act(x, 2, 3, 1, "layer1")
         max1 = self._max_pool(cba1, 2, 2, "max_pool1")
-        cba2 = self._conv3d_bn_act(max1, 2, 3, 1, "layer2", "lrelu", 0.2)
+        cba2 = self._conv3d_bn_act(max1, 2, 3, 1, "layer2")
         avg2 = self._average_pool(cba2, 2, 2, "avg_pool2")
-        cba3 = self._conv3d_bn_act(avg2, 2, 3, 1, "layer3", "lrelu", 0.3)
+        cba3 = self._conv3d_bn_act(avg2, 2, 3, 1, "layer3")
         max3 = self._max_pool(cba3, 2, 2, "max_pool3")
         flat = self._flatten(max3, "flatten")
         fcn1 = self._fc_bn_act(flat, 64, "fcn1")
-        drp1 = self._dropout(fcn1, "drp1", 0.5)
-        fcn2 = self._fc_bn_act(drp1, 64, "fcn2", "lrelu", 0.2)
-        drp2 = self._dropout(fcn2, "drp2", 0)
+        drp1 = self._dropout(fcn1, "drop1", 0.5)
+        fcn2 = self._fc_bn_act(drp1, 64, "fcn2")
+        drp2 = self._dropout(fcn2, "drop2", 0)
         outp = self._logits_fc(drp2, 3, "logits")
-        probs = tf.nn.softmax(logits=outp, name="softmax")
+        prob = tf.nn.softmax(logits=outp, name="softmax")
 
         print("Simple test of Class BTCModels")
         print("Input 5 volumes in 3 classes")
-        print("Output probabilities' shape: ", probs.shape)
+        print("Output probabilities' shape: ", prob.shape)
 
         return
 
@@ -289,17 +289,17 @@ class BTCModels():
     # Contruct Models
     #
 
-    def cnn(self, x, classes, drop_rate=0.5, act="relu", alpha=None):
+    def cnn(self, x, classes, drop_rate=0.5):
         '''CNN
 
         '''
 
         # Here is a very simple case to test btc_train first
-        net = self._conv3d_bn_act(x, 1, 3, 1, "layer1", act, alpha)
+        net = self._conv3d_bn_act(x, 1, 3, 1, "layer1")
         net = self._max_pool(net, 2, 2, "max_pool1")
-        net = self._conv3d_bn_act(net, 1, 3, 1, "layer2", act, alpha)
+        net = self._conv3d_bn_act(net, 1, 3, 1, "layer2")
         net = self._max_pool(net, 2, 2, "max_pool2")
-        net = self._conv3d_bn_act(net, 1, 3, 1, "layer3", act, alpha)
+        net = self._conv3d_bn_act(net, 1, 3, 1, "layer3")
         net = self._max_pool(net, 2, 2, "max_pool3")
         net = self._flatten(net, "flatten")
         net = self._fc_bn_act(net, 3, "fc1")
@@ -310,30 +310,30 @@ class BTCModels():
 
         return net
 
-    def full_cnn(self, x, classes, drop_rate=0.5, act="relu", alpha=None):
+    def full_cnn(self, x, classes, drop_rate=0.5):
         '''FULL_CNN
         '''
 
         # Here is a very simple case to test btc_train first
-        net = self._conv3d_bn_act(x, 1, 3, 1, "layer1", act, alpha)
+        net = self._conv3d_bn_act(x, 1, 3, 1, "layer1")
         net = self._max_pool(net, 2, 2, "max_pool1")
-        net = self._conv3d_bn_act(net, 1, 3, 1, "layer2", act, alpha)
+        net = self._conv3d_bn_act(net, 1, 3, 1, "layer2")
         net = self._max_pool(net, 2, 2, "max_pool2")
-        net = self._conv3d_bn_act(net, 1, 3, 1, "layer3", act, alpha)
+        net = self._conv3d_bn_act(net, 1, 3, 1, "layer3")
         net = self._max_pool(net, 2, 2, "max_pool3")
         net = self._logits_conv(net, classes, "logits_conv")
         net = self._flatten(net, "logits_flatten")
 
         return net
 
-    def res_cnn(self, x, classes, drop_rate=0.5, act="relu", alpha=None):
+    def res_cnn(self, x, classes, drop_rate=0.5):
         '''RES_CNN
         '''
 
         # Here is a very simple case to test btc_train first
-        net = self._conv3d_bn_act(x, 1, 5, 2, "preconv", act, alpha)
-        net = self._res_block(net, [1, 1, 1], 2, "res1", act, alpha)
-        net = self._res_block(net, [1, 1, 2], 2, "res2", act, alpha)
+        net = self._conv3d_bn_act(x, 1, 5, 2, "preconv")
+        net = self._res_block(net, [1, 1, 1], 2, "res1")
+        net = self._res_block(net, [1, 1, 2], 2, "res2")
         net = self._max_pool(net, 7, 7, "max_pool")
         net = self._flatten(net, "flatten")
         net = self._logits_fc(net, classes, "logits")
@@ -351,5 +351,6 @@ class BTCModels():
 
 if __name__ == "__main__":
 
-    models = BTCModels()
+    models = BTCModels("test", act="relu", alpha=None,
+                       momentum=0.99, train_bn=True)
     models._test()
