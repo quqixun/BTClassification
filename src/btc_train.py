@@ -2,7 +2,7 @@
 # Script for Training Models
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/10/18
+# Modify on: 2017/10/20
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -35,7 +35,6 @@ class BTCTrain():
 
         # Basic settings
         self.net = net
-        self.models = BTCModels()
         self.tfr = BTCTFRecords()
 
         self.model_path = os.path.join(save_path, net)
@@ -56,10 +55,19 @@ class BTCTrain():
         self.min_after_dequeue = paras["min_after_dequeue"]
 
         # Hyper-parameters
+        # for training process
         self.batch_size = paras["batch_size"]
         self.num_epoches = paras["num_epoches"]
-        self.activation = paras["activation"]
+        self.drop_rate = paras["drop_rate"]
+        # for models' structure
+        self.act = paras["activation"]
         self.alpha = paras["alpha"]
+        self.bn_momentum = paras["bn_momentum"]
+        self.train_bn = paras["train_bn"]
+
+        self.models = BTCModels(self.net, self.classes_num,
+                                self.act, self.alpha,
+                                self.bn_momentum, self.train_bn)
 
         # Other settings
         self.tepoch_iters = self._get_epoch_iters(paras["train_num"])
@@ -102,10 +110,12 @@ class BTCTrain():
             network = self.models.full_cnn
         elif self.net == RES_CNN:
             network = self.models.res_cnn
+        elif self.net == DENSE_CNN:
+            network = self.models.dense_cnn
         else:
             raise ValueError("Could not found model.")
 
-        y_output_logits = network(x, self.classes_num, drop_rate, self.activation, self.alpha)
+        y_output_logits = network(x, drop_rate)
 
         with tf.name_scope("loss"):
             y_input_onehot = tf.one_hot(indices=y_input_classes, depth=self.classes_num)
@@ -228,10 +238,10 @@ if __name__ == "__main__":
     save_path = os.path.join(parent_dir, "models")
     logs_path = os.path.join(parent_dir, "logs")
 
-    # model = "cnn"
-    model = "full_cnn"
-    # model = "res_cnn"
-    # model = "dense_cnn"
+    # model = CNN
+    # model = FULL_CNN
+    # model = RES_CNN
+    model = DENSE_CNN
 
     btc = BTCTrain(model, parameters, save_path, logs_path)
     btc.train()
