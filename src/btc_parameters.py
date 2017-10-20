@@ -43,8 +43,13 @@ parameters = {
     "capacity": 350,
     "min_after_dequeue": 300,
     # Hyper-parameters
+    # for training process
     "batch_size": 10,
     "num_epoches": 1,
+    # for model's structure
     "activation": "relu",  # "lrelu",
-    "alpha": 0.2  # for "lrelu"
+    "alpha": 0.2,  # for "lrelu"
+    "drop_rate": 0.5,
+    "bn_momentum": 0.99,
+    "train_bn": True
 }
