@@ -2,7 +2,7 @@
 # Script for Training Models
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/10/20
+# Modify on: 2017/10/21
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -107,6 +107,18 @@ class BTCTrain():
 
     def _get_epoch_iters(self, num):
         '''_GET_EPOCH_ITERS
+
+            The helper funtion to compute the number of iterations
+            of each epoch.
+
+            Input:
+            -------
+            - num: int, the number of patches in dataset
+
+            Output:
+            -------
+            - a list consists of iterations in each epoch
+
         '''
 
         index = np.arange(1, self.num_epoches + 1)
@@ -116,6 +128,18 @@ class BTCTrain():
 
     def _load_data(self, tfrecord_path):
         '''_LOAD_DATA
+
+            The helper funtion to load patches from tfrecord files.
+            All patches are suffled abd returned in batch size.
+
+            Input:
+            ------
+            - tfrecord_path: the path fo tfrecord file
+
+            Output:
+            -------
+            - suffled patches in batch size
+
         '''
 
         return self.tfr.decode_tfrecord(path=tfrecord_path,
@@ -177,7 +201,7 @@ class BTCTrain():
         tf.summary.scalar("accuracy", accuracy)
 
         # Merge summary
-        # The summary can be displayer by TensorBoard
+        # The summary can be displayed by TensorBoard
         merged = tf.summary.merge_all()
 
         # Optimize loss
@@ -225,8 +249,8 @@ class BTCTrain():
                 # Feed the graph, run optimizer and get metrics
                 tx, ty = sess.run([tra_volumes, tra_labels])
                 tra_fd = {x: tx, y_input_classes: ty, is_training: True}
-                tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op],
-                                                         feed_dict=tra_fd)
+                tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy,
+                                                         train_op], feed_dict=tra_fd)
 
                 tra_iters += 1
                 one_tra_iters += 1
