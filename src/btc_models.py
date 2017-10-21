@@ -2,7 +2,7 @@
 # Script for Creating Models
 # Author: Qixun Qu
 # Create on: 2017/10/12
-# Modify on: 2017/10/20
+# Modify on: 2017/10/21
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -69,7 +69,10 @@ class BTCModels():
         # A symbol to indicate whether the model is used to train
         # The symbol will be assigned as a placeholder while
         # feeding the model in training and validating steps
-        self.training = None
+        self.is_training = None
+
+        # A symbol for bottleneck in dense cnn
+        self.bc = None
 
         return
 
@@ -146,7 +149,7 @@ class BTCModels():
         '''_BATCH_NORM
 
             Normalize the input layer.
-            Momentum and symbol of training have been
+            Momentum and symbol of is_training have been
             assigned while the class is initialized.
 
             Usages:
@@ -168,7 +171,7 @@ class BTCModels():
         with tf.name_scope("batch_norm"):
             return tf.contrib.layers.batch_norm(inputs=x,
                                                 decay=self.momentum,
-                                                is_training=self.training,
+                                                is_training=self.is_training,
                                                 scope=name)
 
     def _activate(self, x, name="act"):
@@ -246,10 +249,27 @@ class BTCModels():
         return cba
 
     def _fc_bn_act(self, x, units, name="fba"):
-        '''_FULLY_CONNECTED
+        '''_FC_BN_ACT
 
-            Full:  self._fc_bn_act(x, 128, "fba")
-            Short: self._fc_bn_act(x, 128)
+            A fully connected block, including three sections:
+            - full connected layer with given units
+            - batch normalization
+            - activation
+
+            Usages:
+            -------
+            - full:  self._fc_bn_act(x, 128, "fba")
+            - short: self._fc_bn_act(x, 128)
+
+            Inputs:
+            -------
+            - x: tensor, input layer
+            - units: int, the number of neurons
+            - name: string, layer's name
+
+            Output:
+            -------
+            - a fully connected, normalized and activated layer
 
         '''
 
@@ -263,8 +283,23 @@ class BTCModels():
     def _max_pool(self, x, psize=2, name="max_pool"):
         '''_MAX_POOL
 
-            Full:  self._max_pool(x, 2, 2, "max_pool")
-            Short: self._max_pool(x)
+            3D max pooling layer.
+
+            Usages:
+            -------
+            - full:  self._max_pool(x, 2, 2, "max_pool")
+            - short: self._max_pool(x)
+
+            Inputs:
+            -------
+            - x: tensor, input layer
+            - psize: int, the size of pooling window, and
+                     the strides of pooling operation as well
+            name: string, layer's name
+
+            Output:
+            -------
+            - the layer after max pooling
 
         '''
 
@@ -276,8 +311,23 @@ class BTCModels():
     def _average_pool(self, x, psize=2, name="avg_pool"):
         '''_AVERAGE_POOL
 
-            Full:  self._average_pool(x, 2, 2, "avg_pool")
-            Short: self._average_pool(x)
+            3D average pooling layer.
+
+            Usages:
+            -------
+            - full:  self._average_pool(x, 2, 2, "avg_pool")
+            - short: self._average_pool(x)
+
+            Inputs:
+            -------
+            - x: tensor, input layer
+            - psize: int, the size of pooling window, and
+                     the strides of pooling operation as well
+            name: string, layer's name
+
+            Output:
+            -------
+            - the layer after average pooling
 
         '''
 
@@ -289,11 +339,26 @@ class BTCModels():
     def _flatten(self, x, name="flt"):
         '''_FLATTEN
 
-            Full:  self._flatten(x, "flatten")
-            Short: self._flatten(x)
+            Flatten 5D tensor into 1D tensor.
+
+            Usages:
+            -------
+            - full:  self._flatten(x, "flatten")
+            - short: self._flatten(x)
+
+            Inputs:
+            -------
+            - x: 5D tensor, input layer
+            - name: string, layer's name
+
+            Output:
+            -------
+            - a flattened layer
 
         '''
 
+        # Obtain the number of features contained in
+        # the input layer
         x_shape = x.get_shape().as_list()
         f_shape = reduce(mul, x_shape[1:], 1)
 
@@ -303,18 +368,46 @@ class BTCModels():
     def _dropout(self, x, name="dropout"):
         '''_DROP_OUT
 
-            Full:  self._dropout(x, "dropout")
+            Apply dropout to the input tensor.
+            Drop rate has been set while creating the instance.
+            If the is_training symbol is True, apply dropout to the input;
+            if not, the untouched input will be returned.
+
+            Usage:
+            ------
+            - full:  self._dropout(x, "dropout")
+
+            Inputs:
+            - x: tensor in 5D or 1D, input layer
+            - name: string, layer's name
+
+            Output:
+            -------
+            - the dropout layer or untouched layer
 
         '''
 
         return tf.layers.dropout(inputs=x, rate=self.drop_rate,
-                                 training=self.training, name=name)
+                                 training=self.is_training, name=name)
 
     def _logits_fc(self, x, name="logits"):
         '''_LOGITS_FC
 
-            Full:  self._logits_fc(x, "logits")
-            Short: self._logits_fc(x)
+            Generate logits by fully conneted layer.
+            The output size is equal to the number of classes.
+
+            Usages:
+            -------
+            - full:  self._logits_fc(x, "logits")
+            - short: self._logits_fc(x)
+
+            Inputs:
+            -------
+            - x: tensor, input layer
+            - name: layer's name
+
+            Output:
+            - logit of each class
 
         '''
 
@@ -328,15 +421,28 @@ class BTCModels():
     def _logits_conv(self, x, name="logits"):
         '''_LOGITS_CONV
 
-            Full:  self._logits_conv(x, "logits")
-            Short: self._logits_conv(x)
+            Generate logits by convolutional layer.
+            The output size is equal to the number of classes.
+
+            Usages:
+            -------
+            - full:  self._logits_conv(x, "logits")
+            - short: self._logits_conv(x)
+
+            Inputs:
+            -------
+            - x: tensor, input layer
+            - name: layer's name
+
+            Output:
+            - logit of each class
 
         '''
 
         x_shape = x.get_shape().as_list()
-
         with tf.variable_scope(name):
-            return self._conv3d(x, self.classes, x_shape[1:-1], 1, "valid")
+            return self._conv3d(x, self.classes,
+                                x_shape[1:-1], 1, "valid")
 
     #
     # Helper function for residual cnn
@@ -345,44 +451,178 @@ class BTCModels():
     def _res_block(self, x, filters, strides=1, name="res"):
         '''_RES_BLOCK
 
-            Full:  self._res_block(x, [8, 16, 32], 1, "res")
-                   self._res_block(x, [8, 16, 32])
+            The basic bloack for residual network.
+            - check whether shortcut is necessary
+            - three convolutional layers
+            - obtain shortcut if necessary
+            - elementwisely sum convoluted result and original
+              inputs (or shortcut if necessary)
+
+            Usage:
+            -------
+            - full: self._res_block(x, [8, 16, 32], 1, "res")
+
+            Inputs:
+            -------
+            - x: tensor, input layer
+            - filters: list with three ints, indicates the number
+                       of filters of each convolutional layer
+            - strides: int, strides along three dimentions for the
+                       first convolution layer or the shortcut
+            - name: string, layer's name
+
+            Output:
+            -------
+            - a tensor after one residual block
 
         '''
 
+        # As default, shortcut is unnecessary
         shortcut = False
+
+        # If the shape of output is not same as the input's,
+        # now, shortcut has to be obtained
         if (x.get_shape().as_list()[-1] != filters[2]) or strides != 1:
             shortcut = True
 
-        res = self._conv3d_bn_act(x, filters[0], 1, strides, name + "_conv1", "valid")
-        res = self._conv3d_bn_act(res, filters[1], 3, 1, name + "_conv2", "same")
-        res = self._conv3d_bn_act(res, filters[2], 1, 1, name + "_conv3", "valid", False)
+        # Three convolutional layers
+        # Note: the strides of first layer can be changed
+        res = self._conv3d_bn_act(x, filters[0], 1, strides,
+                                  name + "_conv1", "valid")
+        res = self._conv3d_bn_act(res, filters[1], 3, 1,
+                                  name + "_conv2", "same")
+        # Note: the third layer is inactivated
+        res = self._conv3d_bn_act(res, filters[2], 1, 1,
+                                  name + "_conv3", "valid", False)
 
+        # Shortcut layer is inactivated
         if shortcut:
-            x = self._conv3d_bn_act(x, filters[2], 1, strides, name + "_shortcut", "valid", False)
+            x = self._conv3d_bn_act(x, filters[2], 1, strides,
+                                    name + "_shortcut", "valid", False)
 
+        # Elementwisely add
         with tf.name_scope(name + "_add"):
             res = tf.add(res, x)
 
+        # Return the activated summation
         return self._activate(res)
 
     #
     # Helpher functions for dense cnn
     #
 
-    def _composite(self, x, filters, kernel_size=3, name="composite"):
-        '''_COPOSITE
+    def _dense_block(self, x, growth_rate,
+                     internals, name="dense_block"):
+        '''_DENSE_BLOCK
+
+            The basic block of dense network.
+            The struction of one block:
+            --- dense block
+             |--- internal1
+               |--- bottleneck (if self.bs is true)
+               |--- composite
+               |--- concatenate
+             |--- internal2
+               |--- same as internal1
+             ...
+             |--- internaln
+               |--- same as internal1
+
+            Usage:
+            ------
+            - full: self._dense_block(x, 16, 4, "block1")
+
+            Inputs:
+            -------
+            - x: tensor, input layer
+            - growth_rate: int, the number of kernels in
+                           each internal section
+            - internals: int, the number of internals
+            - name: string, block's name
+
+            Output:
+            -------
+            - a dense block
+
         '''
 
-        comp = self._batch_norm(x)
-        comp = self._activate(comp)
-        comp = self._conv3d(comp, filters, kernel_size)
-        comp = self._dropout(comp)
+        dense = x
 
-        return comp
+        # Combine all internals
+        for internal in range(internals):
+            dense = self._dense_internal(dense, growth_rate,
+                                         str(internal + 1), name)
+
+        return dense
+
+    def _dense_internal(self, x, growth_rate, no, name):
+        '''_DENSE_INTERNAL
+
+            Internal section of a dense block.
+            - bottleneck (if self.bc is True)
+            - composite
+            - concate
+
+            Usage:
+            ------
+            - full: self._dense_internal(x, 16, 1, "block1")
+
+            Inputs:
+            -------
+            - x: tensor, input layer
+            - growth_rate: int, the number of kernels
+            - no: string, internal number
+            - name: string, block's name
+
+            Output:
+            -------
+            - one internal section of one dense block
+
+        '''
+
+        dint = x
+
+        # Obtain bottleneck section
+        if self.bc:
+            with tf.variable_scope(name + "_bott" + no):
+                dint = self._bottleneck(x, growth_rate)
+
+        # Obtain composite section
+        with tf.variable_scope(name + "_comp" + no):
+            dint = self._composite(dint, growth_rate, 3)
+
+        # Concatenate original input (or bottleneck section)
+        # with composite section
+        with tf.name_scope(name + "_concat" + no):
+            dint = tf.concat((x, dint), 4)
+
+        return dint
 
     def _bottleneck(self, x, filters, name="bottleneck"):
         '''_BOTTLENECK
+
+            Bottleneck section to reduce the number of input
+            features to improve computational efficiency.
+            - batch normalization
+            - activation
+            - convolution
+            - dropout if self.is_training is a True placeholder
+
+            Usage:
+            ------
+            - full: self._bottleneck(x, 16, "bottleneck")
+
+            Inputs:
+            -------
+            - x: tensor, input layer
+            - filters: int, also known as growth rate, the number of
+                       filters in composite section
+            - name: string, section's name
+
+            Output:
+            -------
+            - the bottleneck layer
+
         '''
 
         bott = self._batch_norm(x)
@@ -392,33 +632,61 @@ class BTCModels():
 
         return bott
 
-    def _dense_internal(self, x, growth_rate, no, name):
-        '''_DENSE_INTERNAL
+    def _composite(self, x, filters, kernel_size=3, name="composite"):
+        '''_COPOSITE
+
+            The convolutional section of dense block.
+            - batch normalization
+            - activation
+            - convolution
+            - dropout if self.is_training is a True placeholder
+
+            Usage:
+            - full: self._composite(x, 16, 3, "composite")
+
+            Inputs:
+            -------
+            - x: tensor, input layer
+            - filters: int, also known as growth rate,
+                       the number of filters
+            - kernel_size: int, the size of kernels
+            - name: string, section's name
+
+            output:
+            -------
+            - a composite section
+
         '''
 
-        dint = x
-        if self.bc:
-            with tf.variable_scope(name + "_bott" + no):
-                dint = self._bottleneck(x, growth_rate)
-        with tf.variable_scope(name + "_comp" + no):
-            dint = self._composite(dint, growth_rate, 3)
-        with tf.name_scope(name + "_concat" + no):
-            dint = tf.concat((x, dint), 4)
+        comp = self._batch_norm(x)
+        comp = self._activate(comp)
+        comp = self._conv3d(comp, filters, kernel_size)
+        comp = self._dropout(comp)
 
-        return dint
-
-    def _dense_block(self, x, growth_rate, internals, name="dense_block"):
-        '''_DENSE_BLOCK
-        '''
-
-        dense = x
-        for internal in range(internals):
-            dense = self._dense_internal(dense, growth_rate, str(internal + 1), name)
-
-        return dense
+        return comp
 
     def _transition(self, x, name="transition"):
         '''_TRANSITION
+
+            The transition layer between two dense blocks.
+            - batch normalization
+            - activation
+            - convolution
+            - dropout if self.is_training is a True placeholder
+            - average pooling
+
+            Usage:
+            ------
+            - full: self._transition(x, "trans")
+
+            Inputs:
+            -------
+            - x: tensor, input layer
+            - name: string, section's name
+
+            Output:
+            - a tensor after average pooling
+
         '''
 
         out_channels = x.get_shape().as_list()[-1]
@@ -428,8 +696,26 @@ class BTCModels():
 
         return tran
 
-    def _last_transition(self, x):
-        '''_LOGITS_DENSE
+    def _last_transition(self, x, name="global_avgpool"):
+        '''_LAST_TRANSITION
+
+            The last transition section before logits layer.
+            - batch normalization
+            - activation
+            - global average polling
+
+            Usage:
+            ------
+            - full: self._last_transition(x, "trans")
+
+            Inputs:
+            -------
+            - x: tensor, input layer
+            - name: string, section's name
+
+            Output:
+            - a tensor after global average pooling
+
         '''
 
         with tf.variable_scope("last_trans"):
@@ -437,7 +723,7 @@ class BTCModels():
             last_tran = self._activate(last_tran)
 
         out_channels = last_tran.get_shape().as_list()[-1]
-        last_tran = self._average_pool(last_tran, out_channels, "global_avgpool")
+        last_tran = self._average_pool(last_tran, out_channels, name)
 
         return last_tran
 
@@ -447,28 +733,31 @@ class BTCModels():
 
     def _test(self):
         '''_TEST
+
+            A function to test basic helpers.
+
         '''
 
-        self.training = True
+        self.is_training = True
 
         x = tf.placeholder(tf.float32, [5, 36, 36, 36, 4], "input")
-        cba1 = self._conv3d_bn_act(x, 2, 3, 1, "layer1")
-        max1 = self._max_pool(cba1, 2, 2, "max_pool1")
-        cba2 = self._conv3d_bn_act(max1, 2, 3, 1, "layer2")
-        avg2 = self._average_pool(cba2, 2, 2, "avg_pool2")
-        cba3 = self._conv3d_bn_act(avg2, 2, 3, 1, "layer3")
-        max3 = self._max_pool(cba3, 2, 2, "max_pool3")
-        flat = self._flatten(max3, "flatten")
-        fcn1 = self._fc_bn_act(flat, 64, "fcn1")
-        drp1 = self._dropout(fcn1, "drop1")
-        fcn2 = self._fc_bn_act(drp1, 64, "fcn2")
-        drp2 = self._dropout(fcn2, "drop2")
-        outp = self._logits_fc(drp2, 3, "logits")
-        prob = tf.nn.softmax(logits=outp, name="softmax")
+        net = self._conv3d_bn_act(x, 2, 3, 1, "layer1")
+        net = self._max_pool(net, 2, 2, "max_pool1")
+        net = self._conv3d_bn_act(net, 2, 3, 1, "layer2")
+        net = self._average_pool(net, 2, 2, "avg_pool2")
+        net = self._conv3d_bn_act(net, 2, 3, 1, "layer3")
+        net = self._max_pool(net, 2, 2, "max_pool3")
+        net = self._flatten(net, "flatten")
+        net = self._fc_bn_act(net, 64, "fcn1")
+        net = self._dropout(net, "drop1")
+        net = self._fc_bn_act(net, 64, "fcn2")
+        net = self._dropout(net, "drop2")
+        net = self._logits_fc(net, 3, "logits")
+        net = tf.nn.softmax(logits=net, name="softmax")
 
         print("Simple test of Class BTCModels")
         print("Input 5 volumes in 3 classes")
-        print("Output probabilities' shape: ", prob.shape)
+        print("Output probabilities' shape: ", net.shape)
 
         return
 
@@ -476,12 +765,25 @@ class BTCModels():
     # Contruct Models
     #
 
-    def cnn(self, x, training):
+    def cnn(self, x, is_training):
         '''CNN
+
+            VGG-like CNN model.
+
+            Inputs:
+            -------
+            - x: tensor placeholder, input volumes in batch
+            - is_training: boolean placeholder, indicates the mode,
+                           True: training mode,
+                           False: validating and inferencing mode
+
+            Output:
+            -------
+            - output logits after VGG-like CNN
 
         '''
 
-        self.training = training
+        self.is_training = is_training
 
         # Here is a very simple case to test btc_train first
         net = self._conv3d_bn_act(x, 1, 3, 1, "layer1")
@@ -499,11 +801,26 @@ class BTCModels():
 
         return net
 
-    def full_cnn(self, x, training):
+    def full_cnn(self, x, is_training):
         '''FULL_CNN
+
+            CNN with convolutional logits layer, without
+            fully connected layers.
+
+            Inputs:
+            -------
+            - x: tensor placeholder, input volumes in batch
+            - is_training: boolean placeholder, indicates the mode,
+                           True: training mode,
+                           False: validating and inferencing mode
+
+            Output:
+            -------
+            - output logits after Fully CNN
+
         '''
 
-        self.training = training
+        self.is_training = is_training
 
         # Here is a very simple case to test btc_train first
         net = self._conv3d_bn_act(x, 1, 3, 1, "layer1")
@@ -517,11 +834,25 @@ class BTCModels():
 
         return net
 
-    def res_cnn(self, x, training):
+    def res_cnn(self, x, is_training):
         '''RES_CNN
+
+            Residual CNN (ResNet).
+
+            Inputs:
+            -------
+            - x: tensor placeholder, input volumes in batch
+            - is_training: boolean placeholder, indicates the mode,
+                           True: training mode,
+                           False: validating and inferencing mode
+
+            Output:
+            -------
+            - output logits after ResNet
+
         '''
 
-        self.training = training
+        self.is_training = is_training
 
         # Here is a very simple case to test btc_train first
         net = self._conv3d_bn_act(x, 1, 5, 2, "preconv")
@@ -533,19 +864,36 @@ class BTCModels():
 
         return net
 
-    def dense_cnn(self, x, training):
+    def dense_cnn(self, x, is_training):
         '''DENSE_NET
+
+            Densely CNN (DenseNet).
+
+            Inputs:
+            -------
+            - x: tensor placeholder, input volumes in batch
+            - is_training: boolean placeholder, indicates the mode,
+                           True: training mode,
+                           False: validating and inferencing mode
+
+            Output:
+            -------
+            - output logits after DenseNet
+
         '''
 
-        self.training = training
+        self.is_training = is_training
+
+        # Set the bottleneck symbol
         self.bc = True
 
         # Here is a very simple case to test btc_train first
+        # Preconv layer before dense block
         net = self._conv3d(x, 1, 5, 2, "same", "preconv")
         net = self._dense_block(net, 1, 2, "dense1")
         net = self._transition(net, "trans1")
         net = self._dense_block(net, 1, 2, "dense2")
-        net = self._last_transition(net)
+        net = self._last_transition(net, "global_avgpool")
         net = self._flatten(net, "flatten")
         net = self._logits_fc(net, "logits")
 
