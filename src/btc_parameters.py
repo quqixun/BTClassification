@@ -36,6 +36,8 @@ Hyper-parameters for training pipeline
 -2- Paraneters for Training:
     - batch_size: int, the number of patches in one batch
     - num_epoches: int, the number of epoches
+    - learning_rate_first: float, the learning rate for first epoch
+    - learning_rate_last: float, the learning rate for last epoch
     - more parameters to be added
 
 -3- Parameter for Constructing Model
@@ -82,6 +84,8 @@ parameters = {
     # Parameters for training
     "batch_size": 10,
     "num_epoches": 1,
+    "learning_rate_first": 1e-3,
+    "learning_rate_last": 1e-5,
     # Parameter for model's structure
     "activation": "relu",  # "lrelu",
     "alpha": 0.2,  # "lrelu"

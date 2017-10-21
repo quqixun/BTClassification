@@ -86,6 +86,8 @@ class BTCTrain():
         self.batch_size = paras["batch_size"]
         self.num_epoches = paras["num_epoches"]
         self.drop_rate = paras["drop_rate"]
+        self.learning_rates = self._get_learning_rates(
+            paras["learning_rate_first"], paras["learning_rate_last"])
 
         # For models' structure
         self.act = paras["activation"]
@@ -126,6 +128,35 @@ class BTCTrain():
 
         return iters_per_epoch.astype(np.int64)
 
+    def _get_learning_rates(self, first_rate, last_rate):
+        '''_GET_LEARNING_RATES
+
+            Compute learning rate for each epoch according to
+            the start and the end point.
+
+            Inputs:
+            -------
+            - first_rate: float, the learning rate for first epoch
+            - last_rate: float, the learning rate for last epoch
+
+            Outputs:
+            --------
+            - a list of learning rates
+
+        '''
+
+        learning_rates = [first_rate]
+
+        if self.num_epoches == 1:
+            return learning_rates
+
+        decay_step = (first_rate - last_rate) / (self.num_epoches - 1)
+        for i in range(1, self.num_epoches - 1):
+            learning_rates.append(first_rate - decay_step * i)
+        learning_rates.append(last_rate)
+
+        return learning_rates
+
     def _load_data(self, tfrecord_path):
         '''_LOAD_DATA
 
@@ -134,7 +165,7 @@ class BTCTrain():
 
             Input:
             ------
-            - tfrecord_path: the path fo tfrecord file
+            - tfrecord_path: string, the path fo tfrecord file
 
             Output:
             -------
@@ -161,9 +192,12 @@ class BTCTrain():
         # - labels: 1D list, shape in [batch_size]
         # - training symbol: boolean
         with tf.name_scope("inputs"):
-            x = tf.placeholder(tf.float32, [None] + self.patch_shape)
-            y_input_classes = tf.placeholder(tf.int64, [None])
-            is_training = tf.placeholder(tf.bool)
+            x = tf.placeholder(tf.float32, [None] + self.patch_shape, "volumes")
+            y_input_classes = tf.placeholder(tf.int64, [None], "labels")
+            is_training = tf.placeholder(tf.bool, [], "mode")
+            learning_rate = tf.placeholder_with_default(0.0, [], "learning_rate")
+
+        tf.summary.scalar("learning rate", learning_rate)
 
         # Set models by given variable
         if self.net == CNN:
@@ -238,7 +272,7 @@ class BTCTrain():
 
         tra_iters, one_tra_iters, val_iters, epoch_no = 0, 0, 0, 0
 
-        print((PCB + "Training and Validating model: {}\n" + PCW).format(self.net))
+        print((PCB + "\nTraining and Validating model: {}\n" + PCW).format(self.net))
 
         # Lists to save loss and accuracy of each training step
         tloss_list, taccuracy_list = [], []
@@ -248,9 +282,10 @@ class BTCTrain():
                 # Training step
                 # Feed the graph, run optimizer and get metrics
                 tx, ty = sess.run([tra_volumes, tra_labels])
-                tra_fd = {x: tx, y_input_classes: ty, is_training: True}
-                tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy,
-                                                         train_op], feed_dict=tra_fd)
+                tra_fd = {x: tx, y_input_classes: ty,
+                          is_training: True, learning_rate: self.learning_rates[epoch_no]}
+                tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op],
+                                                         feed_dict=tra_fd)
 
                 tra_iters += 1
                 one_tra_iters += 1
@@ -280,7 +315,7 @@ class BTCTrain():
                         # Record metrics of validating steps
                         vloss_list.append(vloss)
                         vaccuracy_list.append(vaccuracy)
-                        val_writer.add_summary(vsummary, tra_iters)
+                        val_writer.add_summary(vsummary, val_iters)
 
                     # Compute mean loss and mean accuracy of training steps
                     # in one epoch, and empty lists for next epoch
@@ -320,7 +355,7 @@ class BTCTrain():
         except tf.errors.OutOfRangeError:
             # Stop training
             print(PCB + "Training has stopped." + PCW)
-            print((PCB + "Logs have been saved in: {}" + PCW).format(self.logs_path))
+            print((PCB + "Logs have been saved in: {}\n" + PCW).format(self.logs_path))
         finally:
             coord.request_stop()
 
