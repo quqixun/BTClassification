@@ -30,6 +30,7 @@ Class BTCTrain
 
 import os
 import shutil
+import argparse
 import numpy as np
 import tensorflow as tf
 from btc_settings import *
@@ -367,14 +368,22 @@ class BTCTrain():
 
 if __name__ == "__main__":
 
+    '''
+
+        Example of commandline:
+        python btc_train.py --model=cnn
+
+    '''
+
+    parser = argparse.ArgumentParser()
+
+    help_str = "Select a model in 'cnn', 'full_cnn', 'res_cnn' or 'dense_cnn'."
+    parser.add_argument("--model", action="store", dest="model", help=help_str)
+    results = parser.parse_args()
+
     parent_dir = os.path.dirname(os.getcwd())
     save_path = os.path.join(parent_dir, "models")
     logs_path = os.path.join(parent_dir, "logs")
 
-    model = CNN
-    # model = FULL_CNN
-    # model = RES_CNN
-    # model = DENSE_CNN
-
-    btc = BTCTrain(model, parameters, save_path, logs_path)
+    btc = BTCTrain(results.model, parameters, save_path, logs_path)
     btc.train()
