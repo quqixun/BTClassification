@@ -85,11 +85,10 @@ parameters = {
     "batch_size": 10,
     "num_epoches": 1,
     "learning_rate_first": 1e-3,
-    "learning_rate_last": 1e-5,
+    "learning_rate_last": 1e-4,
     # Parameter for model's structure
     "activation": "relu",  # "lrelu",
     "alpha": 0.2,  # "lrelu"
-    "drop_rate": 0.5,
-    "bn_momentum": 0.99,
-    "drop_rate": 0.5
+    "bn_momentum": 0.9,
+    "drop_rate": 0.0
 }
