@@ -867,7 +867,7 @@ class BTCModels():
         net = self._conv3d_bn_act(x, 1, 5, 2, "preconv")
         net = self._res_block(net, [1, 1, 1], 2, "res1")
         net = self._res_block(net, [1, 1, 2], 2, "res2")
-        net = self._max_pool(net, 7, "max_pool")
+        net = self._max_pool(net, 7, "global_maxpool")
         net = self._flatten(net, "flatten")
         net = self._logits_fc(net, "logits")
 
@@ -898,7 +898,8 @@ class BTCModels():
 
         # Here is a very simple case to test btc_train first
         # Preconv layer before dense block
-        net = self._conv3d(x, 1, 5, 2, "same", "preconv")
+        with tf.variable_scope("preconv"):
+            net = self._conv3d(x, 1, 5, 2, "same")
         net = self._dense_block(net, 1, 2, "dense1")
         net = self._transition(net, "trans1")
         net = self._dense_block(net, 1, 2, "dense2")
