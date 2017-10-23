@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/10/17
+# Modify on: 2017/10/16
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -119,7 +119,7 @@ GRADE_UNKNOWN = -1
 PARTIAL_SIZE = 49
 
 SCOPE_MIN = 5
-SCOPE_MAX = 11
+SCOPE_MAX = 10
 # PARTIAL_NUM = 5
 GRADE_II_PARTIALS = 7
 GRADE_III_PARTIALS = 6
@@ -132,7 +132,7 @@ Settings for Class of BTCTFRecords
 
 # Create TFRecords
 RANDOM_SEED = 0  # 0, 1, 2, ...
-PROPORTION = 0.6
+PROPORTION = 0.5
 TFRECORDS_FOLDER = "TFRecords"
 GRADES_LIST = [GRADE_II, GRADE_III, GRADE_IV]
 TRAIN_SET_FILE = "train_set.txt"

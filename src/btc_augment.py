@@ -291,7 +291,7 @@ class BTCAugment():
                 for i in non_bg_index:
                     # Randomly generate how much, in percentage, the intrensity
                     # of a voxel will be modified
-                    scope = np.random.randint(SCOPE_MIN, SCOPE_MAX, size=1)[0] / 100
+                    scope = np.random.randint(SCOPE_MIN, SCOPE_MAX + 1, size=1)[0] / 100
                     ctemp[i] = ctemp[i] * (1 + sign * scope)
 
                 temp[..., c] = np.reshape(ctemp, temp[..., c].shape)
