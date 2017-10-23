@@ -8,7 +8,7 @@
 
   Nyúl, L.G. and Udupa, J.K., 1999. On standardizing the MR image intensity scale. Magnetic Resonance in Medicine, 42, pp.1072–1081.
   
-- **New Variants of a Method of MRI Scale Standardization**  [(LINK)](http://ieeexplore.ieee.org/abstract/document/836373/)
+- **New Variants of a Method of MRI Scale Standardization**  [(Link)](http://ieeexplore.ieee.org/abstract/document/836373/)
 
   Nyúl, L.G., Udupa, J.K. and Zhang, X., 2000. New variants of a method of MRI scale standardization. IEEE transactions on medical imaging, 19(2), pp.143-150.
   
@@ -19,3 +19,11 @@
 - **DeepMedic for Brain Tumor Segmentation**  [(Link)](https://link.springer.com/chapter/10.1007/978-3-319-55524-9_14)
 
   Kamnitsas, K., Ferrante, E., Parisot, S., Ledig, C., Nori, A.V., Criminisi, A., Rueckert, D. and Glocker, B., 2016, October. DeepMedic for Brain Tumor Segmentation. In International Workshop on Brainlesion: Glioma, Multiple Sclerosis, Stroke and Traumatic Brain Injuries (pp. 138-149). Springer, Cham.
+  
+- **Deep Residual Learning for Image Recognition** [Link](https://arxiv.org/abs/1512.03385)
+  
+  He, K., Zhang, X., Ren, S. and Sun, J., 2016. Deep residual learning for image recognition. In Proceedings of the IEEE conference on computer vision and pattern recognition (pp. 770-778).
+  
+- **Densely Connected Convolutional Networks** [Link](https://arxiv.org/abs/1608.06993)
+
+  Huang, G., Liu, Z., Weinberger, K.Q. and van der Maaten, L., 2016. Densely connected convolutional networks. arXiv preprint arXiv:1608.06993.
