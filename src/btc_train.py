@@ -29,6 +29,7 @@ Class BTCTrain
 
 
 import os
+import json
 import shutil
 import argparse
 import numpy as np
@@ -105,6 +106,9 @@ class BTCTrain():
         # both training and validating respectively
         self.tepoch_iters = self._get_epoch_iters(paras["train_num"])
         self.vepoch_iters = self._get_epoch_iters(paras["validate_num"])
+
+        # Create empty lists to save loss and accuracy
+        self.train_metrics, self.validate_metrics = [], []
 
         return
 
@@ -295,6 +299,7 @@ class BTCTrain():
                 tloss_list.append(tloss)
                 taccuracy_list.append(taccuracy)
                 tra_writer.add_summary(tsummary, tra_iters)
+                self.train_metrics.append([tloss, taccuracy])
 
                 print((PCG + "[Epoch {}] ").format(epoch_no + 1),
                       "Train Step {}: ".format(one_tra_iters),
@@ -317,6 +322,7 @@ class BTCTrain():
                         vloss_list.append(vloss)
                         vaccuracy_list.append(vaccuracy)
                         val_writer.add_summary(vsummary, val_iters)
+                        self.validate_metrics.append([vloss, vaccuracy])
 
                     # Compute mean loss and mean accuracy of training steps
                     # in one epoch, and empty lists for next epoch
@@ -356,12 +362,42 @@ class BTCTrain():
         except tf.errors.OutOfRangeError:
             # Stop training
             print(PCB + "Training has stopped." + PCW)
+            # Save metrics into json files
+            # self._save_metrics("train_metrics.json", self.train_metrics)
+            # self._save_metrics("validate_metrics.json", self.validate_metrics)
             print((PCB + "Logs have been saved in: {}\n" + PCW).format(self.logs_path))
         finally:
             coord.request_stop()
 
         coord.join(threads)
         sess.close()
+
+        return
+
+    def _save_metrics(self, filename, data):
+        '''_SAVE_METRICS
+
+            Save metrics (loss and accuracy) into pickle files.
+            Durectiry has been set as self.logs_path.
+
+            Inputs:
+            -------
+            - filename: string, the name of file, not the full path
+            - data: 2D list, including loss and accuracy for either
+                    training results or validating results
+
+        '''
+
+        loss = ["{0:.6f}".format(d[0]) for d in data]
+        accuracy = ["{0:.6f}".format(d[1]) for d in data]
+        metrics = {"loss": loss, "accuracy": accuracy}
+
+        json_path = os.path.join(self.logs_path, filename)
+        if os.path.isfile(json_path):
+            os.remove(txt_path)
+
+        with open(json_path, "w") as json_file:
+            json.dump(metrics, json_file)
 
         return
 
