@@ -27,3 +27,11 @@
 - **Densely Connected Convolutional Networks** [Link](https://arxiv.org/abs/1608.06993)
 
   Huang, G., Liu, Z., Weinberger, K.Q. and van der Maaten, L., 2016. Densely connected convolutional networks. arXiv preprint arXiv:1608.06993.
+  
+- **Why does unsupervised pre-training help deep learning?** [Link](http://www.jmlr.org/papers/volume11/erhan10a/erhan10a.pdf)
+
+  Erhan, D., Bengio, Y., Courville, A., Manzagol, P.A., Vincent, P. and Bengio, S., 2010. Why does unsupervised pre-training help deep learning?. Journal of Machine Learning Research, 11(Feb), pp.625-660.
+  
+- **Sparse autoencoder** [Link](https://pdfs.semanticscholar.org/eb2f/e260af00818907fe82024203d8a5a1386777.pdf)
+
+  Ng, A., 2011. Sparse autoencoder. CS294A Lecture notes, 72(2011), pp.1-19.
