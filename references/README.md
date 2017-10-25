@@ -1,5 +1,9 @@
 # References
 
+- **Advancing The Cancer Genome Atlas glioma MRI collections with expert segmentation labels and radiomic features** [(Link)](https://search.proquest.com/openview/aa9389c0b89d5a31e92c19ffe1934191/1?pq-origsite=gscholar&cbl=2041912)
+
+  Bakas, S., Akbari, H., Sotiras, A., Bilello, M., Rozycki, M., Kirby, J.S., Freymann, J.B., Farahani, K. and Davatzikos, C., 2017. Advancing The Cancer Genome Atlas glioma MRI collections with expert segmentation labels and radiomic features. Scientific Data, 4, p.170117.
+
 - **N4ITK: Improved N3 Bias Correction**  [(Link)](https://www.ncbi.nlm.nih.gov/pubmed/20378467)
 
   Tustison, N.J., Avants, B.B., Cook, P.A., Zheng, Y., Egan, A., Yushkevich, P.A. and Gee, J.C., 2010. N4ITK: improved N3 bias correction. IEEE transactions on medical imaging, 29(6), pp.1310-1320.
@@ -20,10 +24,18 @@
 
   Kamnitsas, K., Ferrante, E., Parisot, S., Ledig, C., Nori, A.V., Criminisi, A., Rueckert, D. and Glocker, B., 2016, October. DeepMedic for Brain Tumor Segmentation. In International Workshop on Brainlesion: Glioma, Multiple Sclerosis, Stroke and Traumatic Brain Injuries (pp. 138-149). Springer, Cham.
   
-- **Deep Residual Learning for Image Recognition** [Link](https://arxiv.org/abs/1512.03385)
+- **Deep Residual Learning for Image Recognition** [(Link)](https://arxiv.org/abs/1512.03385)
   
   He, K., Zhang, X., Ren, S. and Sun, J., 2016. Deep residual learning for image recognition. In Proceedings of the IEEE conference on computer vision and pattern recognition (pp. 770-778).
   
-- **Densely Connected Convolutional Networks** [Link](https://arxiv.org/abs/1608.06993)
+- **Densely Connected Convolutional Networks** [(Link)](https://arxiv.org/abs/1608.06993)
 
   Huang, G., Liu, Z., Weinberger, K.Q. and van der Maaten, L., 2016. Densely connected convolutional networks. arXiv preprint arXiv:1608.06993.
+  
+- **Why does unsupervised pre-training help deep learning?** [(Link)](http://www.jmlr.org/papers/volume11/erhan10a/erhan10a.pdf)
+
+  Erhan, D., Bengio, Y., Courville, A., Manzagol, P.A., Vincent, P. and Bengio, S., 2010. Why does unsupervised pre-training help deep learning?. Journal of Machine Learning Research, 11(Feb), pp.625-660.
+  
+- **Sparse autoencoder** [(Link)](https://pdfs.semanticscholar.org/eb2f/e260af00818907fe82024203d8a5a1386777.pdf)
+
+  Ng, A., 2011. Sparse autoencoder. CS294A Lecture notes, 72(2011), pp.1-19.
