@@ -2,7 +2,7 @@
 # Script for Creating Models
 # Author: Qixun Qu
 # Create on: 2017/10/12
-# Modify on: 2017/10/21
+# Modify on: 2017/10/25
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -80,8 +80,7 @@ class BTCModels():
     # Basic Helper Functions
     #
 
-    def _conv3d(self, x, filters, kernel_size, strides=1,
-                padding="same", name="conv_var"):
+    def _conv3d(self, x, filters, kernel_size, strides=1, name="conv_var"):
         '''_CONV3D
 
             Return 3D convolution layer with variables
@@ -98,7 +97,6 @@ class BTCModels():
             - filters: int, the number of kernels
             - kernel_size: int, the size of cube kernel
             - strides: int, strides along three dimentions
-            - padding: string, "same" or "valid"
             - name: string, layer's name
 
             Output:
@@ -106,6 +104,8 @@ class BTCModels():
             - a 3D convolution layer
 
         '''
+
+        padding = "valid" if kernel_size == 1 else "same"
 
         with tf.name_scope("conv3d"):
             return tf.layers.conv3d(inputs=x,
@@ -210,8 +210,8 @@ class BTCModels():
 
         return
 
-    def _conv3d_bn_act(self, x, filters, kernel_size, strides=1,
-                       name="cba", padding="same", act=True):
+    def _conv3d_bn_act(self, x, filters, kernel_size,
+                       strides=1, name="cba", act=True):
         '''_CONV3D_BN_ACT
 
             A convolution block, including three sections:
@@ -231,7 +231,6 @@ class BTCModels():
             - kernel_size: int, the size of cube kernel
             - strides: int, strides along three dimentions
             - name: string, layer's name
-            - padding: string, "same" or "valid"
             - act: string or None, indicates the activation,
                    method, id None, return inactivated layer
 
@@ -241,7 +240,7 @@ class BTCModels():
         '''
 
         with tf.variable_scope(name):
-            cba = self._conv3d(x, filters, kernel_size, strides, padding)
+            cba = self._conv3d(x, filters, kernel_size, strides)
             cba = self._batch_norm(cba)
             if act:  # If act is None, return inactivated result
                 cba = self._activate(cba)
@@ -293,8 +292,11 @@ class BTCModels():
             Inputs:
             -------
             - x: tensor, input layer
-            - psize: int, the size of pooling window, and
-                     the strides of pooling operation as well
+            - psize: int or a list of 3 ints,
+                     the size of pooling window, and the
+                     strides of pooling operation as well,
+                     if it equals to -1, the function performs
+                     global max pooling
             name: string, layer's name
 
             Output:
@@ -303,9 +305,13 @@ class BTCModels():
 
         '''
 
+        if psize == -1:
+            psize = x.get_shape().as_list()[1:-1]
+
         return tf.layers.max_pooling3d(inputs=x,
                                        pool_size=psize,
                                        strides=psize,
+                                       padding="same",
                                        name=name)
 
     def _average_pool(self, x, psize=2, name="avg_pool"):
@@ -321,8 +327,11 @@ class BTCModels():
             Inputs:
             -------
             - x: tensor, input layer
-            - psize: int, the size of pooling window, and
-                     the strides of pooling operation as well
+            - psize: int or a list of 3 ints,
+                     the size of pooling window, and the
+                     strides of pooling operation as well,
+                     if it equals to -1, the function performs
+                     global max pooling
             name: string, layer's name
 
             Output:
@@ -331,9 +340,13 @@ class BTCModels():
 
         '''
 
+        if psize == -1:
+            psize = x.get_shape().as_list()[1:-1]
+
         return tf.layers.average_pooling3d(inputs=x,
                                            pool_size=psize,
                                            strides=psize,
+                                           padding="same",
                                            name=name)
 
     def _flatten(self, x, name="flt"):
@@ -441,8 +454,7 @@ class BTCModels():
 
         x_shape = x.get_shape().as_list()
         with tf.variable_scope(name):
-            return self._conv3d(x, self.classes,
-                                x_shape[1:-1], 1, "valid")
+            return self._conv3d(x, self.classes, x_shape[1:-1], 1)
 
     #
     # Helper function for residual cnn
@@ -487,18 +499,15 @@ class BTCModels():
 
         # Three convolutional layers
         # Note: the strides of first layer can be changed
-        res = self._conv3d_bn_act(x, filters[0], 1, strides,
-                                  name + "_conv1", "valid")
-        res = self._conv3d_bn_act(res, filters[1], 3, 1,
-                                  name + "_conv2", "same")
+        res = self._conv3d_bn_act(x, filters[0], 1, strides, name + "_conv1")
+        res = self._conv3d_bn_act(res, filters[1], 3, 1, name + "_conv2")
         # Note: the third layer is inactivated
-        res = self._conv3d_bn_act(res, filters[2], 1, 1,
-                                  name + "_conv3", "valid", False)
+        res = self._conv3d_bn_act(res, filters[2], 1, 1, name + "_conv3", False)
 
         # Shortcut layer is inactivated
         if shortcut:
             x = self._conv3d_bn_act(x, filters[2], 1, strides,
-                                    name + "_shortcut", "valid", False)
+                                    name + "_shortcut", False)
 
         # Elementwisely add
         with tf.name_scope(name + "_add"):
@@ -627,7 +636,7 @@ class BTCModels():
 
         bott = self._batch_norm(x)
         bott = self._activate(bott)
-        bott = self._conv3d(bott, filters * 4, 1, padding="valid")
+        bott = self._conv3d(bott, filters * 4, 1)
         bott = self._dropout(bott)
 
         return bott
@@ -722,8 +731,7 @@ class BTCModels():
             last_tran = self._batch_norm(x)
             last_tran = self._activate(last_tran)
 
-        out_channels = last_tran.get_shape().as_list()[-1]
-        last_tran = self._average_pool(last_tran, out_channels, name)
+        last_tran = self._average_pool(last_tran, -1, name)
 
         return last_tran
 
@@ -740,19 +748,19 @@ class BTCModels():
 
         self.is_training = True
 
-        x = tf.placeholder(tf.float32, [5, 36, 36, 36, 4], "input")
+        x = tf.placeholder(tf.float32, [5, 49, 49, 49, 4], "input")
         net = self._conv3d_bn_act(x, 2, 3, 1, "layer1")
-        net = self._max_pool(net, 2, 2, "max_pool1")
+        net = self._max_pool(net, 2, "max_pool1")
         net = self._conv3d_bn_act(net, 2, 3, 1, "layer2")
-        net = self._average_pool(net, 2, 2, "avg_pool2")
+        net = self._average_pool(net, 2, "avg_pool2")
         net = self._conv3d_bn_act(net, 2, 3, 1, "layer3")
-        net = self._max_pool(net, 2, 2, "max_pool3")
+        net = self._max_pool(net, 2, "max_pool3")
         net = self._flatten(net, "flatten")
         net = self._fc_bn_act(net, 64, "fcn1")
         net = self._dropout(net, "drop1")
         net = self._fc_bn_act(net, 64, "fcn2")
         net = self._dropout(net, "drop2")
-        net = self._logits_fc(net, 3, "logits")
+        net = self._logits_fc(net, "logits")
         net = tf.nn.softmax(logits=net, name="softmax")
 
         print("Simple test of Class BTCModels")
@@ -837,7 +845,7 @@ class BTCModels():
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer7")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer8")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer9")
-        net = self._max_pool(net, 2, "max_pool3")
+        net = self._max_pool(net, -1, "max_pool3")
         net = self._logits_conv(net, "logits_conv")
         net = self._flatten(net, "logits_flatten")
 
@@ -867,7 +875,7 @@ class BTCModels():
         net = self._conv3d_bn_act(x, 1, 5, 2, "preconv")
         net = self._res_block(net, [1, 1, 1], 2, "res1")
         net = self._res_block(net, [1, 1, 2], 2, "res2")
-        net = self._max_pool(net, 7, "global_maxpool")
+        net = self._max_pool(net, -1, "global_maxpool")
         net = self._flatten(net, "flatten")
         net = self._logits_fc(net, "logits")
 
@@ -899,7 +907,7 @@ class BTCModels():
         # Here is a very simple case to test btc_train first
         # Preconv layer before dense block
         with tf.variable_scope("preconv"):
-            net = self._conv3d(x, 1, 5, 2, "same")
+            net = self._conv3d(x, 1, 5, 2)
         net = self._dense_block(net, 1, 2, "dense1")
         net = self._transition(net, "trans1")
         net = self._dense_block(net, 1, 2, "dense2")
@@ -914,4 +922,15 @@ if __name__ == "__main__":
 
     models = BTCModels("test", classes=3, act="relu", alpha=None,
                        momentum=0.99, drop_rate=0.5)
-    models._test()
+
+    # Test basic helper function
+    # models._test()
+
+    # Test function for cnn, full_cnn, res_cnn, dense_cnn
+    x = tf.placeholder(tf.float32, [5, 49, 49, 49, 4])
+    is_training = tf.placeholder(tf.bool, [])
+
+    # net = models.cnn(x, is_training)
+    # net = models.full_cnn(x, is_training)
+    # net = models.res_cnn(x, is_training)
+    net = models.dense_cnn(x, is_training)
