@@ -1,5 +1,9 @@
 # References
 
+- **Advancing The Cancer Genome Atlas glioma MRI collections with expert segmentation labels and radiomic features** [(Link)](https://search.proquest.com/openview/aa9389c0b89d5a31e92c19ffe1934191/1?pq-origsite=gscholar&cbl=2041912)
+
+  Bakas, S., Akbari, H., Sotiras, A., Bilello, M., Rozycki, M., Kirby, J.S., Freymann, J.B., Farahani, K. and Davatzikos, C., 2017. Advancing The Cancer Genome Atlas glioma MRI collections with expert segmentation labels and radiomic features. Scientific Data, 4, p.170117.
+
 - **N4ITK: Improved N3 Bias Correction**  [(Link)](https://www.ncbi.nlm.nih.gov/pubmed/20378467)
 
   Tustison, N.J., Avants, B.B., Cook, P.A., Zheng, Y., Egan, A., Yushkevich, P.A. and Gee, J.C., 2010. N4ITK: improved N3 bias correction. IEEE transactions on medical imaging, 29(6), pp.1310-1320.
