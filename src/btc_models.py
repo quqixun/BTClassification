@@ -349,6 +349,19 @@ class BTCModels():
                                            padding="same",
                                            name=name)
 
+    def _pooling(self, x, psize=2, mode="max", name="pool"):
+        '''_POOLING
+        '''
+
+        if mode == "max":
+            pool = self._max_pool
+        elif mode == "avg":
+            pool = self._average_pool
+        else:  # Could not find pooling method
+            raise ValueError("Pooling mode is 'max' or 'avg'.")
+
+        return pool(x, psize, name)
+
     def _flatten(self, x, name="flt"):
         '''_FLATTEN
 
@@ -736,6 +749,39 @@ class BTCModels():
         return last_tran
 
     #
+    # Helper functions for autoencoder
+    #
+
+    def _deconv3d(self, x, filters, kernel_size, strides=1, name="deconv_var"):
+        '''_DECONV3D
+        '''
+
+        # padding = "valid" if kernel_size == 1 else "same"
+        padding = "same"
+
+        with tf.name_scope("deconv3d"):
+            return tf.layers.conv3d_transpose(inputs=x,
+                                              filters=filters,
+                                              kernel_size=kernel_size,
+                                              strides=strides,
+                                              padding=padding,
+                                              kernel_initializer=xavier_initializer(),
+                                              name=name)
+
+    def _deconv3d_bn_act(self, x, filters, kernel_size,
+                         strides=1, name="dba", act=True):
+        '''_DECONV3D_BN_ACT
+        '''
+
+        with tf.variable_scope(name):
+            dba = self._deconv3d(x, filters, kernel_size, strides)
+            dba = self._batch_norm(dba)
+            if act:  # If act is None, return inactivated result
+                dba = self._activate(dba)
+
+        return dba
+
+    #
     # A Simple Test Case
     #
 
@@ -917,20 +963,85 @@ class BTCModels():
 
         return net
 
+    def autoencoder_stride(self, x, is_training):
+        '''AUTOENCODER_STRIDE
+
+            Autoencoder with stride pooling.
+
+            Inputs:
+            -------
+            - x: tensor placeholder, input volumes in batch
+            - is_training: boolean placeholder, indicates the mode,
+                           True: training mode,
+                           False: validating and inferencing mode
+
+            Output:
+            -------
+            - a tensor whose shape is same as input without activation
+
+        '''
+
+        self.is_training = is_training
+
+        net = self._conv3d_bn_act(x, 1, 3, 2, "conv1")
+        net = self._conv3d_bn_act(net, 1, 3, 2, "conv2")
+        net = self._conv3d_bn_act(net, 1, 3, 2, "conv3")
+        net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv1")
+        net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv2")
+        net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv3", False)
+        # Sigmoid
+
+        return net
+
+    def autoencoder_pool(self, x, is_training):
+        '''AUTOENCODER_POOL
+
+            Autoencoder with max or average pooling.
+
+            Inputs:
+            -------
+            - x: tensor placeholder, input volumes in batch
+            - is_training: boolean placeholder, indicates the mode,
+                           True: training mode,
+                           False: validating and inferencing mode
+
+            Output:
+            -------
+            - a tensor whose shape is same as input without activation
+
+        '''
+
+        self.is_training = is_training
+
+        net = self._conv3d_bn_act(x, 1, 3, 1, "conv1")
+        net = self._pooling(net, 2, "max", "max_pool1")
+        net = self._conv3d_bn_act(net, 1, 3, 1, "conv2")
+        net = self._pooling(net, 2, "avg", "avg_pool2")
+        net = self._conv3d_bn_act(net, 1, 3, 1, "conv3")
+        net = self._pooling(net, 2, "max", "max_pool3")
+        net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv1")
+        net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv2")
+        net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv3", False)
+        # Sigmoid
+
+        return net
+
 
 if __name__ == "__main__":
 
     models = BTCModels("test", classes=3, act="relu", alpha=None,
                        momentum=0.99, drop_rate=0.5)
 
-    # Test basic helper function
+    # Test basic helper functions
     # models._test()
 
-    # Test function for cnn, full_cnn, res_cnn, dense_cnn
-    x = tf.placeholder(tf.float32, [5, 49, 49, 49, 4])
+    # Test function for cnn, full_cnn, res_cnn, dense_cnn and autoencoder
+    x = tf.placeholder(tf.float32, [5, 112, 112, 112, 4])
     is_training = tf.placeholder(tf.bool, [])
 
     # net = models.cnn(x, is_training)
     # net = models.full_cnn(x, is_training)
     # net = models.res_cnn(x, is_training)
-    net = models.dense_cnn(x, is_training)
+    # net = models.dense_cnn(x, is_training)
+    # net = models.autoencoder_stride(x, is_training)
+    net = models.autoencoder_pool(x, is_training)
