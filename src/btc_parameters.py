@@ -2,7 +2,7 @@
 # Script for Hyper-Parameters
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/10/20
+# Modify on: 2017/10/26
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -65,18 +65,28 @@ tfrecords_dir = os.path.join(parent_dir, DATA_FOLDER, TFRECORDS_FOLDER)
 tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
 vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
 
+# Whole dataset
+# tpath = os.path.join(tfrecords_dir, "train.tfrecord")
+# vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
+
 # Load dict from json file in which the number of
 # training and valdating set can be found
 json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER, VOLUMES_NUM_FILE)
 with open(json_path) as json_file:
     volumes_num = json.load(json_file)
 
+train_num = 236
+validate_num = 224
+
+# train_num = volumes_num["train"]
+# validate_num = volumes_num["validate"]
+
 parameters = {
     # Basic settings
     "train_path": tpath,
     "validate_path": vpath,
-    "train_num": 236,  # volumes_num["train"],
-    "validate_num": 224,  # volumes_num["validate"],
+    "train_num": train_num,
+    "validate_num": validate_num,
     "classes_num": 3,
     "patch_shape": PATCH_SHAPE,
     "capacity": 350,
@@ -90,5 +100,5 @@ parameters = {
     "activation": "relu",  # "lrelu",
     "alpha": 0.2,  # "lrelu"
     "bn_momentum": 0.9,
-    "drop_rate": 0.0
+    "drop_rate": 0.5
 }
