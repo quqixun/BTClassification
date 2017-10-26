@@ -2,7 +2,7 @@
 # Script for Training Models
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/10/21
+# Modify on: 2017/10/26
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -87,20 +87,18 @@ class BTCTrain():
         # For training process
         self.batch_size = paras["batch_size"]
         self.num_epoches = paras["num_epoches"]
-        self.drop_rate = paras["drop_rate"]
         self.learning_rates = self._get_learning_rates(
             paras["learning_rate_first"], paras["learning_rate_last"])
 
         # For models' structure
-        self.act = paras["activation"]
-        self.alpha = paras["alpha"]
-        self.bn_momentum = paras["bn_momentum"]
-        self.drop_rate = paras["drop_rate"]
+        act = paras["activation"]
+        alpha = paras["alpha"]
+        bn_momentum = paras["bn_momentum"]
+        drop_rate = paras["drop_rate"]
 
         # Initialize BTCModels to set general settings
         self.models = BTCModels(self.net, self.classes_num,
-                                self.act, self.alpha,
-                                self.bn_momentum, self.drop_rate)
+                                act, alpha, bn_momentum, drop_rate)
 
         # Computer the number of batches in each epoch for
         # both training and validating respectively
@@ -216,6 +214,7 @@ class BTCTrain():
         else:  # Raise error if model cannot be found
             raise ValueError("Could not found model.")
 
+        # with tf.device("/gpu:0")
         # Obtain logits from the model
         y_output_logits = network(x, is_training)
 
@@ -249,8 +248,9 @@ class BTCTrain():
             # batch normalization in training process
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             with tf.control_dependencies(update_ops):
-                train_op = tf.train.AdamOptimizer(1e-2).minimize(loss)
+                train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 
+        # with tf.device("/cpu:0")
         # Load data from tfrecord files
         with tf.name_scope("tfrecords"):
             tra_volumes, tra_labels = self._load_data(self.train_path)
