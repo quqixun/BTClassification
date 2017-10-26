@@ -2,7 +2,7 @@
 # Script for Creating Models
 # Author: Qixun Qu
 # Create on: 2017/10/12
-# Modify on: 2017/10/25
+# Modify on: 2017/10/26
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -842,18 +842,21 @@ class BTCModels():
         # Here is a very simple case to test btc_train first
         net = self._conv3d_bn_act(x, 1, 3, 1, "layer1")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer2")
-        net = self._max_pool(net, 2, "max_pool1")
+        net = self._pooling(net, 2, "max", "max_pool1")
+        net = self._dropout(net, "dropout1")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer3")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer4")
-        net = self._max_pool(net, 2, "max_pool2")
+        net = self._pooling(net, 2, "max", "max_pool2")
+        net = self._dropout(net, "dropout2")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer5")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer6")
-        net = self._max_pool(net, 2, "max_pool3")
+        net = self._pooling(net, 2, "max", "max_pool3")
+        net = self._dropout(net, "dropout3")
         net = self._flatten(net, "flatten")
         net = self._fc_bn_act(net, 3, "fc1")
-        net = self._dropout(net, "dropout1")
+        net = self._dropout(net, "dropout4")
         net = self._fc_bn_act(net, 3, "fc2")
-        net = self._dropout(net, "dropout2")
+        net = self._dropout(net, "dropout5")
         net = self._logits_fc(net, "logits")
 
         return net
@@ -883,15 +886,18 @@ class BTCModels():
         net = self._conv3d_bn_act(x, 1, 3, 1, "layer1")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer2")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer3")
-        net = self._max_pool(net, 2, "max_pool1")
+        net = self._pooling(net, 2, "max", "max_pool1")
+        net = self._dropout(net, "dropout1")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer4")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer5")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer6")
-        net = self._max_pool(net, 2, "max_pool2")
+        net = self._pooling(net, 2, "max", "max_pool2")
+        net = self._dropout(net, "dropout2")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer7")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer8")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer9")
-        net = self._max_pool(net, -1, "max_pool3")
+        net = self._pooling(net, -1, "max", "max_pool3")
+        net = self._dropout(net, "dropout3")
         net = self._logits_conv(net, "logits_conv")
         net = self._flatten(net, "logits_flatten")
 
@@ -921,7 +927,7 @@ class BTCModels():
         net = self._conv3d_bn_act(x, 1, 5, 2, "preconv")
         net = self._res_block(net, [1, 1, 1], 2, "res1")
         net = self._res_block(net, [1, 1, 2], 2, "res2")
-        net = self._max_pool(net, -1, "global_maxpool")
+        net = self._pooling(net, -1, "max", "global_maxpool")
         net = self._flatten(net, "flatten")
         net = self._logits_fc(net, "logits")
 
@@ -1016,7 +1022,7 @@ class BTCModels():
         net = self._conv3d_bn_act(x, 1, 3, 1, "conv1")
         net = self._pooling(net, 2, "max", "max_pool1")
         net = self._conv3d_bn_act(net, 1, 3, 1, "conv2")
-        net = self._pooling(net, 2, "avg", "avg_pool2")
+        net = self._pooling(net, 2, "max", "max_pool2")
         net = self._conv3d_bn_act(net, 1, 3, 1, "conv3")
         net = self._pooling(net, 2, "max", "max_pool3")
         net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv1")
