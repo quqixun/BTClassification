@@ -2,7 +2,7 @@
 # Script for Data Augmentation
 # Author: Qixun Qu
 # Create on: 2017/10/06
-# Modify on: 2017/10/09
+# Modify on: 2017/10/26
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -59,6 +59,8 @@ Details of Augmentation Process:
 
 '''
 
+
+from __future__ import print_function
 
 import os
 import numpy as np
@@ -323,7 +325,7 @@ class BTCAugment():
             print("The grade of case " + case_no + " is invalid")
             raise
 
-        # Obtain patches' names of a case, met most three patches,
+        # Obtain patches' names of a case, at most three patches,
         # which are original, dilated and eroded tumor patches
         case_names = os.listdir(case_path)
         for cn in case_names:

@@ -2,7 +2,7 @@
 # Script for Reorganizing
 # Author: Qixun Qu
 # Create on: 2017/09/12
-# Modify on: 2017/10/07
+# Modify on: 2017/10/26
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -55,6 +55,8 @@ Target Folder:
 
 '''
 
+
+from __future__ import print_function
 
 import os
 from tqdm import *

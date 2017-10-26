@@ -38,6 +38,8 @@ Class BTCTFRecords
 '''
 
 
+from __future__ import print_function
+
 import os
 import json
 import numpy as np
@@ -285,7 +287,7 @@ class BTCTFRecords():
                 if not os.path.isfile(vp):
                     continue
 
-                # Read, normalize and convert volume
+                # Read, normalize and convert volume to binary
                 volume = np.load(vp)
                 volume = normalize(volume)
                 volume_raw = volume.tobytes()

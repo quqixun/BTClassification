@@ -2,7 +2,7 @@
 # Script for Extracting Tumor Patches
 # Author: Qixun Qu
 # Create on: 2017/09/18
-# Modify on: 2017/10/07
+# Modify on: 2017/10/26
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -51,6 +51,8 @@ Pipline of Patches Generation:
 
 '''
 
+
+from __future__ import print_function
 
 import os
 import shutil

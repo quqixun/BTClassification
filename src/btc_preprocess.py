@@ -2,7 +2,7 @@
 # Script for Preprocessing
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/10/07
+# Modify on: 2017/10/26
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -60,6 +60,8 @@ Pipline of Preprocessing:
 
 '''
 
+
+from __future__ import print_function
 
 import os
 import shutil

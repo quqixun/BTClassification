@@ -29,6 +29,8 @@ Class BTCModels
 '''
 
 
+from __future__ import print_function
+
 import tensorflow as tf
 from operator import mul
 from functools import reduce
