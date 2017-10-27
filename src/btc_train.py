@@ -225,8 +225,13 @@ class BTCTrain():
             # Convert labels to onehot array first, such as:
             # [0, 1, 2] ==> [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
             y_input_onehot = tf.one_hot(indices=y_input_classes, depth=self.classes_num)
-            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_input_onehot,
-                                                                          logits=y_output_logits))
+            lossCE = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_input_onehot,
+                                                                            logits=y_output_logits))
+            # Regularization term to reduce overfitting
+            variables = tf.trainable_variables()
+            lossL2 = tf.add_n([tf.nn.l2_loss(v) for v in variables if "kernel" in v.name]) * 0.001
+            loss = lossCE + lossL2
+
         # Add loss into summary
         tf.summary.scalar("loss", loss)
 
