@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/10/16
+# Modify on: 2017/10/28
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -170,3 +170,5 @@ CNN = "cnn"
 FULL_CNN = "full_cnn"
 RES_CNN = "res_cnn"
 DENSE_CNN = "dense_cnn"
+CAE_STRIDE = "cae_stride"
+CAE_POOL = "cae_pool"
