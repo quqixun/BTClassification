@@ -2,7 +2,7 @@
 # Script for Training Models
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/10/26
+# Modify on: 2017/10/28
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -38,7 +38,7 @@ import numpy as np
 import tensorflow as tf
 from btc_settings import *
 from btc_models import BTCModels
-from btc_parameters import parameters
+from btc_parameters import cnn_parameters
 from btc_tfrecords import BTCTFRecords
 
 
@@ -61,6 +61,9 @@ class BTCTrain():
         '''
 
         self.net = net
+        self.cae = False
+        if net == CAE_STRIDE or net == CAE_POOL:
+            self.cae = True
 
         # Initialize BTCTFRecords to load data
         self.tfr = BTCTFRecords()
@@ -91,6 +94,11 @@ class BTCTrain():
         self.num_epoches = paras["num_epoches"]
         self.learning_rates = self._get_learning_rates(
             paras["learning_rate_first"], paras["learning_rate_last"])
+        self.l2_loss_coeff = paras["l2_loss_coeff"]
+
+        if self.cae:
+            self.sparse_penalty_coeff = 0.001
+            self.p = 0.05
 
         # For models' structure
         act = paras["activation"]
@@ -101,6 +109,7 @@ class BTCTrain():
         # Initialize BTCModels to set general settings
         self.models = BTCModels(self.net, self.classes_num,
                                 act, alpha, bn_momentum, drop_rate)
+        self.network = self._get_network()
 
         # Computer the number of batches in each epoch for
         # both training and validating respectively
@@ -111,6 +120,31 @@ class BTCTrain():
         self.train_metrics, self.validate_metrics = [], []
 
         return
+
+    def _get_network(self):
+        '''_GET_NETWORK
+
+            Return network function according to the given net's name.
+
+        '''
+
+        # Set models by given variable
+        if self.net == CNN:
+            network = self.models.cnn
+        elif self.net == FULL_CNN:
+            network = self.models.full_cnn
+        elif self.net == RES_CNN:
+            network = self.models.res_cnn
+        elif self.net == DENSE_CNN:
+            network = self.models.dense_cnn
+        elif self.net == CAE_STRIDE:
+            network = self.models.autoencoder_stride
+        elif self.net == CAE_POOL:
+            network = self.models.autoencoder_pool
+        else:  # Raise error if model cannot be found
+            raise ValueError("Could not found model.")
+
+        return network
 
     def _get_epoch_iters(self, num):
         '''_GET_EPOCH_ITERS
@@ -185,6 +219,104 @@ class BTCTrain():
                                         capacity=self.capacity,
                                         min_after_dequeue=self.min_after_dequeue)
 
+    def _get_loss(self, y_in, y_out):
+        '''_GET_LOSS
+        '''
+
+        def softmax_loss(y_in, y_out):
+            # Convert labels to onehot array first, such as:
+            # [0, 1, 2] ==> [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+            y_in_onehot = tf.one_hot(indices=y_in, depth=self.classes_num)
+            return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_in_onehot,
+                                                                          logits=y_out))
+
+        def mean_square_loss(y_in, y_out):
+            # For autoencoder
+            return tf.div(tf.reduce_mean(tf.square(tf.subtract(y_out, y_in))), 2)
+
+        def l2_loss():
+            variables = tf.trainable_variables()
+            return tf.add_n([tf.nn.l2_loss(v) for v in variables if "kernel" in v.name])
+
+        def sparse_penalty(p, p_hat):
+            sp1 = p * (tf.log(p) - tf.log(p_hat))
+            sp2 = (1 - p) * (tf.log(1 - p) - tf.log(1 - p_hat))
+            return sp1 + sp2
+
+        with tf.name_scope("loss"):
+            # Regularization term to reduce overfitting
+            loss = l2_loss() * self.l2_loss_coeff
+
+            if not self.cae:
+                loss += softmax_loss(y_in, y_out)
+            else:
+                loss += mean_square_loss(y_in, y_out)
+                p_hat = tf.reduce_mean(y_out)
+                loss += sparse_penalty(self.p, p_hat) * self.sparse_penalty_coeff
+
+        # Add loss into summary
+        tf.summary.scalar("loss", loss)
+
+        return loss
+
+    def _get_accuracy(self, y_in_labels, y_out):
+        '''_GET_ACCURACY
+        '''
+
+        with tf.name_scope("accuracy"):
+            # Obtain the predicted labels for each input example first
+            y_out_labels = tf.argmax(input=y_out, axis=1)
+            correction_prediction = tf.equal(y_out_labels, y_in_labels)
+            accuracy = tf.reduce_mean(tf.cast(correction_prediction, tf.float32))
+
+        if not self.cae:
+            # Add accuracy into summary
+            tf.summary.scalar("accuracy", accuracy)
+
+        return accuracy
+
+    def _print_metrics(self, stage, epoch_no, iters, loss, accuracy):
+        '''_PRINT_METRICS
+        '''
+
+        print((PCG + "[Epoch {}] ").format(epoch_no),
+              (stage + " Step {}: ").format(iters),
+              "Loss: {0:.10f}, ".format(loss),
+              ("Accuracy: {0:.10f}" + PCW).format(accuracy))
+
+        return
+
+    def _print_mean_metrics(self, stage, epoch_no, loss_list, accuracy_list):
+        '''_PRINT_MEAN_METRICS
+        '''
+
+        loss_mean = np.mean(loss_list)
+        accuracy_mean = np.mean(accuracy_list)
+
+        print((PCY + "[Epoch {}] ").format(epoch_no),
+              stage + " Stage: ",
+              "Mean Loss: {0:.10f}, ".format(loss_mean),
+              ("Mean Accuracy: {0:.10f}" + PCW).format(accuracy_mean))
+
+        return
+
+    def _save_model_per_epoch(self, sess, saver, epoch_no):
+        '''_SAVE_MODEL_PER_EPOCH
+        '''
+
+        ckpt_dir = os.path.join(self.model_path, "epoch-" + str(epoch_no))
+        if os.path.isdir(ckpt_dir):
+            shutil.rmtree(ckpt_dir)
+        os.makedirs(ckpt_dir)
+
+        # Save model's graph and variables of each epoch into folder
+        save_path = os.path.join(ckpt_dir, self.net)
+        saver.save(sess, save_path, global_step=epoch_no)
+        print((PCC + "[Epoch {}] ").format(epoch_no + 1),
+              ("Model was saved in: {}\n" + PCW).format(ckpt_dir))
+
+        return
+
     def train(self):
         '''TRAIN
 
@@ -198,52 +330,23 @@ class BTCTrain():
         # - training symbol: boolean
         with tf.name_scope("inputs"):
             x = tf.placeholder(tf.float32, [None] + self.patch_shape, "volumes")
-            y_input_classes = tf.placeholder(tf.int64, [None], "labels")
+            y_input = tf.placeholder(tf.int64, [None], "labels")
             is_training = tf.placeholder(tf.bool, [], "mode")
             learning_rate = tf.placeholder_with_default(0.0, [], "learning_rate")
 
         tf.summary.scalar("learning rate", learning_rate)
 
-        # Set models by given variable
-        if self.net == CNN:
-            network = self.models.cnn
-        elif self.net == FULL_CNN:
-            network = self.models.full_cnn
-        elif self.net == RES_CNN:
-            network = self.models.res_cnn
-        elif self.net == DENSE_CNN:
-            network = self.models.dense_cnn
-        else:  # Raise error if model cannot be found
-            raise ValueError("Could not found model.")
-
         # with tf.device("/gpu:0")
         # Obtain logits from the model
-        y_output_logits = network(x, is_training)
+        output = self.network(x, is_training)
 
-        # Compute loss
-        with tf.name_scope("loss"):
-            # Convert labels to onehot array first, such as:
-            # [0, 1, 2] ==> [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-            y_input_onehot = tf.one_hot(indices=y_input_classes, depth=self.classes_num)
-            lossCE = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_input_onehot,
-                                                                            logits=y_output_logits))
-            # Regularization term to reduce overfitting
-            variables = tf.trainable_variables()
-            lossL2 = tf.add_n([tf.nn.l2_loss(v) for v in variables if "kernel" in v.name]) * 0.001
-            loss = lossCE + lossL2
-
-        # Add loss into summary
-        tf.summary.scalar("loss", loss)
-
-        # Compute accuracy
-        with tf.name_scope("accuracy"):
-            # Obtain the predicted labels for each input example first
-            y_output_classes = tf.argmax(input=y_output_logits, axis=1)
-            correction_prediction = tf.equal(y_output_classes, y_input_classes)
-            accuracy = tf.reduce_mean(tf.cast(correction_prediction, tf.float32))
-
-        # Add accuracy into summary
-        tf.summary.scalar("accuracy", accuracy)
+        # Compute loss and accuracy
+        if not self.cae:
+            loss = self._get_loss(y_input, output)
+            accuracy = self._get_accuracy(y_input, output)
+        else:  # Autoencoder
+            loss = self._get_loss(x, output)
+            accuracy = tf.cast(0.0, tf.float32)
 
         # Merge summary
         # The summary can be displayed by TensorBoard
@@ -282,9 +385,10 @@ class BTCTrain():
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-        tra_iters, one_tra_iters, val_iters, epoch_no = 0, 0, 0, 0
-
         print((PCB + "\nTraining and Validating model: {}\n" + PCW).format(self.net))
+
+        # Initialize counter
+        tra_iters, one_tra_iters, val_iters, epoch_no = 0, 0, 0, 0
 
         # Lists to save loss and accuracy of each training step
         tloss_list, taccuracy_list = [], []
@@ -294,10 +398,8 @@ class BTCTrain():
                 # Training step
                 # Feed the graph, run optimizer and get metrics
                 tx, ty = sess.run([tra_volumes, tra_labels])
-                tra_fd = {x: tx, y_input_classes: ty,
-                          is_training: True, learning_rate: self.learning_rates[epoch_no]}
-                tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op],
-                                                         feed_dict=tra_fd)
+                tra_fd = {x: tx, y_input: ty, is_training: True, learning_rate: self.learning_rates[epoch_no]}
+                tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op], feed_dict=tra_fd)
 
                 tra_iters += 1
                 one_tra_iters += 1
@@ -307,11 +409,7 @@ class BTCTrain():
                 taccuracy_list.append(taccuracy)
                 tra_writer.add_summary(tsummary, tra_iters)
                 self.train_metrics.append([tloss, taccuracy])
-
-                print((PCG + "[Epoch {}] ").format(epoch_no + 1),
-                      "Train Step {}: ".format(one_tra_iters),
-                      "Loss: {0:.10f}, ".format(tloss),
-                      ("Accuracy: {0:.10f}" + PCW).format(taccuracy))
+                self._print_metrics("Train", epoch_no + 1, one_tra_iters, tloss, taccuracy)
 
                 if tra_iters % self.tepoch_iters[epoch_no] == 0:
                     # Validating step
@@ -321,50 +419,32 @@ class BTCTrain():
                         val_iters += 1
                         # Feed the graph, get metrics
                         vx, vy = sess.run([val_volumes, val_labels])
-                        val_fd = {x: vx, y_input_classes: vy, is_training: False}
-                        vsummary, vloss, vaccuracy = sess.run([merged, loss, accuracy],
-                                                              feed_dict=val_fd)
+                        val_fd = {x: vx, y_input: vy, is_training: False}
+                        vsummary, vloss, vaccuracy = sess.run([merged, loss, accuracy], feed_dict=val_fd)
 
                         # Record metrics of validating steps
                         vloss_list.append(vloss)
                         vaccuracy_list.append(vaccuracy)
                         val_writer.add_summary(vsummary, val_iters)
                         self.validate_metrics.append([vloss, vaccuracy])
+                        self._print_metrics("Validate", epoch_no + 1, val_iters, vloss, vaccuracy)
 
                     # Compute mean loss and mean accuracy of training steps
                     # in one epoch, and empty lists for next epoch
-                    tloss_mean = np.mean(tloss_list)
-                    taccuracy_mean = np.mean(taccuracy_list)
+                    self._print_mean_metrics("Train", epoch_no + 1, tloss_list, taccuracy_list)
                     tloss_list, taccuracy_list = [], []
 
-                    print((PCY + "[Epoch {}] ").format(epoch_no + 1),
-                          "Train Stage: ",
-                          "Mean Loss: {0:.10f}, ".format(tloss_mean),
-                          ("Mean Accuracy: {0:.10f}" + PCW).format(taccuracy_mean))
-
                     # Compute mean loss and mean accuracy of validating steps in one epoch
-                    vloss_mean = np.mean(vloss_list)
-                    vaccuracy_mean = np.mean(vaccuracy_list)
+                    self._print_mean_metrics("Validate", epoch_no + 1, vloss_list, vaccuracy_list)
 
-                    print((PCY + "[Epoch {}] ").format(epoch_no + 1),
-                          "Validate Stage: ",
-                          "Mean Loss: {0:.10f}, ".format(vloss_mean),
-                          ("Mean Accuracy: {0:.10f}" + PCW).format(vaccuracy_mean))
-
-                    # Create folder to save model
-                    ckpt_dir = os.path.join(self.model_path, "epoch-" + str(epoch_no + 1))
-                    if os.path.isdir(ckpt_dir):
-                        shutil.rmtree(ckpt_dir)
-                    os.makedirs(ckpt_dir)
-
-                    # Save model's graph and variables of each epoch into folder
-                    save_path = os.path.join(ckpt_dir, self.net)
-                    saver.save(sess, save_path, global_step=epoch_no + 1)
-                    print((PCC + "[Epoch {}] ").format(epoch_no + 1),
-                          ("Model was saved in: {}\n" + PCW).format(ckpt_dir))
+                    # Save model after each epoch
+                    self._save_model_per_epoch(sess, saver, epoch_no + 1)
 
                     one_tra_iters = 0
                     epoch_no += 1
+
+                    if epoch_no > self.num_epoches:
+                        break
 
         except tf.errors.OutOfRangeError:
             # Stop training
@@ -420,7 +500,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    help_str = "Select a model in 'cnn', 'full_cnn', 'res_cnn' or 'dense_cnn'."
+    help_str = "Select a model in 'cnn', 'full_cnn', 'res_cnn', 'dense_cnn'" + \
+               "'cae_stride' or 'cae_pool'."
     parser.add_argument("--model", action="store", dest="model", help=help_str)
     results = parser.parse_args()
 
@@ -428,5 +509,5 @@ if __name__ == "__main__":
     save_path = os.path.join(parent_dir, "models")
     logs_path = os.path.join(parent_dir, "logs")
 
-    btc = BTCTrain(results.model, parameters, save_path, logs_path)
+    btc = BTCTrain(results.model, cnn_parameters, save_path, logs_path)
     btc.train()
