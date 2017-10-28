@@ -2,7 +2,7 @@
 # Script for Creating Models
 # Author: Qixun Qu
 # Create on: 2017/10/12
-# Modify on: 2017/10/26
+# Modify on: 2017/10/28
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -985,7 +985,7 @@ class BTCModels():
 
             Output:
             -------
-            - a tensor whose shape is same as input without activation
+            - a tensor whose shape is same as input
 
         '''
 
@@ -997,7 +997,7 @@ class BTCModels():
         net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv1")
         net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv2")
         net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv3", False)
-        # Sigmoid
+        net = tf.nn.sigmoid(net)
 
         return net
 
@@ -1015,7 +1015,7 @@ class BTCModels():
 
             Output:
             -------
-            - a tensor whose shape is same as input without activation
+            - a tensor whose shape is same as input
 
         '''
 
@@ -1030,7 +1030,7 @@ class BTCModels():
         net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv1")
         net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv2")
         net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv3", False)
-        # Sigmoid
+        net = tf.nn.sigmoid(net)
 
         return net
 
@@ -1047,9 +1047,9 @@ if __name__ == "__main__":
     x = tf.placeholder(tf.float32, [5, 112, 112, 112, 4])
     is_training = tf.placeholder(tf.bool, [])
 
-    # net = models.cnn(x, is_training)
+    net = models.cnn(x, is_training)
     # net = models.full_cnn(x, is_training)
     # net = models.res_cnn(x, is_training)
     # net = models.dense_cnn(x, is_training)
     # net = models.autoencoder_stride(x, is_training)
-    net = models.autoencoder_pool(x, is_training)
+    # net = models.autoencoder_pool(x, is_training)
