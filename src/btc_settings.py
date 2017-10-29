@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/10/28
+# Modify on: 2017/10/29
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -75,13 +75,15 @@ EDGE_SPACE = 10
 
 
 '''
-Settings for Patches Generation
+Settings for Patches or Volumes Generation
 '''
 
 # General Settings
 CHANNELS = 4
 TUMOT_MIN_SIZE = 500
 PATCHES_FOLDER = "Patches"
+VOLUMES_FOLDER = "Volumes"
+VOLUME_SHAPE = [112, 112, 88, CHANNELS]
 RESIZE_FOLDER = "resize"
 TUMOR_FOLDER = "tumor"
 SHAPE_FILE = "shape.txt"
