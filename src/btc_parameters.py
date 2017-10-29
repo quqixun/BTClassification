@@ -63,7 +63,8 @@ Parameters for General CNN Models
 
 # Set path of the folder in where tfrecords are save in
 parent_dir = os.path.dirname(os.getcwd())
-tfrecords_dir = os.path.join(parent_dir, DATA_FOLDER, TFRECORDS_FOLDER)
+tfrecords_dir = os.path.join(parent_dir, DATA_FOLDER,
+                             TFRECORDS_FOLDER, PATCHES_FOLDER)
 
 # Create paths for training and validating tfrecords
 tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
@@ -75,7 +76,8 @@ vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
 
 # Load dict from json file in which the number of
 # training and valdating set can be found
-json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER, VOLUMES_NUM_FILE)
+json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
+                         PATCHES_FOLDER, VOLUMES_NUM_FILE)
 with open(json_path) as json_file:
     volumes_num = json.load(json_file)
 
