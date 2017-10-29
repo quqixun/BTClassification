@@ -2,7 +2,7 @@
 # Script for Creating and Loading TFRecords
 # Author: Qixun Qu
 # Create on: 2017/10/09
-# Modify on: 2017/10/11
+# Modify on: 2017/10/29
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -42,6 +42,7 @@ from __future__ import print_function
 
 import os
 import json
+import argparse
 import numpy as np
 from tqdm import *
 import pandas as pd
@@ -51,7 +52,7 @@ from btc_settings import *
 
 class BTCTFRecords():
 
-    def __init__(self):
+    def __init__(self, mode):
         '''__INIT__
 
             No steps in initialization.
@@ -66,6 +67,8 @@ class BTCTFRecords():
               outputs = tfr.decode_tfrecord(paras, ...)
 
         '''
+
+        self.mode = mode
 
         return
 
@@ -102,9 +105,6 @@ class BTCTFRecords():
         self.train_tfrecord = os.path.join(output_dir, TFRECORD_TRAIN)
         self.validate_tfrecord = os.path.join(output_dir, TFRECORD_VALIDATE)
 
-        # Obtain serial numbers of cases
-        self.case_no = os.listdir(input_dir)
-
         # Read labels of all cases from label file
         self.labels = pd.read_csv(label_file)
 
@@ -113,13 +113,11 @@ class BTCTFRecords():
         self.volumes_num = {}
 
         # TFRecords creation pipline
-        self._check_case_no()
+        self._check_case_no(input_dir)
         self._create_temp_files(temp_dir)
         train_set, validate_set = self._generate_cases_set()
-        self._write_tfrecord(input_dir, self.train_tfrecord,
-                             train_set, TRAIN_MODE)
-        self._write_tfrecord(input_dir, self.validate_tfrecord,
-                             validate_set, VALIDATE_MODE)
+        self._write_tfrecord(input_dir, self.train_tfrecord, train_set, TRAIN_MODE)
+        self._write_tfrecord(input_dir, self.validate_tfrecord, validate_set, VALIDATE_MODE)
 
         # Save dictionary into json file
         with open(self.volumes_num_file, "w") as json_file:
@@ -127,7 +125,7 @@ class BTCTFRecords():
 
         return
 
-    def _check_case_no(self):
+    def _check_case_no(self, input_dir):
         '''_CHECK_CASE_NO
 
             If cases cannot be found in label file, the
@@ -135,10 +133,13 @@ class BTCTFRecords():
 
         '''
 
+        # Obtain serial numbers of cases
+        case_no = os.listdir(input_dir)
+
         # Put unfound cases into list
         not_found_cases = []
         all_cases_no = self.labels[CASE_NO].values.tolist()
-        for cv in self.case_no:
+        for cv in case_no:
             if cv not in all_cases_no:
                 not_found_cases.append(cv)
 
@@ -265,7 +266,11 @@ class BTCTFRecords():
 
         # normalize the volume
         def normalize(volume):
-            return (volume - np.min(volume)) / np.std(volume)
+            temp = np.copy(volume)
+            for c in range(CHANNELS):
+                channel = volume[..., c]
+                temp[..., c] = (channel - np.mean(channel)) / np.std(channel)
+            return temp
 
         print("Create TFRecord to " + mode)
 
@@ -397,12 +402,25 @@ class BTCTFRecords():
 
 if __name__ == "__main__":
 
-    parent_dir = os.path.dirname(os.getcwd())
+    parser = argparse.ArgumentParser()
 
-    input_dir = os.path.join(parent_dir, DATA_FOLDER, AUGMENT_FOLDER)
-    output_dir = os.path.join(parent_dir, DATA_FOLDER, TFRECORDS_FOLDER)
-    temp_dir = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER)
+    help_str = "Select a mode in 'patch' or 'volume'."
+    parser.add_argument("--mode", action="store", dest="mode", help=help_str)
+    args = parser.parse_args()
+
+    parent_dir = os.path.dirname(os.getcwd())
     label_file = os.path.join(parent_dir, DATA_FOLDER, LABEL_FILE)
 
-    tfr = BTCTFRecords()
+    if args.mode == "patch":
+        input_dir = os.path.join(parent_dir, DATA_FOLDER, AUGMENT_FOLDER)
+        output_dir = os.path.join(parent_dir, DATA_FOLDER, TFRECORDS_FOLDER, PATCHES_FOLDER)
+        temp_dir = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER, PATCHES_FOLDER)
+    elif args.mode == "volume":
+        input_dir = os.path.join(parent_dir, DATA_FOLDER, VOLUMES_FOLDER)
+        output_dir = os.path.join(parent_dir, DATA_FOLDER, TFRECORDS_FOLDER, VOLUMES_FOLDER)
+        temp_dir = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER, VOLUMES_FOLDER)
+    else:
+        raise ValueError("Cannot find mode in 'patch' or 'volume'.")
+
+    tfr = BTCTFRecords(args.mode)
     tfr.create_tfrecord(input_dir, output_dir, temp_dir, label_file)
