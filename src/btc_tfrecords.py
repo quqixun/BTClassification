@@ -2,7 +2,7 @@
 # Script for Creating and Loading TFRecords
 # Author: Qixun Qu
 # Create on: 2017/10/09
-# Modify on: 2017/10/29
+# Modify on: 2017/10/30
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -52,7 +52,7 @@ from btc_settings import *
 
 class BTCTFRecords():
 
-    def __init__(self, mode):
+    def __init__(self):
         '''__INIT__
 
             No steps in initialization.
@@ -67,8 +67,6 @@ class BTCTFRecords():
               outputs = tfr.decode_tfrecord(paras, ...)
 
         '''
-
-        self.mode = mode
 
         return
 
@@ -422,5 +420,5 @@ if __name__ == "__main__":
     else:
         raise ValueError("Cannot find mode in 'patch' or 'volume'.")
 
-    tfr = BTCTFRecords(args.mode)
+    tfr = BTCTFRecords()
     tfr.create_tfrecord(input_dir, output_dir, temp_dir, label_file)
