@@ -2,7 +2,7 @@
 # Script for Training Models
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/10/28
+# Modify on: 2017/10/30
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -38,8 +38,8 @@ import numpy as np
 import tensorflow as tf
 from btc_settings import *
 from btc_models import BTCModels
-from btc_parameters import cnn_parameters
 from btc_tfrecords import BTCTFRecords
+from btc_parameters import cnn_parameters, cae_parameters
 
 
 class BTCTrain():
@@ -97,8 +97,8 @@ class BTCTrain():
         self.l2_loss_coeff = paras["l2_loss_coeff"]
 
         if self.cae:
-            self.sparse_penalty_coeff = 0.001
-            self.p = 0.05
+            self.sparse_penalty_coeff = paras["sparse_penalty_coeff"]
+            self.p = paras["sparse_level"]
 
         # For models' structure
         act = paras["activation"]
@@ -312,7 +312,7 @@ class BTCTrain():
         # Save model's graph and variables of each epoch into folder
         save_path = os.path.join(ckpt_dir, self.net)
         saver.save(sess, save_path, global_step=epoch_no)
-        print((PCC + "[Epoch {}] ").format(epoch_no + 1),
+        print((PCC + "[Epoch {}] ").format(epoch_no),
               ("Model was saved in: {}\n" + PCW).format(ckpt_dir))
 
         return
@@ -329,7 +329,7 @@ class BTCTrain():
         # - labels: 1D list, shape in [batch_size]
         # - training symbol: boolean
         with tf.name_scope("inputs"):
-            x = tf.placeholder(tf.float32, [None] + self.patch_shape, "volumes")
+            x = tf.placeholder(tf.float32, [self.batch_size] + self.patch_shape, "volumes")
             y_input = tf.placeholder(tf.int64, [None], "labels")
             is_training = tf.placeholder(tf.bool, [], "mode")
             learning_rate = tf.placeholder_with_default(0.0, [], "learning_rate")
@@ -399,7 +399,13 @@ class BTCTrain():
                 # Feed the graph, run optimizer and get metrics
                 tx, ty = sess.run([tra_volumes, tra_labels])
                 tra_fd = {x: tx, y_input: ty, is_training: True, learning_rate: self.learning_rates[epoch_no]}
-                tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op], feed_dict=tra_fd)
+                # tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op], feed_dict=tra_fd)
+
+                # --------------------------------------------------
+                out, tsummary, tloss, taccuracy, _ = sess.run([output, merged, loss, accuracy, train_op], feed_dict=tra_fd)
+                vpath = os.path.join(os.path.join(TEMP_FOLDER, "CAE"), str(ty[0]) + ".npy")
+                np.save(vpath, out[0, ...])
+                # --------------------------------------------------
 
                 tra_iters += 1
                 one_tra_iters += 1
@@ -503,11 +509,16 @@ if __name__ == "__main__":
     help_str = "Select a model in 'cnn', 'full_cnn', 'res_cnn', 'dense_cnn'" + \
                "'cae_stride' or 'cae_pool'."
     parser.add_argument("--model", action="store", dest="model", help=help_str)
-    results = parser.parse_args()
+    args = parser.parse_args()
 
     parent_dir = os.path.dirname(os.getcwd())
     save_path = os.path.join(parent_dir, "models")
     logs_path = os.path.join(parent_dir, "logs")
 
-    btc = BTCTrain(results.model, cnn_parameters, save_path, logs_path)
+    if args.model == "cae_stride" or args.model == "cae_pool":
+        parameters = cae_parameters
+    else:
+        parameters = cnn_parameters
+
+    btc = BTCTrain(args.model, parameters, save_path, logs_path)
     btc.train()
