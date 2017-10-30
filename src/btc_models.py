@@ -2,7 +2,7 @@
 # Script for Creating Models
 # Author: Qixun Qu
 # Create on: 2017/10/12
-# Modify on: 2017/10/28
+# Modify on: 2017/10/30
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -758,8 +758,7 @@ class BTCModels():
         '''_DECONV3D
         '''
 
-        # padding = "valid" if kernel_size == 1 else "same"
-        padding = "same"
+        padding = "valid" if kernel_size == 1 else "same"
 
         with tf.name_scope("deconv3d"):
             return tf.layers.conv3d_transpose(inputs=x,
@@ -778,7 +777,7 @@ class BTCModels():
         with tf.variable_scope(name):
             dba = self._deconv3d(x, filters, kernel_size, strides)
             dba = self._batch_norm(dba)
-            if act:  # If act is None, return inactivated result
+            if act:  # If False, return inactivated result
                 dba = self._activate(dba)
 
         return dba
@@ -991,13 +990,18 @@ class BTCModels():
 
         self.is_training = is_training
 
-        net = self._conv3d_bn_act(x, 1, 3, 2, "conv1")
-        net = self._conv3d_bn_act(net, 1, 3, 2, "conv2")
-        net = self._conv3d_bn_act(net, 1, 3, 2, "conv3")
-        net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv1")
-        net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv2")
-        net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv3", False)
-        net = tf.nn.sigmoid(net)
+        net = self._conv3d_bn_act(x, 6, 3, 2, "conv1")
+        net = self._dropout(net, "dropout1")
+        net = self._conv3d_bn_act(net, 6, 3, 2, "conv2")
+        net = self._dropout(net, "dropout2")
+        net = self._conv3d_bn_act(net, 6, 3, 2, "conv3")
+        net = self._dropout(net, "dropout3")
+        net = self._deconv3d_bn_act(net, 6, 3, 2, "deconv1")
+        net = self._dropout(net, "dropout4")
+        net = self._deconv3d_bn_act(net, 6, 3, 2, "deconv2")
+        net = self._dropout(net, "dropout5")
+        net = self._deconv3d_bn_act(net, 4, 3, 2, "deconv3", False)
+        net = tf.nn.sigmoid(net, "sigmoid")
 
         return net
 
@@ -1021,15 +1025,15 @@ class BTCModels():
 
         self.is_training = is_training
 
-        net = self._conv3d_bn_act(x, 1, 3, 1, "conv1")
+        net = self._conv3d_bn_act(x, 6, 3, 1, "conv1")
         net = self._pooling(net, 2, "max", "max_pool1")
-        net = self._conv3d_bn_act(net, 1, 3, 1, "conv2")
+        net = self._conv3d_bn_act(net, 6, 3, 1, "conv2")
         net = self._pooling(net, 2, "max", "max_pool2")
-        net = self._conv3d_bn_act(net, 1, 3, 1, "conv3")
+        net = self._conv3d_bn_act(net, 6, 3, 1, "conv3")
         net = self._pooling(net, 2, "max", "max_pool3")
-        net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv1")
-        net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv2")
-        net = self._deconv3d_bn_act(net, 1, 3, 2, "deconv3", False)
+        net = self._deconv3d_bn_act(net, 6, 3, 2, "deconv1")
+        net = self._deconv3d_bn_act(net, 6, 3, 2, "deconv2")
+        net = self._deconv3d_bn_act(net, 4, 3, 2, "deconv3", False)
         net = tf.nn.sigmoid(net)
 
         return net
@@ -1044,12 +1048,12 @@ if __name__ == "__main__":
     # models._test()
 
     # Test function for cnn, full_cnn, res_cnn, dense_cnn and autoencoder
-    x = tf.placeholder(tf.float32, [5, 112, 112, 112, 4])
+    x = tf.placeholder(tf.float32, [32, 112, 112, 88, 4])
     is_training = tf.placeholder(tf.bool, [])
 
-    net = models.cnn(x, is_training)
+    # net = models.cnn(x, is_training)
     # net = models.full_cnn(x, is_training)
     # net = models.res_cnn(x, is_training)
     # net = models.dense_cnn(x, is_training)
-    # net = models.autoencoder_stride(x, is_training)
+    net = models.autoencoder_stride(x, is_training)
     # net = models.autoencoder_pool(x, is_training)
