@@ -2,7 +2,7 @@
 # Script for Hyper-Parameters
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/10/28
+# Modify on: 2017/10/30
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -115,6 +115,32 @@ cnn_parameters = {
 Parameters for Autoencoder Models
 '''
 
+# Set path of the folder in where tfrecords are save in
+parent_dir = os.path.dirname(os.getcwd())
+tfrecords_dir = os.path.join(parent_dir, DATA_FOLDER,
+                             TFRECORDS_FOLDER, VOLUMES_FOLDER)
+
+# Create paths for training and validating tfrecords
+tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
+vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
+
+# Whole dataset
+# tpath = os.path.join(tfrecords_dir, "train.tfrecord")
+# vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
+
+# Load dict from json file in which the number of
+# training and valdating set can be found
+json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
+                         VOLUMES_FOLDER, VOLUMES_NUM_FILE)
+with open(json_path) as json_file:
+    volumes_num = json.load(json_file)
+
+train_num = 3
+validate_num = 3
+
+# train_num = volumes_num["train"]
+# validate_num = volumes_num["validate"]
+
 cae_parameters = {
     # Basic settings
     "train_path": tpath,
@@ -122,19 +148,20 @@ cae_parameters = {
     "train_num": train_num,
     "validate_num": validate_num,
     "classes_num": 3,
-    "patch_shape": PATCH_SHAPE,
-    "capacity": 350,
-    "min_after_dequeue": 300,
+    "patch_shape": VOLUME_SHAPE,
+    "capacity": 6,
+    "min_after_dequeue": 5,
     # Parameters for training
-    "batch_size": 10,
-    "num_epoches": 1,
-    "learning_rate_first": 1e-3,
-    "learning_rate_last": 1e-4,
+    "batch_size": 1,
+    "num_epoches": 50,
+    "learning_rate_first": 1e-1,
+    "learning_rate_last": 1e-3,
     "l2_loss_coeff": 0.001,
     "sparse_penalty_coeff": 0.001,
     "sparse_level": 0.05,
     # Parameter for model's structure
-    "activation": "relu",
-    "bn_momentum": 0.99,
+    "activation": "relu",  # "lrelu"
+    "alpha": None,  # "lrelu"
+    "bn_momentum": 0.9,
     "drop_rate": 0.5
 }
