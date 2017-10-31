@@ -90,6 +90,11 @@ class BTCVolumes():
         volume = np.load(input_path)
         vshape = list(volume.shape)
 
+        volume = volume[EDGE_SPACE:vshape[0] - EDGE_SPACE,
+                        EDGE_SPACE:vshape[1] - EDGE_SPACE,
+                        EDGE_SPACE:vshape[2] - EDGE_SPACE]
+        vshape = list(volume.shape)
+
         pad_size = vshape[0] - vshape[1]
         left_pad_size = int(pad_size / 2.0)
         right_pad_size = pad_size - left_pad_size
