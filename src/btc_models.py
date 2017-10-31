@@ -205,10 +205,17 @@ class BTCModels():
                 return tf.nn.relu(x, name)
             elif self.act == "lrelu":
                 # Set slope of leaky ReLU
-                alpha = 0.2 if self.alpha is None else self.alpha
-                return tf.nn.leaky_relu(x, alpha, name)
+                f1 = 0.5 * (1 + self.alpha)
+                f2 = 0.5 * (1 - self.alpha)
+                return f1 * x + f2 * tf.abs(x)
+                # alpha = 0.2 if self.alpha is None else self.alpha
+                # return tf.nn.leaky_relu(x, alpha, name)
+            elif self.act == "sigmoid":
+                return tf.nn.sigmoid(x, name)
+            elif self.act == "tanh":
+                return tf.nn.tanh(x, name)
             else:  # Raise error if activation method cannot be found
-                raise ValueError("Could not find act in ['relu', 'lrelu']")
+                raise ValueError("Could not find act in ['relu', 'lrelu', 'sigmoid', 'tanh']")
 
         return
 
@@ -990,18 +997,17 @@ class BTCModels():
 
         self.is_training = is_training
 
-        net = self._conv3d_bn_act(x, 6, 3, 2, "conv1")
+        net = self._conv3d_bn_act(x, 6, 5, 2, "conv1")
         net = self._dropout(net, "dropout1")
-        net = self._conv3d_bn_act(net, 6, 3, 2, "conv2")
+        net = self._conv3d_bn_act(net, 9, 5, 2, "conv2")
         net = self._dropout(net, "dropout2")
-        net = self._conv3d_bn_act(net, 6, 3, 2, "conv3")
+        net = self._conv3d_bn_act(net, 12, 5, 2, "conv3")
         net = self._dropout(net, "dropout3")
-        net = self._deconv3d_bn_act(net, 6, 3, 2, "deconv1")
+        net = self._deconv3d_bn_act(net, 9, 5, 2, "deconv1")
         net = self._dropout(net, "dropout4")
-        net = self._deconv3d_bn_act(net, 6, 3, 2, "deconv2")
+        net = self._deconv3d_bn_act(net, 6, 5, 2, "deconv2")
         net = self._dropout(net, "dropout5")
-        net = self._deconv3d_bn_act(net, 4, 3, 2, "deconv3", False)
-        net = tf.nn.sigmoid(net, "sigmoid")
+        net = self._deconv3d_bn_act(net, 1, 5, 2, "deconv3")
 
         return net
 
@@ -1033,8 +1039,7 @@ class BTCModels():
         net = self._pooling(net, 2, "max", "max_pool3")
         net = self._deconv3d_bn_act(net, 6, 3, 2, "deconv1")
         net = self._deconv3d_bn_act(net, 6, 3, 2, "deconv2")
-        net = self._deconv3d_bn_act(net, 4, 3, 2, "deconv3", False)
-        net = tf.nn.sigmoid(net)
+        net = self._deconv3d_bn_act(net, 4, 3, 2, "deconv3")
 
         return net
 
