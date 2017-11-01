@@ -219,7 +219,7 @@ class BTCTrain():
                                         capacity=self.capacity,
                                         min_after_dequeue=self.min_after_dequeue)
 
-    def _get_loss(self, y_in, y_out):
+    def _get_loss(self, y_in, y_out, code=None):
         '''_GET_LOSS
         '''
 
@@ -231,8 +231,7 @@ class BTCTrain():
                                                                           logits=y_out))
 
         def mean_square_loss(y_in, y_out):
-            # For autoencoder
-            return tf.div(tf.reduce_mean(tf.square(tf.subtract(y_out, y_in))), 2)
+            return tf.div(tf.reduce_mean(tf.square(y_out - y_in)), 2)
 
         def l2_loss():
             variables = tf.trainable_variables()
@@ -251,8 +250,9 @@ class BTCTrain():
                 loss += softmax_loss(y_in, y_out)
             else:
                 loss += mean_square_loss(y_in, y_out)
-                p_hat = tf.reduce_mean(y_out)
-                loss += sparse_penalty(self.p, p_hat) * self.sparse_penalty_coeff
+                # loss += tf.reduce_sum(code) * self.sparse_penalty_coeff
+                p_hat = tf.reduce_mean(code, axis=[1, 2, 3]) + 1e-8
+                loss += tf.reduce_sum(sparse_penalty(self.p, p_hat)) * self.sparse_penalty_coeff
 
         # Add loss into summary
         tf.summary.scalar("loss", loss)
@@ -338,14 +338,17 @@ class BTCTrain():
 
         # with tf.device("/gpu:0")
         # Obtain logits from the model
-        output = self.network(x, is_training)
+        if not self.cae:
+            output = self.network(x, is_training)
+        else:
+            code, output = self.network(x, is_training)
 
         # Compute loss and accuracy
         if not self.cae:
             loss = self._get_loss(y_input, output)
             accuracy = self._get_accuracy(y_input, output)
         else:  # Autoencoder
-            loss = self._get_loss(x, output)
+            loss = self._get_loss(x, output, code)
             accuracy = tf.cast(0.0, tf.float32)
 
         # Merge summary
