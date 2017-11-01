@@ -997,19 +997,20 @@ class BTCModels():
 
         self.is_training = is_training
 
-        net = self._conv3d_bn_act(x, 6, 5, 2, "conv1")
-        net = self._dropout(net, "dropout1")
-        net = self._conv3d_bn_act(net, 9, 5, 2, "conv2")
-        net = self._dropout(net, "dropout2")
-        net = self._conv3d_bn_act(net, 12, 5, 2, "conv3")
-        net = self._dropout(net, "dropout3")
-        net = self._deconv3d_bn_act(net, 9, 5, 2, "deconv1")
-        net = self._dropout(net, "dropout4")
-        net = self._deconv3d_bn_act(net, 6, 5, 2, "deconv2")
-        net = self._dropout(net, "dropout5")
-        net = self._deconv3d_bn_act(net, 1, 5, 2, "deconv3")
+        code = self._conv3d_bn_act(x, 12, 3, 2, "conv1")
+        # code = self._dropout(code, "dropout1")
+        code = self._conv3d_bn_act(code, 9, 3, 2, "conv2")
+        # code = self._dropout(code, "dropout2")
+        code = self._conv3d_bn_act(code, 6, 3, 2, "conv3")
+        # decode = self._dropout(code, "dropout3")
+        decode = self._deconv3d_bn_act(code, 9, 3, 2, "deconv1")
+        # decode = self._dropout(decode, "dropout4")
+        decode = self._deconv3d_bn_act(decode, 12, 3, 2, "deconv2")
+        # decode = self._dropout(decode, "dropout5")
+        decode = self._deconv3d_bn_act(decode, 1, 3, 2, "deconv3", False)
+        decode = tf.nn.sigmoid(decode, "sigmoid")
 
-        return net
+        return code, decode
 
     def autoencoder_pool(self, x, is_training):
         '''AUTOENCODER_POOL
@@ -1031,17 +1032,18 @@ class BTCModels():
 
         self.is_training = is_training
 
-        net = self._conv3d_bn_act(x, 6, 3, 1, "conv1")
-        net = self._pooling(net, 2, "max", "max_pool1")
-        net = self._conv3d_bn_act(net, 6, 3, 1, "conv2")
-        net = self._pooling(net, 2, "max", "max_pool2")
-        net = self._conv3d_bn_act(net, 6, 3, 1, "conv3")
-        net = self._pooling(net, 2, "max", "max_pool3")
-        net = self._deconv3d_bn_act(net, 6, 3, 2, "deconv1")
-        net = self._deconv3d_bn_act(net, 6, 3, 2, "deconv2")
-        net = self._deconv3d_bn_act(net, 4, 3, 2, "deconv3")
+        code = self._conv3d_bn_act(x, 6, 3, 1, "conv1")
+        code = self._pooling(code, 2, "max", "max_pool1")
+        code = self._conv3d_bn_act(code, 6, 3, 1, "conv2")
+        code = self._pooling(code, 2, "max", "max_pool2")
+        code = self._conv3d_bn_act(code, 6, 3, 1, "conv3")
+        code = self._pooling(code, 2, "max", "max_pool3")
+        decode = self._deconv3d_bn_act(code, 6, 3, 2, "deconv1")
+        decode = self._deconv3d_bn_act(decode, 6, 3, 2, "deconv2")
+        decode = self._deconv3d_bn_act(decode, 1, 3, 2, "deconv3", False)
+        decode = tf.nn.sigmoid(decode, "sigmoid")
 
-        return net
+        return code, decode
 
 
 if __name__ == "__main__":
@@ -1053,7 +1055,7 @@ if __name__ == "__main__":
     # models._test()
 
     # Test function for cnn, full_cnn, res_cnn, dense_cnn and autoencoder
-    x = tf.placeholder(tf.float32, [32, 112, 112, 88, 4])
+    x = tf.placeholder(tf.float32, [32, 112, 112, 88, 1])
     is_training = tf.placeholder(tf.bool, [])
 
     # net = models.cnn(x, is_training)
