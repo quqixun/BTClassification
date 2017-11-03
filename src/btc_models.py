@@ -998,15 +998,15 @@ class BTCModels():
         self.is_training = is_training
 
         code = self._conv3d_bn_act(x, 12, 3, 2, "conv1")
-        # code = self._dropout(code, "dropout1")
+        code = self._dropout(code, "dropout1")
         code = self._conv3d_bn_act(code, 9, 3, 2, "conv2")
-        # code = self._dropout(code, "dropout2")
+        code = self._dropout(code, "dropout2")
         code = self._conv3d_bn_act(code, 6, 3, 2, "conv3")
-        # decode = self._dropout(code, "dropout3")
-        decode = self._deconv3d_bn_act(code, 9, 3, 2, "deconv1")
-        # decode = self._dropout(decode, "dropout4")
+        decode = self._dropout(code, "dropout3")
+        decode = self._deconv3d_bn_act(decode, 9, 3, 2, "deconv1")
+        decode = self._dropout(decode, "dropout4")
         decode = self._deconv3d_bn_act(decode, 12, 3, 2, "deconv2")
-        # decode = self._dropout(decode, "dropout5")
+        decode = self._dropout(decode, "dropout5")
         decode = self._deconv3d_bn_act(decode, 1, 3, 2, "deconv3", False)
         decode = tf.nn.sigmoid(decode, "sigmoid")
 

@@ -2,7 +2,7 @@
 # Script for Hyper-Parameters
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/10/30
+# Modify on: 2017/11/03
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -160,7 +160,7 @@ cae_parameters = {
     "sparse_penalty_coeff": 0.01,
     "sparse_level": 0.05,
     # Parameter for model's structure
-    "activation": "relu",  # "tanh"
+    "activation": "relu",
     "alpha": None,  # "lrelu"
     "bn_momentum": 0.99,
     "drop_rate": 0.5

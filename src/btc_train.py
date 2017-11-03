@@ -2,7 +2,7 @@
 # Script for Training Models
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/10/30
+# Modify on: 2017/11/03
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -250,7 +250,6 @@ class BTCTrain():
                 loss += softmax_loss(y_in, y_out)
             else:
                 loss += mean_square_loss(y_in, y_out)
-                # loss += tf.reduce_sum(code) * self.sparse_penalty_coeff
                 p_hat = tf.reduce_mean(code, axis=[1, 2, 3]) + 1e-8
                 loss += tf.reduce_sum(sparse_penalty(self.p, p_hat)) * self.sparse_penalty_coeff
 
@@ -402,13 +401,7 @@ class BTCTrain():
                 # Feed the graph, run optimizer and get metrics
                 tx, ty = sess.run([tra_volumes, tra_labels])
                 tra_fd = {x: tx, y_input: ty, is_training: True, learning_rate: self.learning_rates[epoch_no]}
-                # tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op], feed_dict=tra_fd)
-
-                # --------------------------------------------------
-                out, tsummary, tloss, taccuracy, _ = sess.run([output, merged, loss, accuracy, train_op], feed_dict=tra_fd)
-                vpath = os.path.join(os.path.join(TEMP_FOLDER, "CAE"), str(ty[0]) + ".npy")
-                np.save(vpath, out[0, ...])
-                # --------------------------------------------------
+                tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op], feed_dict=tra_fd)
 
                 tra_iters += 1
                 one_tra_iters += 1
@@ -459,8 +452,8 @@ class BTCTrain():
             # Stop training
             print(PCB + "Training has stopped." + PCW)
             # Save metrics into json files
-            # self._save_metrics("train_metrics.json", self.train_metrics)
-            # self._save_metrics("validate_metrics.json", self.validate_metrics)
+            self._save_metrics("train_metrics.json", self.train_metrics)
+            self._save_metrics("validate_metrics.json", self.validate_metrics)
             print((PCB + "Logs have been saved in: {}\n" + PCW).format(self.logs_path))
         finally:
             coord.request_stop()
