@@ -2,7 +2,7 @@
 # Script for Creating Models
 # Author: Qixun Qu
 # Create on: 2017/10/12
-# Modify on: 2017/10/30
+# Modify on: 2017/11/06
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -39,7 +39,7 @@ from tensorflow.contrib.layers import xavier_initializer
 
 class BTCModels():
 
-    def __init__(self, net, classes, act="relu", alpha=None,
+    def __init__(self, classes, act="relu", alpha=None,
                  momentum=0.99, drop_rate=0.5):
         '''__INIT__
 
@@ -48,7 +48,6 @@ class BTCModels():
 
             Inputs:
             -------
-            - net: string, the name of the model applied to train
             - classes: int, the number of grading groups
             - act: string, indicate the activation method by either
                    "relu" or "lrelu" (leaky relu)
@@ -859,8 +858,8 @@ class BTCModels():
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer5")
         net = self._conv3d_bn_act(net, 1, 3, 1, "layer6")
         net = self._pooling(net, 2, "max", "max_pool3")
-        net = self._dropout(net, "dropout3")
         net = self._flatten(net, "flatten")
+        net = self._dropout(net, "dropout3")
         net = self._fc_bn_act(net, 3, "fc1")
         net = self._dropout(net, "dropout4")
         net = self._fc_bn_act(net, 3, "fc2")
@@ -932,9 +931,11 @@ class BTCModels():
         self.is_training = is_training
 
         # Here is a very simple case to test btc_train first
-        net = self._conv3d_bn_act(x, 1, 5, 2, "preconv")
+        net = self._conv3d_bn_act(x, 1, 5, 1, "preconv")
         net = self._res_block(net, [1, 1, 1], 2, "res1")
-        net = self._res_block(net, [1, 1, 2], 2, "res2")
+        net = self._res_block(net, [1, 1, 1], 2, "res2")
+        net = self._res_block(net, [1, 1, 1], 2, "res3")
+        net = self._res_block(net, [1, 1, 1], 2, "res4")
         net = self._pooling(net, -1, "max", "global_maxpool")
         net = self._flatten(net, "flatten")
         net = self._logits_fc(net, "logits")
@@ -1048,7 +1049,7 @@ class BTCModels():
 
 if __name__ == "__main__":
 
-    models = BTCModels("test", classes=3, act="relu", alpha=None,
+    models = BTCModels(classes=3, act="relu", alpha=None,
                        momentum=0.99, drop_rate=0.5)
 
     # Test basic helper functions
