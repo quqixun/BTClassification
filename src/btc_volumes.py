@@ -47,6 +47,18 @@ class BTCVolumes():
 
     def __init__(self, input_dir, output_dir):
         '''__INIT__
+
+            Initialization of instance.
+            - generate folders to store resized brain volume
+            - resize brain volumes in multi-processes
+
+            Inputs:
+            -------
+            - input_dir: string, the path of the directory that
+                         keeps preprocessed volume
+            - output_dir: string, the path of the directory that
+                          will store resized volumes
+
         '''
 
         # Check whether the input folder is exist
@@ -57,17 +69,29 @@ class BTCVolumes():
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
 
-        # Obtain volumes' names
+        # Obtain volumes' serial numbers
         self.names = os.listdir(input_dir)
 
+        # Multi-process on resizing volumes
         self._resize_volume_multi(input_dir, output_dir)
 
         return
 
     def _resize_volume_multi(self, input_dir, output_dir):
         '''_RESIZE_VOLUME_MULTI
+
+            The function to distribute tasks on processes.
+
+            Inputs:
+            -------
+            - input_dir: string, the path of the directory that
+                         keeps preprocessed volume
+            - output_dir: string, the path of the directory that
+                          will store resized volumes
+
         '''
 
+        # Generate paths for all preprocssed volumes
         input_paths = [os.path.join(input_dir, name) for name in self.names]
 
         print("Resize brain volumes into same shape\n")
@@ -82,39 +106,62 @@ class BTCVolumes():
 
     def _resize_volume(self, input_path, output_dir, name):
         '''_RESIZE_VOLUME
+
+            Perform resizing on one brain volume, and it will
+            be saved into the given directory.
+
+            Inputs:
+            -------
+            - input_dir: string, the path of the input volume
+            - output_dir: string, the path of the directory that
+                          will store resized volume
+            - name: string, the serial number of input volume
+
         '''
 
         case_no = name.split(".")[0]
         print("Resize brain volume of " + case_no)
 
+        # Load data from input path
         volume = np.load(input_path)
         vshape = list(volume.shape)
 
+        # Remove space around edge, which is zero background
         volume = volume[EDGE_SPACE:vshape[0] - EDGE_SPACE,
                         EDGE_SPACE:vshape[1] - EDGE_SPACE,
                         EDGE_SPACE:vshape[2] - EDGE_SPACE]
+
+        # Obtain original shape
         vshape = list(volume.shape)
 
+        # Compute padding size of right and left sides of volume
+        # to make sure that each slice of volume is square
         pad_size = vshape[0] - vshape[1]
         left_pad_size = int(pad_size / 2.0)
         right_pad_size = pad_size - left_pad_size
 
+        # Generate padding part
         vshape[1] = left_pad_size
         left_pad = np.zeros(vshape)
         vshape[1] = right_pad_size
         right_pad = np.zeros(vshape)
 
+        # Pad the volume with zero background, and get new shape
         pad_volume = np.hstack((left_pad, volume, right_pad))
         vshape = list(pad_volume.shape)
 
+        # Resize brain volume by interpolation
         factor = [ns / float(vs) for ns, vs in zip(VOLUME_SHAPE, vshape)]
         resized_volume = zoom(pad_volume, zoom=factor, order=1, prefilter=False)
         resized_volume = resized_volume.astype(volume.dtype)
 
+        # Create folder to keep resized volume
+        # if the folder is not exist
         output_sub_dir = os.path.join(output_dir, case_no)
         if not os.path.isdir(output_sub_dir):
             os.makedirs(output_sub_dir)
 
+        # Write file into folder
         output_path = os.path.join(output_sub_dir, name)
         np.save(output_path, resized_volume)
 
