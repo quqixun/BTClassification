@@ -1,8 +1,8 @@
 # Brain Tumor Classification
-# Script for Training Models
+# Script for Training General CNN Models
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/11/03
+# Modify on: 2017/11/06
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -39,7 +39,7 @@ import tensorflow as tf
 from btc_settings import *
 from btc_models import BTCModels
 from btc_tfrecords import BTCTFRecords
-from btc_parameters import cnn_parameters, cae_parameters
+from btc_parameters import parameters
 
 
 class BTCTrain():
@@ -61,9 +61,6 @@ class BTCTrain():
         '''
 
         self.net = net
-        self.cae = False
-        if net == CAE_STRIDE or net == CAE_POOL:
-            self.cae = True
 
         # Initialize BTCTFRecords to load data
         self.tfr = BTCTFRecords()
@@ -96,10 +93,6 @@ class BTCTrain():
             paras["learning_rate_first"], paras["learning_rate_last"])
         self.l2_loss_coeff = paras["l2_loss_coeff"]
 
-        if self.cae:
-            self.sparse_penalty_coeff = paras["sparse_penalty_coeff"]
-            self.p = paras["sparse_level"]
-
         # For models' structure
         act = paras["activation"]
         alpha = paras["alpha"]
@@ -107,8 +100,8 @@ class BTCTrain():
         drop_rate = paras["drop_rate"]
 
         # Initialize BTCModels to set general settings
-        self.models = BTCModels(self.net, self.classes_num,
-                                act, alpha, bn_momentum, drop_rate)
+        self.models = BTCModels(self.classes_num, act, alpha,
+                                bn_momentum, drop_rate)
         self.network = self._get_network()
 
         # Computer the number of batches in each epoch for
@@ -137,10 +130,6 @@ class BTCTrain():
             network = self.models.res_cnn
         elif self.net == DENSE_CNN:
             network = self.models.dense_cnn
-        elif self.net == CAE_STRIDE:
-            network = self.models.autoencoder_stride
-        elif self.net == CAE_POOL:
-            network = self.models.autoencoder_pool
         else:  # Raise error if model cannot be found
             raise ValueError("Could not found model.")
 
@@ -230,28 +219,14 @@ class BTCTrain():
             return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_in_onehot,
                                                                           logits=y_out))
 
-        def mean_square_loss(y_in, y_out):
-            return tf.div(tf.reduce_mean(tf.square(y_out - y_in)), 2)
-
         def l2_loss():
             variables = tf.trainable_variables()
             return tf.add_n([tf.nn.l2_loss(v) for v in variables if "kernel" in v.name])
 
-        def sparse_penalty(p, p_hat):
-            sp1 = p * (tf.log(p) - tf.log(p_hat))
-            sp2 = (1 - p) * (tf.log(1 - p) - tf.log(1 - p_hat))
-            return sp1 + sp2
-
         with tf.name_scope("loss"):
             # Regularization term to reduce overfitting
             loss = l2_loss() * self.l2_loss_coeff
-
-            if not self.cae:
-                loss += softmax_loss(y_in, y_out)
-            else:
-                loss += mean_square_loss(y_in, y_out)
-                p_hat = tf.reduce_mean(code, axis=[1, 2, 3]) + 1e-8
-                loss += tf.reduce_sum(sparse_penalty(self.p, p_hat)) * self.sparse_penalty_coeff
+            loss += softmax_loss(y_in, y_out)
 
         # Add loss into summary
         tf.summary.scalar("loss", loss)
@@ -268,9 +243,8 @@ class BTCTrain():
             correction_prediction = tf.equal(y_out_labels, y_in_labels)
             accuracy = tf.reduce_mean(tf.cast(correction_prediction, tf.float32))
 
-        if not self.cae:
-            # Add accuracy into summary
-            tf.summary.scalar("accuracy", accuracy)
+        # Add accuracy into summary
+        tf.summary.scalar("accuracy", accuracy)
 
         return accuracy
 
@@ -337,18 +311,11 @@ class BTCTrain():
 
         # with tf.device("/gpu:0")
         # Obtain logits from the model
-        if not self.cae:
-            output = self.network(x, is_training)
-        else:
-            code, output = self.network(x, is_training)
+        output = self.network(x, is_training)
 
         # Compute loss and accuracy
-        if not self.cae:
-            loss = self._get_loss(y_input, output)
-            accuracy = self._get_accuracy(y_input, output)
-        else:  # Autoencoder
-            loss = self._get_loss(x, output, code)
-            accuracy = tf.cast(0.0, tf.float32)
+        loss = self._get_loss(y_input, output)
+        accuracy = self._get_accuracy(y_input, output)
 
         # Merge summary
         # The summary can be displayed by TensorBoard
@@ -390,7 +357,8 @@ class BTCTrain():
         print((PCB + "\nTraining and Validating model: {}\n" + PCW).format(self.net))
 
         # Initialize counter
-        tra_iters, one_tra_iters, val_iters, epoch_no = 0, 0, 0, 0
+        tra_iters, val_iters, epoch_no = 0, 0, 0
+        one_tra_iters, one_val_iters = 0, 0
 
         # Lists to save loss and accuracy of each training step
         tloss_list, taccuracy_list = [], []
@@ -418,18 +386,20 @@ class BTCTrain():
                     # Lists to save loss and accuracy of each validating step
                     vloss_list, vaccuracy_list = [], []
                     while val_iters < self.vepoch_iters[epoch_no]:
-                        val_iters += 1
                         # Feed the graph, get metrics
                         vx, vy = sess.run([val_volumes, val_labels])
                         val_fd = {x: vx, y_input: vy, is_training: False}
                         vsummary, vloss, vaccuracy = sess.run([merged, loss, accuracy], feed_dict=val_fd)
+
+                        val_iters += 1
+                        one_val_iters += 1
 
                         # Record metrics of validating steps
                         vloss_list.append(vloss)
                         vaccuracy_list.append(vaccuracy)
                         val_writer.add_summary(vsummary, val_iters)
                         self.validate_metrics.append([vloss, vaccuracy])
-                        self._print_metrics("Validate", epoch_no + 1, val_iters, vloss, vaccuracy)
+                        self._print_metrics("Validate", epoch_no + 1, one_val_iters, vloss, vaccuracy)
 
                     # Compute mean loss and mean accuracy of training steps
                     # in one epoch, and empty lists for next epoch
@@ -443,6 +413,7 @@ class BTCTrain():
                     self._save_model_per_epoch(sess, saver, epoch_no + 1)
 
                     one_tra_iters = 0
+                    one_val_iters = 0
                     epoch_no += 1
 
                     if epoch_no > self.num_epoches:
@@ -502,19 +473,13 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    help_str = "Select a model in 'cnn', 'full_cnn', 'res_cnn', 'dense_cnn'" + \
-               "'cae_stride' or 'cae_pool'."
+    help_str = "Select a model in 'cnn', 'full_cnn', 'res_cnn' or 'dense_cnn'."
     parser.add_argument("--model", action="store", dest="model", help=help_str)
     args = parser.parse_args()
 
     parent_dir = os.path.dirname(os.getcwd())
     save_path = os.path.join(parent_dir, "models")
     logs_path = os.path.join(parent_dir, "logs")
-
-    if args.model == "cae_stride" or args.model == "cae_pool":
-        parameters = cae_parameters
-    else:
-        parameters = cnn_parameters
 
     btc = BTCTrain(args.model, parameters, save_path, logs_path)
     btc.train()
