@@ -1,8 +1,8 @@
 # Brain Tumor Classification
-# Script for Hyper-Parameters
+# Script for CNNs' Hyper-Parameters
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/11/03
+# Modify on: 2017/11/06
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -38,6 +38,7 @@ Hyper-parameters for training pipeline
     - num_epoches: int, the number of epoches
     - learning_rate_first: float, the learning rate for first epoch
     - learning_rate_last: float, the learning rate for last epoch
+    - l2_loss_coeff: float, coeddicient of le regularization item
     - more parameters to be added
 
 -3- Parameters for Constructing Model
@@ -81,13 +82,13 @@ json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
 with open(json_path) as json_file:
     volumes_num = json.load(json_file)
 
-train_num = 236
-validate_num = 224
-
 # train_num = volumes_num["train"]
 # validate_num = volumes_num["validate"]
 
-cnn_parameters = {
+train_num = 236
+validate_num = 224
+
+parameters = {
     # Basic settings
     "train_path": tpath,
     "validate_path": vpath,
@@ -99,68 +100,12 @@ cnn_parameters = {
     "min_after_dequeue": 300,
     # Parameters for training
     "batch_size": 10,
-    "num_epoches": 1,
+    "num_epoches": 2,
     "learning_rate_first": 1e-3,
     "learning_rate_last": 1e-4,
     "l2_loss_coeff": 0.001,
     # Parameter for model's structure
     "activation": "relu",  # "lrelu",
-    "alpha": None,  # "lrelu"
-    "bn_momentum": 0.99,
-    "drop_rate": 0.5
-}
-
-
-'''
-Parameters for Autoencoder Models
-'''
-
-# Set path of the folder in where tfrecords are save in
-parent_dir = os.path.dirname(os.getcwd())
-tfrecords_dir = os.path.join(parent_dir, DATA_FOLDER,
-                             TFRECORDS_FOLDER, VOLUMES_FOLDER)
-
-# Create paths for training and validating tfrecords
-tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
-vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
-
-# Whole dataset
-# tpath = os.path.join(tfrecords_dir, "train.tfrecord")
-# vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
-
-# Load dict from json file in which the number of
-# training and valdating set can be found
-json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
-                         VOLUMES_FOLDER, VOLUMES_NUM_FILE)
-with open(json_path) as json_file:
-    volumes_num = json.load(json_file)
-
-train_num = 3
-validate_num = 3
-
-# train_num = volumes_num["train"]
-# validate_num = volumes_num["validate"]
-
-cae_parameters = {
-    # Basic settings
-    "train_path": tpath,
-    "validate_path": vpath,
-    "train_num": train_num,
-    "validate_num": validate_num,
-    "classes_num": 3,
-    "patch_shape": VOLUME_ONE_CHANNEL_SHAPE,  # VOLUME_SHAPE,
-    "capacity": 6,
-    "min_after_dequeue": 5,
-    # Parameters for training
-    "batch_size": 1,
-    "num_epoches": 100,
-    "learning_rate_first": 3e-3,
-    "learning_rate_last": 3e-5,
-    "l2_loss_coeff": 0.01,
-    "sparse_penalty_coeff": 0.01,
-    "sparse_level": 0.05,
-    # Parameter for model's structure
-    "activation": "relu",
     "alpha": None,  # "lrelu"
     "bn_momentum": 0.99,
     "drop_rate": 0.5
