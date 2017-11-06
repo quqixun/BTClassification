@@ -168,7 +168,7 @@ class BTCReorganize():
 
 if __name__ == "__main__":
 
-    input_dir = "/home/quqixun/data/BraTS2017"
+    input_dir = "/home/qixun/data/BraTS2017"
     output_dir = os.path.join(os.path.dirname(os.getcwd()), DATA_FOLDER)
 
     BTCReorganize(input_dir, output_dir)
