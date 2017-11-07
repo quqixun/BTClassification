@@ -2,7 +2,7 @@
 # Script for Training Autoencoders
 # Author: Qixun Qu
 # Create on: 2017/11/06
-# Modify on: 2017/11/06
+# Modify on: 2017/11/07
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -52,7 +52,7 @@ class BTCTrainCAE():
 
             Inputs:
             -------
-            - net: string, the name of the model applied to train
+            - mode: string, the mode of autoencoder, "stride" or "pool"
             - paras: dict, parameters for training the model, defined
                      in btc_parameters.py
             - save_path: string, the path of the folder to save models
@@ -89,9 +89,11 @@ class BTCTrainCAE():
 
         # For training process
         self.batch_size = paras["batch_size"]
-        self.num_epoches = paras["num_epoches"]
+        self.num_epoches = np.sum(paras["num_epoches"])
         self.learning_rates = self._get_learning_rates(
-            paras["learning_rate_first"], paras["learning_rate_last"])
+            paras["num_epoches"], paras["learning_rates"])
+        # self.learning_rates = self._get_learning_rates_decay(
+        #     paras["learning_rate_first"], paras["learning_rate_last"])
         self.l2_loss_coeff = paras["l2_loss_coeff"]
 
         self.sparse_penalty_coeff = paras["sparse_penalty_coeff"]
@@ -135,8 +137,42 @@ class BTCTrainCAE():
 
         return network
 
-    def _get_learning_rates(self, first_rate, last_rate):
+    def _get_learning_rates(self, num_epoches, learning_rates):
         '''_GET_LEARNING_RATES
+
+            Compute learning rate for each epoch according to
+            the given learning rates.
+
+            Inputs:
+            -------
+            - num_epoches: list of ints, indicates the number of epoches
+                           that share the same learning rate
+            - learning_rates: list of floats, gives the learning rates for
+                           different training epoches
+
+            Outputs:
+            --------
+            - a list of learning rates
+
+            Example:
+            --------
+            - num_epoches: [2, 2]
+            - learning_rates: [1e-3, 1e-4]
+            - return: [1e-3, 1e-3, 1e-4, 1e-4]
+
+        '''
+
+        if len(num_epoches) != len(learning_rates):
+            raise ValueError("len(num_epoches) should equal to len(learning_rates).")
+
+        learning_rate_per_epoch = []
+        for n, l in zip(num_epoches, learning_rates):
+            learning_rate_per_epoch += [l] * n
+
+        return learning_rate_per_epoch
+
+    def _get_learning_rates_decay(self, first_rate, last_rate):
+        '''_GET_LEARNING_RATES_DECAY
 
             Compute learning rate for each epoch according to
             the start and the end point.
@@ -210,24 +246,40 @@ class BTCTrainCAE():
 
     def _get_loss(self, y_in, y_out, code):
         '''_GET_LOSS
+
+            Compute loss, which consists of mean square loss,
+            l2 regularization term and sparsity penalty term.
+
+            Inputs:
+            -------
+            - y_in: tensor, original input to train the model
+            - y_out: tensor, the reconstruction of input
+            - code: tensor, compress presentation of input
+
+            Output:
+            -------
+            - loss
+
         '''
 
+        # Compute mean square loss between input and the reconstruction
         def mean_square_loss(y_in, y_out):
             return tf.div(tf.reduce_mean(tf.square(y_out - y_in)), 2)
 
+        # Compute l2 regularization term
         def l2_loss():
             variables = tf.trainable_variables()
             return tf.add_n([tf.nn.l2_loss(v) for v in variables if "kernel" in v.name])
 
+        # Compute sparsity penalty term
         def sparse_penalty(p, p_hat):
             sp1 = p * (tf.log(p) - tf.log(p_hat))
             sp2 = (1 - p) * (tf.log(1 - p) - tf.log(1 - p_hat))
             return sp1 + sp2
 
         with tf.name_scope("loss"):
-            # Regularization term to reduce overfitting
-            loss = l2_loss() * self.l2_loss_coeff
-            loss += mean_square_loss(y_in, y_out)
+            loss = mean_square_loss(y_in, y_out)
+            loss += l2_loss() * self.l2_loss_coeff
             p_hat = tf.reduce_mean(code, axis=[1, 2, 3]) + 1e-8
             loss += tf.reduce_sum(sparse_penalty(self.p, p_hat)) * self.sparse_penalty_coeff
 
@@ -236,42 +288,62 @@ class BTCTrainCAE():
 
         return loss
 
-    def _print_metrics(self, stage, epoch_no, iters, loss, ):
+    def _print_metrics(self, stage, epoch_no, iters, loss):
         '''_PRINT_METRICS
+
+            Print metrics of each training and validating step.
+
+            Inputs:
+            -------
+            - stage: string, "Train" or "Validate"
+            - epoch_no: int, epoch number
+            - iters: int, step number
+            - loss: float, loss
+
         '''
 
         print((PCG + "[Epoch {}] ").format(epoch_no),
               (stage + " Step {}: ").format(iters),
-              "Loss: {0:.10f}, ".format(loss))
+              ("Loss: {0:.10f}, " + PCW).format(loss))
 
         return
 
-    def _print_mean_metrics(self, stage, epoch_no, loss_list, ):
+    def _print_mean_metrics(self, stage, epoch_no, loss_list):
         '''_PRINT_MEAN_METRICS
+
+            Print mean metrics after each training and validating epoch.
+
+            Inputs:
+            -------
+            - stage: string, "Train" or "Validate"
+            - epoch_no: int, epoch number
+            - loss_list: list of floats, which keeps loss of each step
+                         inner one training or validating epoch
+
         '''
 
         loss_mean = np.mean(loss_list)
 
         print((PCY + "[Epoch {}] ").format(epoch_no),
               stage + " Stage: ",
-              "Mean Loss: {0:.10f}, ".format(loss_mean))
+              ("Mean Loss: {0:.10f}, " + PCW).format(loss_mean))
 
-        return
+        return loss_mean
 
     def _save_model_per_epoch(self, sess, saver, epoch_no):
         '''_SAVE_MODEL_PER_EPOCH
         '''
 
-        ckpt_dir = os.path.join(self.model_path, "epoch-" + str(epoch_no))
-        if os.path.isdir(ckpt_dir):
-            shutil.rmtree(ckpt_dir)
-        os.makedirs(ckpt_dir)
+        # ckpt_dir = os.path.join(self.model_path, "epoch-" + str(epoch_no))
+        # if os.path.isdir(ckpt_dir):
+        #     shutil.rmtree(ckpt_dir)
+        # os.makedirs(ckpt_dir)
 
         # Save model's graph and variables of each epoch into folder
-        save_path = os.path.join(ckpt_dir, self.net)
-        saver.save(sess, save_path, global_step=epoch_no)
+        save_path = os.path.join(self.model_path, self.net)
+        saver.save(sess, save_path, global_step=None)
         print((PCC + "[Epoch {}] ").format(epoch_no),
-              ("Model was saved in: {}\n" + PCW).format(ckpt_dir))
+              ("Model was saved in: {}" + PCW).format(self.model_path))
 
         return
 
@@ -343,6 +415,7 @@ class BTCTrainCAE():
         # Initialize counter
         tra_iters, val_iters, epoch_no = 0, 0, 0
         one_tra_iters, one_val_iters = 0, 0
+        best_val_lmean_oss = np.inf
 
         # Lists to save loss and accuracy of each training step
         tloss_list = []
@@ -389,14 +462,17 @@ class BTCTrainCAE():
                     tloss_list = []
 
                     # Compute mean loss and mean accuracy of validating steps in one epoch
-                    self._print_mean_metrics("Validate", epoch_no + 1, vloss_list)
+                    val_mean_loss = self._print_mean_metrics("Validate", epoch_no + 1, vloss_list)
 
-                    # Save model after each epoch
-                    self._save_model_per_epoch(sess, saver, epoch_no + 1)
+                    if val_mean_loss < best_val_lmean_oss:
+                        best_val_lmean_oss = val_mean_loss
+                        # Save model after each epoch
+                        self._save_model_per_epoch(sess, saver, epoch_no + 1)
 
                     one_tra_iters = 0
                     one_val_iters = 0
                     epoch_no += 1
+                    print()
 
                     if epoch_no > self.num_epoches:
                         break
@@ -425,8 +501,8 @@ class BTCTrainCAE():
             Inputs:
             -------
             - filename: string, the name of file, not the full path
-            - data: 2D list, including loss and accuracy for either
-                    training results or validating results
+            - data: 1D list, including loss for either training
+                    results or validating results
 
         '''
 
@@ -449,6 +525,7 @@ if __name__ == "__main__":
 
         Example of commandline:
         python btc_train_cae.py --mode=stride
+        python btc_train_cae.py --mode=pool
 
     '''
 
