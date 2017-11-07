@@ -2,7 +2,7 @@
 # Script for CAEs' Hyper-Parameters
 # Author: Qixun Qu
 # Create on: 2017/11/06
-# Modify on: 2017/11/06
+# Modify on: 2017/11/07
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -34,7 +34,9 @@ Hyper-parameters for training pipeline
 
 -2- Parameters for Training:
     - batch_size: int, the number of patches in one batch
-    - num_epoches: int, the number of epoches
+   - num_epoches: int or list of ints, the number of epoches
+    - learning_rates: list of floats, gives the learning rates for
+                      different training epoches
     - learning_rate_first: float, the learning rate for first epoch
     - learning_rate_last: float, the learning rate for last epoch
     - l2_loss_coeff: float, coeddicient of l2 regularization item
@@ -44,11 +46,11 @@ Hyper-parameters for training pipeline
 
 -3- Parameters for Constructing Model
     - activation: string, indicates the activation method by either
-      "relu" or "sigmoid" for autoencoder
+                  "relu" or "sigmoid" for autoencoder
     - bn_momentum: float, momentum for removing average in batch
-      normalization, typically values are 0.999, 0.99, 0.9, etc
+                   normalization, typically values are 0.999, 0.99, 0.9, etc
     - drop_rate: float, rate of dropout of input units, which is
-      between 0 and 1
+                 between 0 and 1
 
 '''
 
@@ -68,12 +70,8 @@ tfrecords_dir = os.path.join(parent_dir, DATA_FOLDER,
                              TFRECORDS_FOLDER, VOLUMES_FOLDER)
 
 # Create paths for training and validating tfrecords
-tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
-vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
-
-# Whole dataset
-# tpath = os.path.join(tfrecords_dir, "train.tfrecord")
-# vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
+tpath = os.path.join(tfrecords_dir, "train.tfrecord")
+vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
 
 # Load dict from json file in which the number of
 # training and valdating set can be found
@@ -82,11 +80,18 @@ json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
 with open(json_path) as json_file:
     volumes_num = json.load(json_file)
 
-# train_num = volumes_num["train"]
-# validate_num = volumes_num["validate"]
+train_num = volumes_num["train"]
+validate_num = volumes_num["validate"]
+capacity = 90
+min_after_dequeue = 85
 
-train_num = 3
-validate_num = 3
+# Settings for partial dataset to test
+# train_num = 3
+# validate_num = 3
+# tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
+# vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
+# capacity = 5
+# min_after_dequeue = 3
 
 parameters = {
     # Basic settings
@@ -95,20 +100,20 @@ parameters = {
     "train_num": train_num,
     "validate_num": validate_num,
     "classes_num": 3,
-    # "patch_shape": VOLUME_ONE_CHANNEL_SHAPE,
     "patch_shape": VOLUME_SHAPE,
-    "capacity": 6,
-    "min_after_dequeue": 5,
+    "capacity": capacity,
+    "min_after_dequeue": min_after_dequeue,
     # Parameters for training
-    "batch_size": 1,
-    "num_epoches": 1,
-    "learning_rate_first": 3e-3,
-    "learning_rate_last": 3e-5,
+    "batch_size": 2,
+    "num_epoches": [10, 10, 10],
+    "learning_rates": [1e-3, 1e-4, 1e-5],
+    # "learning_rate_first": 1e-3,
+    # "learning_rate_last": 1e-4,
     "l2_loss_coeff": 0.01,
     "sparse_penalty_coeff": 0.01,
     "sparse_level": 0.05,
     # Parameter for model's structure
     "activation": "relu",  # "sigmoid"
-    "bn_momentum": 0.99,
+    "bn_momentum": 0.9,
     "drop_rate": 0.5
 }
