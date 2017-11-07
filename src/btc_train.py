@@ -2,7 +2,7 @@
 # Script for Training General CNN Models
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/11/06
+# Modify on: 2017/11/07
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -88,9 +88,11 @@ class BTCTrain():
 
         # For training process
         self.batch_size = paras["batch_size"]
-        self.num_epoches = paras["num_epoches"]
+        self.num_epoches = np.sum(paras["num_epoches"])
         self.learning_rates = self._get_learning_rates(
-            paras["learning_rate_first"], paras["learning_rate_last"])
+            paras["num_epoches"], paras["learning_rates"])
+        # self.learning_rates = self._get_learning_rates_decay(
+        #     paras["learning_rate_first"], paras["learning_rate_last"])
         self.l2_loss_coeff = paras["l2_loss_coeff"]
 
         # For models' structure
@@ -156,8 +158,42 @@ class BTCTrain():
 
         return iters_per_epoch.astype(np.int64)
 
-    def _get_learning_rates(self, first_rate, last_rate):
+    def _get_learning_rates(self, num_epoches, learning_rates):
         '''_GET_LEARNING_RATES
+
+            Compute learning rate for each epoch according to
+            the given learning rates.
+
+            Inputs:
+            -------
+            - num_epoches: list of ints, indicates the number of epoches
+                           that share the same learning rate
+            - learning_rates: list of floats, gives the learning rates for
+                           different training epoches
+
+            Outputs:
+            --------
+            - a list of learning rates
+
+            Example:
+            --------
+            - num_epoches: [2, 2]
+            - learning_rates: [1e-3, 1e-4]
+            - return: [1e-3, 1e-3, 1e-4, 1e-4]
+
+        '''
+
+        if len(num_epoches) != len(learning_rates):
+            raise ValueError("len(num_epoches) should equal to len(learning_rates).")
+
+        learning_rate_per_epoch = []
+        for n, l in zip(num_epoches, learning_rates):
+            learning_rate_per_epoch += [l] * n
+
+        return learning_rate_per_epoch
+
+    def _get_learning_rates_decay(self, first_rate, last_rate):
+        '''_GET_LEARNING_RATES_DECAY
 
             Compute learning rate for each epoch according to
             the start and the end point.
@@ -208,10 +244,24 @@ class BTCTrain():
                                         capacity=self.capacity,
                                         min_after_dequeue=self.min_after_dequeue)
 
-    def _get_loss(self, y_in, y_out, code=None):
+    def _get_loss(self, y_in, y_out):
         '''_GET_LOSS
+
+            Compute loss, which consists of softmax cross entropy
+            and l2 regularization term.
+
+            Inputs:
+            -------
+            - y_in: tensor, input labels
+            - y_out: tensor, model outputs
+
+            Output:
+            -------
+            - loss
+
         '''
 
+        # Compute softmax cross entropy
         def softmax_loss(y_in, y_out):
             # Convert labels to onehot array first, such as:
             # [0, 1, 2] ==> [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
@@ -219,14 +269,15 @@ class BTCTrain():
             return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_in_onehot,
                                                                           logits=y_out))
 
+        # Compute l2 regularization term
         def l2_loss():
             variables = tf.trainable_variables()
             return tf.add_n([tf.nn.l2_loss(v) for v in variables if "kernel" in v.name])
 
         with tf.name_scope("loss"):
             # Regularization term to reduce overfitting
-            loss = l2_loss() * self.l2_loss_coeff
-            loss += softmax_loss(y_in, y_out)
+            loss = softmax_loss(y_in, y_out)
+            loss += l2_loss() * self.l2_loss_coeff
 
         # Add loss into summary
         tf.summary.scalar("loss", loss)
@@ -235,6 +286,18 @@ class BTCTrain():
 
     def _get_accuracy(self, y_in_labels, y_out):
         '''_GET_ACCURACY
+
+            Compute accuracy of classification.
+
+            Inputs:
+            -------
+            - y_in_labels: tensor, labels for input cases
+            - y_out: tensor, output from model
+
+            Output:
+            -------
+            - classification accuracy
+
         '''
 
         with tf.name_scope("accuracy"):
@@ -250,6 +313,17 @@ class BTCTrain():
 
     def _print_metrics(self, stage, epoch_no, iters, loss, accuracy):
         '''_PRINT_METRICS
+
+            Print metrics of each training and validating step.
+
+            Inputs:
+            -------
+            - stage: string, "Train" or "Validate"
+            - epoch_no: int, epoch number
+            - iters: int, step number
+            - loss: float, loss
+            - accuracy: float, classification accuracy
+
         '''
 
         print((PCG + "[Epoch {}] ").format(epoch_no),
@@ -261,6 +335,18 @@ class BTCTrain():
 
     def _print_mean_metrics(self, stage, epoch_no, loss_list, accuracy_list):
         '''_PRINT_MEAN_METRICS
+
+            Print mean metrics after each training and validating epoch.
+
+            Inputs:
+            -------
+            - stage: string, "Train" or "Validate"
+            - epoch_no: int, epoch number
+            - loss_list: list of floats, which keeps loss of each step
+                         inner one training or validating epoch
+            - accuracy_list: list of floats, which keeps accuracy of each
+                             step inner one training or validating epoch
+
         '''
 
         loss_mean = np.mean(loss_list)
@@ -271,22 +357,22 @@ class BTCTrain():
               "Mean Loss: {0:.10f}, ".format(loss_mean),
               ("Mean Accuracy: {0:.10f}" + PCW).format(accuracy_mean))
 
-        return
+        return loss_mean
 
     def _save_model_per_epoch(self, sess, saver, epoch_no):
         '''_SAVE_MODEL_PER_EPOCH
         '''
 
-        ckpt_dir = os.path.join(self.model_path, "epoch-" + str(epoch_no))
-        if os.path.isdir(ckpt_dir):
-            shutil.rmtree(ckpt_dir)
-        os.makedirs(ckpt_dir)
+        # ckpt_dir = os.path.join(self.model_path, "epoch-" + str(epoch_no))
+        # if os.path.isdir(ckpt_dir):
+        #     shutil.rmtree(ckpt_dir)
+        # os.makedirs(ckpt_dir)
 
         # Save model's graph and variables of each epoch into folder
-        save_path = os.path.join(ckpt_dir, self.net)
-        saver.save(sess, save_path, global_step=epoch_no)
+        save_path = os.path.join(self.model_path, self.net)
+        saver.save(sess, save_path, global_step=None)
         print((PCC + "[Epoch {}] ").format(epoch_no),
-              ("Model was saved in: {}\n" + PCW).format(ckpt_dir))
+              ("Model was saved in: {}" + PCW).format(self.model_path))
 
         return
 
@@ -359,6 +445,7 @@ class BTCTrain():
         # Initialize counter
         tra_iters, val_iters, epoch_no = 0, 0, 0
         one_tra_iters, one_val_iters = 0, 0
+        best_val_lmean_oss = np.inf
 
         # Lists to save loss and accuracy of each training step
         tloss_list, taccuracy_list = [], []
@@ -407,11 +494,14 @@ class BTCTrain():
                     tloss_list, taccuracy_list = [], []
 
                     # Compute mean loss and mean accuracy of validating steps in one epoch
-                    self._print_mean_metrics("Validate", epoch_no + 1, vloss_list, vaccuracy_list)
+                    val_mean_loss = self._print_mean_metrics("Validate", epoch_no + 1, vloss_list, vaccuracy_list)
 
-                    # Save model after each epoch
-                    self._save_model_per_epoch(sess, saver, epoch_no + 1)
+                    if val_mean_loss < best_val_lmean_oss:
+                        best_val_lmean_oss = val_mean_loss
+                        # Save model after each epoch
+                        self._save_model_per_epoch(sess, saver, epoch_no + 1)
 
+                    print()
                     one_tra_iters = 0
                     one_val_iters = 0
                     epoch_no += 1
@@ -468,6 +558,9 @@ if __name__ == "__main__":
 
         Example of commandline:
         python btc_train.py --model=cnn
+        python btc_train.py --model=full_cnn
+        python btc_train.py --model=res_cnn
+        python btc_train.py --model=dense_cnn
 
     '''
 
