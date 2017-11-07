@@ -2,7 +2,7 @@
 # Script for CNNs' Hyper-Parameters
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/11/06
+# Modify on: 2017/11/07
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -35,7 +35,9 @@ Hyper-parameters for training pipeline
 
 -2- Parameters for Training:
     - batch_size: int, the number of patches in one batch
-    - num_epoches: int, the number of epoches
+    - num_epoches: int or list of ints, the number of epoches
+    - learning_rates: list of floats, gives the learning rates for
+                      different training epoches
     - learning_rate_first: float, the learning rate for first epoch
     - learning_rate_last: float, the learning rate for last epoch
     - l2_loss_coeff: float, coeddicient of le regularization item
@@ -43,12 +45,12 @@ Hyper-parameters for training pipeline
 
 -3- Parameters for Constructing Model
     - activation: string, indicates the activation method by either
-      "relu" or "lrelu" (leaky relu) for general cnn models
+                  "relu" or "lrelu" (leaky relu) for general cnn models
     - alpha: float, slope of the leaky relu at x < 0
     - bn_momentum: float, momentum for removing average in batch
-      normalization, typically values are 0.999, 0.99, 0.9, etc
+                   normalization, typically values are 0.999, 0.99, 0.9 etc
     - drop_rate: float, rate of dropout of input units, which is
-      between 0 and 1
+                 between 0 and 1
 
 '''
 
@@ -67,26 +69,29 @@ parent_dir = os.path.dirname(os.getcwd())
 tfrecords_dir = os.path.join(parent_dir, DATA_FOLDER,
                              TFRECORDS_FOLDER, PATCHES_FOLDER)
 
-# Create paths for training and validating tfrecords
-tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
-vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
-
-# Whole dataset
+# # Create paths for training and validating tfrecords
 # tpath = os.path.join(tfrecords_dir, "train.tfrecord")
 # vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
 
-# Load dict from json file in which the number of
-# training and valdating set can be found
-json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
-                         PATCHES_FOLDER, VOLUMES_NUM_FILE)
-with open(json_path) as json_file:
-    volumes_num = json.load(json_file)
+# # Load dict from json file in which the number of
+# # training and valdating set can be found
+# json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
+#                          PATCHES_FOLDER, VOLUMES_NUM_FILE)
+# with open(json_path) as json_file:
+#     volumes_num = json.load(json_file)
 
 # train_num = volumes_num["train"]
 # validate_num = volumes_num["validate"]
+# capacity = 3650
+# min_after_dequeue = 3600
 
+# Settings for partial dataset to test
 train_num = 236
 validate_num = 224
+tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
+vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
+capacity = 300
+min_after_dequeue = 240
 
 parameters = {
     # Basic settings
@@ -96,13 +101,14 @@ parameters = {
     "validate_num": validate_num,
     "classes_num": 3,
     "patch_shape": PATCH_SHAPE,
-    "capacity": 350,
-    "min_after_dequeue": 300,
+    "capacity": 260,
+    "min_after_dequeue": 240,
     # Parameters for training
-    "batch_size": 10,
-    "num_epoches": 2,
-    "learning_rate_first": 1e-3,
-    "learning_rate_last": 1e-4,
+    "batch_size": 16,
+    "num_epoches": [2, 2, 2],
+    "learning_rates": [1e-3, 1e-4, 1e-5],
+    # "learning_rate_first": 1e-3,
+    # "learning_rate_last": 1e-4,
     "l2_loss_coeff": 0.001,
     # Parameter for model's structure
     "activation": "relu",  # "lrelu",
