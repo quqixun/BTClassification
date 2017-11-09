@@ -76,12 +76,12 @@ vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
 # Load dict from json file in which the number of
 # training and valdating set can be found
 json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
-                         VOLUMES_FOLDER, VOLUMES_NUM_FILE)
+                         VOLUMES_FOLDER, DATA_NUM_FILE)
 with open(json_path) as json_file:
-    volumes_num = json.load(json_file)
+    data_num = json.load(json_file)
 
-train_num = volumes_num["train"]
-validate_num = volumes_num["validate"]
+train_num = data_num["train"]
+validate_num = data_num["validate"]
 capacity = 90
 min_after_dequeue = 85
 
@@ -104,16 +104,16 @@ parameters = {
     "capacity": capacity,
     "min_after_dequeue": min_after_dequeue,
     # Parameters for training
-    "batch_size": 2,
+    "batch_size": 1,
     "num_epoches": [10, 10, 10],
     "learning_rates": [1e-3, 1e-4, 1e-5],
     # "learning_rate_first": 1e-3,
     # "learning_rate_last": 1e-4,
-    "l2_loss_coeff": 0.01,
-    "sparse_penalty_coeff": 0.01,
+    "l2_loss_coeff": 0.001,
+    "sparse_penalty_coeff": 0.001,
     "sparse_level": 0.05,
     # Parameter for model's structure
     "activation": "relu",  # "sigmoid"
-    "bn_momentum": 0.9,
+    "bn_momentum": 0.99,
     "drop_rate": 0.5
 }

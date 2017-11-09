@@ -52,7 +52,7 @@ from btc_settings import *
 
 class BTCTFRecords():
 
-    def __init__(self, data_mode):
+    def __init__(self, data_mode=None):
         '''__INIT__
 
             Initialization.

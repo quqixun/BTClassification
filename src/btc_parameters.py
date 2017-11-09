@@ -76,12 +76,12 @@ tfrecords_dir = os.path.join(parent_dir, DATA_FOLDER,
 # # Load dict from json file in which the number of
 # # training and valdating set can be found
 # json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
-#                          PATCHES_FOLDER, VOLUMES_NUM_FILE)
+#                          PATCHES_FOLDER, DATA_NUM_FILE)
 # with open(json_path) as json_file:
-#     volumes_num = json.load(json_file)
+#     data_num = json.load(json_file)
 
-# train_num = volumes_num["train"]
-# validate_num = volumes_num["validate"]
+# train_num = data_num["train"]
+# validate_num = data_num["validate"]
 # capacity = 3650
 # min_after_dequeue = 3600
 
