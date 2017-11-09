@@ -2,7 +2,7 @@
 # Script for Creating and Loading TFRecords
 # Author: Qixun Qu
 # Create on: 2017/10/09
-# Modify on: 2017/10/30
+# Modify on: 2017/11/09
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -26,11 +26,11 @@ Class BTCTFRecords
     (2) Create three empty temporary filts, which are:
         a text file to save cases' names of training set;
         a text file to save cases' names of validating set;
-        a jason file to save the number of volumes of
+        a jason file to save the number of data of
         training set and validating set;
     (3) Generate cases' names of training and validating set
         respectively according to the label file;
-    (4) Extract relevant volumes to write TFRecords.
+    (4) Extract relevant data to write TFRecords.
 
 -2- Load batches and labels for training and validating from
     tfrecords.
@@ -52,10 +52,14 @@ from btc_settings import *
 
 class BTCTFRecords():
 
-    def __init__(self):
+    def __init__(self, data_mode):
         '''__INIT__
 
-            No steps in initialization.
+            Initialization.
+
+            Input:
+            ------
+            - data_mode: string, "patch", "volume" or "slice"
 
             Usage examples:
             ---------------
@@ -67,6 +71,9 @@ class BTCTFRecords():
               outputs = tfr.decode_tfrecord(paras, ...)
 
         '''
+
+        # Leads to different normalization methods
+        self.data_mode = data_mode
 
         return
 
@@ -108,7 +115,7 @@ class BTCTFRecords():
 
         # Initialize an empty dictionary to keep amount of
         # patches in training and validating set
-        self.volumes_num = {}
+        self.data_num = {}
 
         # TFRecords creation pipline
         self._check_case_no(input_dir)
@@ -118,8 +125,8 @@ class BTCTFRecords():
         self._write_tfrecord(input_dir, self.validate_tfrecord, validate_set, VALIDATE_MODE)
 
         # Save dictionary into json file
-        with open(self.volumes_num_file, "w") as json_file:
-            json.dump(self.volumes_num, json_file)
+        with open(self.data_num_file, "w") as json_file:
+            json.dump(self.data_num, json_file)
 
         return
 
@@ -179,10 +186,10 @@ class BTCTFRecords():
         self.validate_set_file = os.path.join(temp_dir, VALIDATE_SET_FILE)
         create_temp_file(self.validate_set_file)
 
-        # A jason file to save the number of volumes of
+        # A jason file to save the number of data of
         # training set and validating set
-        self.volumes_num_file = os.path.join(temp_dir, VOLUMES_NUM_FILE)
-        create_temp_file(self.volumes_num_file)
+        self.data_num_file = os.path.join(temp_dir, DATA_NUM_FILE)
+        create_temp_file(self.data_num_file)
 
         return
 
@@ -246,15 +253,15 @@ class BTCTFRecords():
     def _write_tfrecord(self, input_dir, tfrecord_path, cases, mode):
         '''_WRITE_TFRECORD
 
-            Write volumes into tfrecord file.
+            Write data into tfrecord file.
             For each case in training or validating set:
-                For each volume in a certain case:
-                    Mormalize the volume
-                    Write the volume into tfrecord file
+                For each data in a certain case:
+                    Mormalize the data
+                    Write the data into tfrecord file
 
             Inputs:
             -------
-            - input_dir: the path of directory where keeps all volumes
+            - input_dir: the path of directory where keeps all data
             - tfrecord_path: the path to save tfrecord file
             - cases: a list consists of cases' names, such as:
                      [["case1", grade_of_case1], ["case2", grade_of_case2]]
@@ -262,57 +269,65 @@ class BTCTFRecords():
 
         '''
 
-        # normalize the volume
-        def normalize(volume):
-            temp = np.copy(volume)
+        # normalize the data
+        def normalize(data):
+            temp = np.copy(data)
             for c in range(CHANNELS):
-                channel = volume[..., c]
-                temp[..., c] = (channel - np.mean(channel)) / np.std(channel)
+                channel = data[..., c]
+                if self.data_mode == "patch":
+                    temp[..., c] = (channel - np.mean(channel)) / np.std(channel)
+                else:  # self.data_mode is "volume" or "slice"
+                    if np.max(channel) == 0:
+                        return None
+                    temp[..., c] = channel / np.max(channel)
             return temp
 
         print("Create TFRecord to " + mode)
 
         # Variable to count number in training or validating set
-        volume_num = 0
+        data_num = 0
 
         # Create writer
         writer = tf.python_io.TFRecordWriter(tfrecord_path)
 
         # For each case in list
         for case in tqdm(cases):
-            # Generate paths for all volume in one case
+            # Generate paths for all data in one case
             case_path = os.path.join(input_dir, case[0])
-            volumes_path = [os.path.join(case_path, p) for p in os.listdir(case_path)]
+            data_path = [os.path.join(case_path, p) for p in os.listdir(case_path)]
 
-            for vp in volumes_path:
+            for dp in data_path:
 
-                # If the volume can not be found, skip to next iteration
-                if not os.path.isfile(vp):
+                # If the data can not be found, skip to next iteration
+                if not os.path.isfile(dp):
                     continue
 
-                # Read, normalize and convert volume to binary
-                volume = np.load(vp)
-                volume = normalize(volume)
-                volume_raw = volume.tobytes()
+                # Read, normalize and convert data to binary
+                data = np.load(dp)
+                data = normalize(data)
 
-                # Form an example of a volume with its grade
+                if data is None:
+                    continue
+
+                # Form an example of a data with its grade
+                data_raw = data.tobytes()
                 example = tf.train.Example(features=tf.train.Features(feature={
                     "label": tf.train.Feature(int64_list=tf.train.Int64List(value=[case[1]])),
-                    "volume": tf.train.Feature(bytes_list=tf.train.BytesList(value=[volume_raw]))
+                    "data": tf.train.Feature(bytes_list=tf.train.BytesList(value=[data_raw]))
                 }))
 
                 # Write the example into tfrecord file
                 writer.write(example.SerializeToString())
 
                 # Count
-                volume_num += 1
+                data_num += 1
 
         # Close writer
         writer.close()
 
-        # Save number of volume into dictionary
+        # Save number of data into dictionary
         # {mode1: xxxx, mode2: xxxx}
-        self.volumes_num[mode] = volume_num
+        self.data_num[mode] = data_num
 
         return
 
@@ -327,9 +342,9 @@ class BTCTFRecords():
             Inputs:
             -------
             - path: the path of tfrecord file
-            - batch_size: the number of volumes in one batch
+            - batch_size: the number of data in one batch
             - num_epoches: the number of training epoches
-            - patch_shape: the shape of each volume
+            - patch_shape: the shape of each data
             - capacity: the maximum number of elements in the queue
             - min_after_dequeue: minimum number elements in the queue after
                                  a dequeue, used to ensure a level of mixing
@@ -337,8 +352,8 @@ class BTCTFRecords():
 
             Outputs:
             --------
-            - volumes: shuffled volumes set for training or validating
-            - labels: grade labels for volumes
+            - data: shuffled data set for training or validating
+            - labels: grade labels for data
 
         '''
 
@@ -349,60 +364,60 @@ class BTCTFRecords():
         with tf.name_scope("input"):
             # Generate queue and load example
             queue = tf.train.string_input_producer([path], num_epochs=num_epoches)
-            volume, label = self._decode_example(queue, patch_shape)
+            data, label = self._decode_example(queue, patch_shape)
 
-            # Shuffle volumes
-            volumes, labels = tf.train.shuffle_batch([volume, label],
-                                                     batch_size=batch_size,
-                                                     num_threads=NUM_THREADS,
-                                                     capacity=capacity,
-                                                     min_after_dequeue=min_after_dequeue)
-        return volumes, labels
+            # Shuffle data
+            datas, labels = tf.train.shuffle_batch([data, label],
+                                                   batch_size=batch_size,
+                                                   num_threads=NUM_THREADS,
+                                                   capacity=capacity,
+                                                   min_after_dequeue=min_after_dequeue)
+        return datas, labels
 
     def _decode_example(self, queue, patch_shape):
         '''_DECORD_EXAMPLE
 
             Decode one example from tfrecord file,
-            including its volume and label.
+            including its dat and label.
 
             Inputs:
             -------
             - queue: a queue of input filenames
-            - patch_shape: shape of one volume
+            - patch_shape: shape of one data
 
             Outputs:
             --------
-            - volume: one volume in given shape
-            - label: the grade of the volume
+            - data: one data in given shape
+            - label: the grade of the data
 
         '''
 
         # Load features for one example, in this case,
-        # they are volume and its label
+        # they are data and its label
         reader = tf.TFRecordReader()
         _, serialized_example = reader.read(queue)
         features = tf.parse_single_example(
             serialized_example,
             features={
                 "label": tf.FixedLenFeature([], tf.int64),
-                "volume": tf.FixedLenFeature([], tf.string)
+                "data": tf.FixedLenFeature([], tf.string)
             })
 
-        # Load and reshape volume
-        volume = tf.decode_raw(features["volume"], tf.float32)
-        volume = tf.reshape(volume, patch_shape)
+        # Load and reshape data
+        data = tf.decode_raw(features["data"], tf.float32)
+        data = tf.reshape(data, patch_shape)
 
         # Extract its label
         label = features["label"]
 
-        return volume, label
+        return data, label
 
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    help_str = "Select a mode in 'patch' or 'volume'."
+    help_str = "Select a mode in 'patch', 'volume' or 'slice'."
     parser.add_argument("--mode", action="store", dest="mode", help=help_str)
     args = parser.parse_args()
 
@@ -417,8 +432,12 @@ if __name__ == "__main__":
         input_dir = os.path.join(parent_dir, DATA_FOLDER, VOLUMES_FOLDER)
         output_dir = os.path.join(parent_dir, DATA_FOLDER, TFRECORDS_FOLDER, VOLUMES_FOLDER)
         temp_dir = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER, VOLUMES_FOLDER)
+    elif args.mode == "slice":
+        input_dir = os.path.join(parent_dir, DATA_FOLDER, SLICES_FOLDER)
+        output_dir = os.path.join(parent_dir, DATA_FOLDER, TFRECORDS_FOLDER, SLICES_FOLDER)
+        temp_dir = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER, SLICES_FOLDER)
     else:
-        raise ValueError("Cannot find mode in 'patch' or 'volume'.")
+        raise ValueError("Cannot find mode in 'patch', 'volume' or 'slice'.")
 
-    tfr = BTCTFRecords()
+    tfr = BTCTFRecords(args.mode)
     tfr.create_tfrecord(input_dir, output_dir, temp_dir, label_file)
