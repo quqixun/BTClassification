@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/10/29
+# Modify on: 2017/11/09
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -66,7 +66,8 @@ N4_ITERATION = [100, 100, 60, 40]
 
 
 # Parameters for Intensity Normalization
-PCTS = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.998]
+PCTS = [0, 0.1, 0.2, 0.3, 0.4, 0.5,
+        0.6, 0.7, 0.8, 0.9, 0.998]
 PCTS_COLUMNS = [str(p) for p in PCTS]
 
 
@@ -83,8 +84,10 @@ CHANNELS = 4
 TUMOT_MIN_SIZE = 500
 PATCHES_FOLDER = "Patches"
 VOLUMES_FOLDER = "Volumes"
+SLICES_FOLDER = "Slices"
 VOLUME_SHAPE = [112, 112, 88, CHANNELS]
 VOLUME_ONE_CHANNEL_SHAPE = [112, 112, 88, 1]
+SLICE_SHAPE = [112, 112, CHANNELS]
 RESIZE_FOLDER = "resize"
 TUMOR_FOLDER = "tumor"
 SHAPE_FILE = "shape.txt"
@@ -104,6 +107,11 @@ ERODABLE_THRESH = 35
 # Resize the tumor
 ZOOM_ORDER = 3
 ZOOM_FILTER = False
+
+# Threshold for Extracting Slices
+MASK_THRESHOLD = ET_MASK
+PROP_THRESHOLD = 0.2
+PROP_NON_BG = 0.25
 
 
 '''
@@ -140,7 +148,7 @@ TFRECORDS_FOLDER = "TFRecords"
 GRADES_LIST = [GRADE_II, GRADE_III, GRADE_IV]
 TRAIN_SET_FILE = "train_set.txt"
 VALIDATE_SET_FILE = "validate_set.txt"
-VOLUMES_NUM_FILE = "volumes_num.json"
+DATA_NUM_FILE = "data_num.json"
 CASES_FILE_SPLIT = "\n"
 TFRECORD_TRAIN = "train.tfrecord"
 TFRECORD_VALIDATE = "validate.tfrecord"
