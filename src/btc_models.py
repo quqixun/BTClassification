@@ -110,15 +110,15 @@ class BTCModels():
 
             Usages:
             -------
-            - full:  self._conv3d(x, 32, 3, 1, "same", "conv")
-            - short: self._conv3d(x, 32, 3)
+            - full:  self._conv(x, 32, 3, 1, "conv")
+            - short: self._conv(x, 32, 3)
 
             Inputs:
             -------
             - x: tensor, input layer
             - filters: int, the number of kernels
-            - kernel_size: int, the size of cube kernel
-            - strides: int, strides along three dimentions
+            - kernel_size: int, the size of kernel
+            - strides: int, strides along dimentions
             - name: string, layer's name
 
             Output:
@@ -250,18 +250,18 @@ class BTCModels():
 
             Usages:
             -------
-            - full:  self._conv3d_bn_act(x, 32, 3, 1, "cba", same", True)
-            - short: self._conv3d_bn_act(x, 32, 3, 1, "cba")
+            - full:  self._conv_bn_act(x, 32, 3, 1, "cba", True)
+            - short: self._conv_bn_act(x, 32, 3, 1, "cba")
 
             Inputs:
             -------
             - x: tensor, input layer
             - filters: int, the number of kernels
-            - kernel_size: int, the size of cube kernel
-            - strides: int, strides along three dimentions
+            - kernel_size: int, the size of kernel
+            - strides: int, strides along dimentions
             - name: string, layer's name
             - act: string or None, indicates the activation,
-                   method, id None, return inactivated layer
+                   method, if None, return inactivated layer
 
             Output:
             - a convoluted, normalized and activated (if not None) layer
@@ -776,11 +776,32 @@ class BTCModels():
         return last_tran
 
     #
-    # Helper functions for 3D autoencoder
+    # Helper functions for autoencoder
     #
 
     def _deconv(self, x, filters, kernel_size, strides=1, name="deconv_var"):
         '''_DECONV
+
+            Return 3D or 2D deconvolution layer with variables
+            initialized by xavier method.
+
+            Usages:
+            -------
+            - full:  self._deconv(x, 32, 3, 1, "deconv")
+            - short: self._deconv(x, 32, 3)
+
+            Inputs:
+            -------
+            - x: tensor, input layer
+            - filters: int, the number of kernels
+            - kernel_size: int, the size of kernel
+            - strides: int, strides along dimentions
+            - name: string, layer's name
+
+            Output:
+            -------
+            - a 3D or 2D deconvolution layer
+
         '''
 
         padding = "valid" if kernel_size == 1 else "same"
@@ -797,6 +818,30 @@ class BTCModels():
     def _deconv_bn_act(self, x, filters, kernel_size,
                          strides=1, name="dba", act=True):
         '''_DECONV_BN_ACT
+
+            A deconvolution block, including three sections:
+            - 3D or 2D deconvolution layer
+            - batch normalization
+            - activation
+
+            Usages:
+            -------
+            - full:  self._deconv_bn_act(x, 32, 3, 1, "dba", True)
+            - short: self._deconv_bn_act(x, 32, 3, 1, "dba")
+
+            Inputs:
+            -------
+            - x: tensor, input layer
+            - filters: int, the number of kernels
+            - kernel_size: int, the size of kernel
+            - strides: int, strides along dimentions
+            - name: string, layer's name
+            - act: string or None, indicates the activation,
+                   method, if None, return inactivated layer
+
+            Output:
+            - a deconvoluted, normalized and activated (if not None) layer
+
         '''
 
         with tf.variable_scope(name):
@@ -815,6 +860,13 @@ class BTCModels():
         '''_TEST
 
             A function to test basic helpers.
+
+            Inputs:
+            -------
+            - x: tensor placeholder, input volumes in batch
+            - is_training: boolean placeholder, indicates the mode,
+                           True: training mode,
+                           False: validating and inferencing mode
 
         '''
 
@@ -847,14 +899,24 @@ class BTCModels():
 
     def _check_input(self, x):
         '''_CHECK_INPUT
+
+            Chech the dimentions of input tensor whether
+            satisfy the requirement for the model. If not,
+            raise an error and quit program.
+
+            Input:
+            ------
+            - x: tensor, the tensor input to the model
+
         '''
 
+        # Obtain the shape of input
         x_dims = len(x.get_shape().as_list())
 
         if ((x_dims == 5 and (self.dims == "3d" or self.dims == "3D")) or
            (x_dims == 4 and (self.dims == "2d" or self.dims == "2D"))):
             return
-        else:
+        else:  # The input is unwanted
             msg = ("Your model deals with {0} data, " +
                    "thus the input tensor should be {1}D. " +
                    "But your input is {2}D.").format(
@@ -865,14 +927,25 @@ class BTCModels():
 
     def _check_output(self, x, output):
         '''_CHECK_OUTPUT
+
+            Obtain the dimentions of input and ouput respectively,
+            and check whether they are same. If not, raise an error
+            and quit program. This check is only for AUTOENCODER.
+
+            Inputs:
+            -------
+            - x: tensor, the input tensor
+            - output: tensor, the output generated from model
+
         '''
 
+        # Obtain dimentions
         x_dims = x.get_shape().as_list()
         output_dims = output.get_shape().as_list()
 
         if x_dims == output_dims:
             return
-        else:
+        else:  # They ate not same
             msg = ("Input tensor shape: {0}, output tensor shape: {1}. " +
                    "They should be same.").format(x_dims, output_dims)
             raise ValueError(msg)
@@ -1125,5 +1198,5 @@ if __name__ == "__main__":
     # net = models.full_cnn(x_3d, is_training)
     # net = models.res_cnn(x_3d, is_training)
     # net = models.dense_cnn(x_3d, is_training)
-    net = models.autoencoder_stride(x_2d, is_training)
+    net = models.autoencoder_stride(x_3d, is_training)
     # net = models.autoencoder_pool(x_3d, is_training)
