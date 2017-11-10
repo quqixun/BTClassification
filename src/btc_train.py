@@ -100,10 +100,11 @@ class BTCTrain():
         alpha = paras["alpha"]
         bn_momentum = paras["bn_momentum"]
         drop_rate = paras["drop_rate"]
+        dims = paras["dims"]
 
         # Initialize BTCModels to set general settings
         self.models = BTCModels(self.classes_num, act, alpha,
-                                bn_momentum, drop_rate)
+                                bn_momentum, drop_rate, dims)
         self.network = self._get_network()
 
         # Computer the number of batches in each epoch for
