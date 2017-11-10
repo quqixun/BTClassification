@@ -57,6 +57,7 @@ Hyper-parameters for training pipeline
 
 import os
 import json
+import math
 from btc_settings import *
 
 
@@ -69,32 +70,33 @@ parent_dir = os.path.dirname(os.getcwd())
 tfrecords_dir = os.path.join(parent_dir, DATA_FOLDER,
                              TFRECORDS_FOLDER, PATCHES_FOLDER)
 
-# # Create paths for training and validating tfrecords
-# tpath = os.path.join(tfrecords_dir, "train.tfrecord")
-# vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
+# Create paths for training and validating tfrecords
+tpath = os.path.join(tfrecords_dir, "train.tfrecord")
+vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
 
-# # Load dict from json file in which the number of
-# # training and valdating set can be found
-# json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
-#                          PATCHES_FOLDER, DATA_NUM_FILE)
-# with open(json_path) as json_file:
-#     data_num = json.load(json_file)
+# Load dict from json file in which the number of
+# training and valdating set can be found
+json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
+                         PATCHES_FOLDER, DATA_NUM_FILE)
+with open(json_path) as json_file:
+    data_num = json.load(json_file)
 
 # train_num = data_num["train"]
 # validate_num = data_num["validate"]
-# capacity = 3650
-# min_after_dequeue = 3600
 
 # Settings for partial dataset to test
-train_num = 236
-validate_num = 224
-tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
-vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
-capacity = 300
-min_after_dequeue = 240
+# tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
+# vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
+# train_num = 236
+# validate_num = 224
+
+# Settings for decodeing tfrecords
+min_after_dequeue = max([train_num, validate_num])
+capacity = math.ceil(min_after_dequeue * 1.1)
 
 parameters = {
     # Basic settings
+    "dims": "3D",
     "train_path": tpath,
     "validate_path": vpath,
     "train_num": train_num,

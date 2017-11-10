@@ -2,7 +2,7 @@
 # Script for CAEs' Hyper-Parameters
 # Author: Qixun Qu
 # Create on: 2017/11/06
-# Modify on: 2017/11/07
+# Modify on: 2017/11/10
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -57,6 +57,7 @@ Hyper-parameters for training pipeline
 
 import os
 import json
+import math
 from btc_settings import *
 
 
@@ -82,19 +83,20 @@ with open(json_path) as json_file:
 
 train_num = data_num["train"]
 validate_num = data_num["validate"]
-capacity = 90
-min_after_dequeue = 85
 
 # Settings for partial dataset to test
-# train_num = 3
-# validate_num = 3
 # tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
 # vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
-# capacity = 5
-# min_after_dequeue = 3
+# train_num = 3
+# validate_num = 3
+
+# Settings for decodeing tfrecords
+min_after_dequeue = max([train_num, validate_num])
+capacity = math.ceil(min_after_dequeue * 1.1)
 
 parameters = {
     # Basic settings
+    "dims": "3D",
     "train_path": tpath,
     "validate_path": vpath,
     "train_num": train_num,
