@@ -2,7 +2,7 @@
 # Script for CAEs' Hyper-Parameters
 # Author: Qixun Qu
 # Create on: 2017/11/06
-# Modify on: 2017/11/10
+# Modify on: 2017/11/11
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -55,67 +55,110 @@ Hyper-parameters for training pipeline
 '''
 
 
+from __future__ import print_function
+
 import os
 import json
 import math
 from btc_settings import *
 
 
-'''
-Parameters for Autoencoder Models
-'''
+def get_parameters(data="volume", mode="cae"):
+    '''GET_PARAMETERS
+    '''
 
-# Set path of the folder in where tfrecords are save in
-parent_dir = os.path.dirname(os.getcwd())
-tfrecords_dir = os.path.join(parent_dir, DATA_FOLDER,
-                             TFRECORDS_FOLDER, VOLUMES_FOLDER)
+    if data == "volume":
+        data_folder = VOLUMES_FOLDER
+        data_shape = VOLUME_SHAPE
+        data_dims = "3D"
+    elif data == "slice":
+        data_folder = SLICES_FOLDER
+        data_shape = SLICE_SHAPE
+        data_dims = "2D"
+    else:
+        raise ValueError("Cannot found data type in 'volume' or 'slice'.")
 
-# Create paths for training and validating tfrecords
-tpath = os.path.join(tfrecords_dir, "train.tfrecord")
-vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
+    # Set path of the folder in where tfrecords are save in
+    parent_dir = os.path.dirname(os.getcwd())
+    tfrecords_dir = os.path.join(parent_dir, DATA_FOLDER,
+                                 TFRECORDS_FOLDER, data_folder)
 
-# Load dict from json file in which the number of
-# training and valdating set can be found
-json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
-                         VOLUMES_FOLDER, DATA_NUM_FILE)
-with open(json_path) as json_file:
-    data_num = json.load(json_file)
+    # Create paths for training and validating tfrecords
+    tpath = os.path.join(tfrecords_dir, "train.tfrecord")
+    vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
 
-train_num = data_num["train"]
-validate_num = data_num["validate"]
+    # Load dict from json file in which the number of
+    # training and valdating set can be found
+    json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
+                             data_folder, DATA_NUM_FILE)
 
-# Settings for partial dataset to test
-# tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
-# vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
-# train_num = 3
-# validate_num = 3
+    if not os.path.isfile(json_path):
+        raise IOError("The json file is not exist.")
 
-# Settings for decodeing tfrecords
-min_after_dequeue = max([train_num, validate_num])
-capacity = math.ceil(min_after_dequeue * 1.1)
+    with open(json_path) as json_file:
+        data_num = json.load(json_file)
 
-parameters = {
-    # Basic settings
-    "dims": "3D",
-    "train_path": tpath,
-    "validate_path": vpath,
-    "train_num": train_num,
-    "validate_num": validate_num,
-    "classes_num": 3,
-    "patch_shape": VOLUME_SHAPE,
-    "capacity": capacity,
-    "min_after_dequeue": min_after_dequeue,
-    # Parameters for training
-    "batch_size": 1,
-    "num_epoches": [10, 10, 10],
-    "learning_rates": [1e-3, 1e-4, 1e-5],
-    # "learning_rate_first": 1e-3,
-    # "learning_rate_last": 1e-4,
-    "l2_loss_coeff": 0.001,
-    "sparse_penalty_coeff": 0.001,
-    "sparse_level": 0.05,
-    # Parameter for model's structure
-    "activation": "relu",  # "sigmoid"
-    "bn_momentum": 0.99,
-    "drop_rate": 0.5
-}
+    train_num = data_num["train"]
+    validate_num = data_num["validate"]
+
+    # Settings for decodeing tfrecords
+    min_after_dequeue = max([train_num, validate_num])
+    capacity = math.ceil(min_after_dequeue * 1.05)
+
+    cae_paras = {"train_path": tpath,
+                 "validate_path": vpath,
+                 "train_num": train_num,
+                 "validate_num": validate_num,
+                 "classes_num": 3,
+                 "patch_shape": data_shape,
+                 "capacity": capacity,
+                 "min_after_dequeue": min_after_dequeue,
+                 "batch_size": 1,
+                 "num_epoches": [10, 10, 10],
+                 "learning_rates": [1e-3, 1e-4, 1e-5],
+                 # "learning_rate_first": 1e-3,
+                 # "learning_rate_last": 1e-4,
+                 "l2_loss_coeff": 0.001,
+                 "sparse_penalty_coeff": 0.001,
+                 "sparse_level": 0.05,
+                 "dims": data_dims,
+                 "activation": "relu",
+                 "bn_momentum": 0.99,
+                 "drop_rate": 0.5,
+                 "cae_pool": "stride"}
+
+    clf_paras = {"train_path": tpath,
+                 "validate_path": vpath,
+                 "train_num": train_num,
+                 "validate_num": validate_num,
+                 "classes_num": 3,
+                 "patch_shape": data_shape,
+                 "capacity": capacity,
+                 "min_after_dequeue": min_after_dequeue,
+                 "batch_size": 32,
+                 "num_epoches": [10, 10, 10],
+                 "learning_rates": [1e-3, 1e-4, 1e-5],
+                 # "learning_rate_first": 1e-3,
+                 # "learning_rate_last": 1e-4,
+                 "l2_loss_coeff": 0.001,
+                 "dims": data_dims,
+                 "activation": "relu",  # "lrelu"
+                 "alpha": None,
+                 "bn_momentum": 0.99,
+                 "drop_rate": 0.5,
+                 "cae_pool": "stride"}
+
+    if mode == "cae":
+        return cae_paras
+    elif mode == "clf":
+        return clf_paras
+    else:
+        raise ValueError("Select parameters in 'cae' or 'clf'.")
+
+    return
+
+
+if __name__ == "__main__":
+
+    print(get_parameters("volume"))
+    print(get_parameters("slice"))
