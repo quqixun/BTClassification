@@ -2,7 +2,7 @@
 # Script for Creating Models
 # Author: Qixun Qu
 # Create on: 2017/10/12
-# Modify on: 2017/11/10
+# Modify on: 2017/11/11
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -40,7 +40,8 @@ from tensorflow.contrib.layers import xavier_initializer
 class BTCModels():
 
     def __init__(self, classes, act="relu", alpha=None,
-                 momentum=0.99, drop_rate=0.5, dims="3d"):
+                 momentum=0.99, drop_rate=0.5, dims="3d",
+                 cae_pool=None):
         '''__INIT__
 
             Initialization of BTCModels. In this functions,
@@ -87,6 +88,14 @@ class BTCModels():
             self.right_dims = 4
         else:
             raise ValueError("Cannot found dimentions in '2d' or '3d'.")
+
+        if cae_pool is not None:
+            if cae_pool == "stride":
+                self.encoder = self._encoder_stride
+            elif cae_pool == "pool":
+                self.encoder = self._encoder_pool
+            else:
+                raise ValueError("Cannot found pool method in 'stride' or 'pool'.")
 
         # A symbol to indicate whether the model is used to train
         # The symbol will be assigned as a placeholder while
@@ -240,7 +249,7 @@ class BTCModels():
         return
 
     def _conv_bn_act(self, x, filters, kernel_size,
-                       strides=1, name="cba", act=True):
+                     strides=1, name="cba", act=True):
         '''_CONV_BN_ACT
 
             A convolution block, including three sections:
@@ -547,7 +556,7 @@ class BTCModels():
         # Shortcut layer is inactivated
         if shortcut:
             x = self._conv_bn_act(x, filters[2], 1, strides,
-                                    name + "_shortcut", False)
+                                  name + "_shortcut", False)
 
         # Elementwisely add
         with tf.name_scope(name + "_add"):
@@ -816,7 +825,7 @@ class BTCModels():
                                     name=name)
 
     def _deconv_bn_act(self, x, filters, kernel_size,
-                         strides=1, name="dba", act=True):
+                       strides=1, name="dba", act=True):
         '''_DECONV_BN_ACT
 
             A deconvolution block, including three sections:
@@ -914,13 +923,11 @@ class BTCModels():
         x_dims = len(x.get_shape().as_list())
 
         if ((x_dims == 5 and (self.dims == "3d" or self.dims == "3D")) or
-           (x_dims == 4 and (self.dims == "2d" or self.dims == "2D"))):
-            return
+            (x_dims == 4 and (self.dims == "2d" or self.dims == "2D"))):
+            pass
         else:  # The input is unwanted
-            msg = ("Your model deals with {0} data, " +
-                   "thus the input tensor should be {1}D. " +
-                   "But your input is {2}D.").format(
-                   self.dims, self.right_dims, x_dims)
+            msg = ("Your model deals with {0} data, the input tensor should be {1}D. " +
+                   "But your input is {2}D.").format(self.dims, self.right_dims, x_dims)
             raise ValueError(msg)
 
         return
@@ -1108,7 +1115,48 @@ class BTCModels():
 
         return net
 
-    def autoencoder_stride(self, x, is_training):
+    def _encoder_stride(self, x):
+        '''_ENCODER_STRIDE
+        '''
+
+        code = self._conv_bn_act(x, 12, 3, 2, "conv1")
+        code = self._dropout(code, "en_dropout1")
+        code = self._conv_bn_act(code, 9, 3, 2, "conv2")
+        code = self._dropout(code, "en_dropout2")
+        code = self._conv_bn_act(code, 6, 3, 2, "conv3")
+
+        return code
+
+    def _encoder_pool(self, x):
+        '''_ENCODER_POOL
+        '''
+
+        code = self._conv_bn_act(x, 6, 3, 1, "conv1")
+        code = self._pooling(code, 2, "max", "max_pool1")
+        code = self._dropout(code, "en_dropout1")
+        code = self._conv_bn_act(code, 6, 3, 1, "conv2")
+        code = self._pooling(code, 2, "max", "max_pool2")
+        code = self._dropout(code, "en_dropout2")
+        code = self._conv_bn_act(code, 6, 3, 1, "conv3")
+        code = self._pooling(code, 2, "max", "max_pool3")
+
+        return code
+
+    def _decoder(self, code):
+        '''_DECODER
+        '''
+
+        decode = self._dropout(code, "de_dropout1")
+        decode = self._deconv_bn_act(decode, 9, 3, 2, "deconv1")
+        decode = self._dropout(decode, "de_dropout2")
+        decode = self._deconv_bn_act(decode, 12, 3, 2, "deconv2")
+        decode = self._dropout(decode, "de_dropout3")
+        decode = self._deconv_bn_act(decode, 4, 3, 2, "deconv3", False)
+        decode = tf.nn.sigmoid(decode, "sigmoid")
+
+        return decode
+
+    def autoencoder(self, x, is_training):
         '''AUTOENCODER_STRIDE
 
             Autoencoder with stride pooling.
@@ -1126,67 +1174,39 @@ class BTCModels():
 
         '''
 
+        if self.cae_pool is None:
+            raise ValueError("Pool method is None.")
+
         self._check_input(x)
         self.is_training = is_training
 
-        code = self._conv_bn_act(x, 12, 3, 2, "conv1")
-        code = self._dropout(code, "dropout1")
-        code = self._conv_bn_act(code, 9, 3, 2, "conv2")
-        code = self._dropout(code, "dropout2")
-        code = self._conv_bn_act(code, 6, 3, 2, "conv3")
-        decode = self._dropout(code, "dropout3")
-        decode = self._deconv_bn_act(decode, 9, 3, 2, "deconv1")
-        decode = self._dropout(decode, "dropout4")
-        decode = self._deconv_bn_act(decode, 12, 3, 2, "deconv2")
-        decode = self._dropout(decode, "dropout5")
-        decode = self._deconv_bn_act(decode, 4, 3, 2, "deconv3", False)
-        decode = tf.nn.sigmoid(decode, "sigmoid")
+        code = self.encoder(x)
+        decode = self._decoder(code)
 
         self._check_output(x, decode)
 
         return code, decode
 
-    def autoencoder_pool(self, x, is_training):
-        '''AUTOENCODER_POOL
-
-            Autoencoder with max or average pooling.
-
-            Inputs:
-            -------
-            - x: tensor placeholder, input volumes in batch
-            - is_training: boolean placeholder, indicates the mode,
-                           True: training mode,
-                           False: validating and inferencing mode
-
-            Output:
-            -------
-            - a tensor whose shape is same as input
-
+    def autoencoder_classier(self, x, is_training):
+        '''CAE_CLASSIER_STRIDE
         '''
 
         self._check_input(x)
         self.is_training = is_training
 
-        code = self._conv_bn_act(x, 6, 3, 1, "conv1")
-        code = self._pooling(code, 2, "max", "max_pool1")
-        code = self._conv_bn_act(code, 6, 3, 1, "conv2")
-        code = self._pooling(code, 2, "max", "max_pool2")
-        code = self._conv_bn_act(code, 6, 3, 1, "conv3")
-        code = self._pooling(code, 2, "max", "max_pool3")
-        decode = self._deconv_bn_act(code, 6, 3, 2, "deconv1")
-        decode = self._deconv_bn_act(decode, 6, 3, 2, "deconv2")
-        decode = self._deconv_bn_act(decode, 4, 3, 2, "deconv3", False)
-        decode = tf.nn.sigmoid(decode, "sigmoid")
+        code = self.encoder(x)
+        code = self._flatten(code, "flatten")
+        code = self._dropout(code, "dropout")
+        output = self._logits_fc(code, "logits")
 
-        self._check_output(x, decode)
-
-        return code, decode
+        return output
 
 
 if __name__ == "__main__":
 
     models = BTCModels(classes=3, act="relu", alpha=None,
-                       momentum=0.99, drop_rate=0.5, dims="3d")
+                       momentum=0.99, drop_rate=0.5, dims="3d",
+                       cae_pool="stride")
 
     # Test function for cnn, full_cnn, res_cnn, dense_cnn and autoencoder
     x_3d = tf.placeholder(tf.float32, [32, 112, 112, 88, 4])
@@ -1198,5 +1218,5 @@ if __name__ == "__main__":
     # net = models.full_cnn(x_3d, is_training)
     # net = models.res_cnn(x_3d, is_training)
     # net = models.dense_cnn(x_3d, is_training)
-    net = models.autoencoder_stride(x_3d, is_training)
-    # net = models.autoencoder_pool(x_3d, is_training)
+    # net = models.autoencoder(x_3d, is_training)
+    net = models.autoencoder_classier(x_3d, is_training)
