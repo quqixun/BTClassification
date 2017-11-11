@@ -2,7 +2,7 @@
 # Script for Training Autoencoders
 # Author: Qixun Qu
 # Create on: 2017/11/06
-# Modify on: 2017/11/07
+# Modify on: 2017/11/11
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -39,12 +39,12 @@ import tensorflow as tf
 from btc_settings import *
 from btc_models import BTCModels
 from btc_tfrecords import BTCTFRecords
-from btc_cae_parameters import parameters
+from btc_cae_parameters import get_parameters
 
 
 class BTCTrainCAE():
 
-    def __init__(self, mode, paras, save_path, logs_path):
+    def __init__(self, paras, save_path, logs_path):
         '''__INIT__
 
             Initialization of class BTCTrain to set parameters
@@ -52,7 +52,6 @@ class BTCTrainCAE():
 
             Inputs:
             -------
-            - mode: string, the mode of autoencoder, "stride" or "pool"
             - paras: dict, parameters for training the model, defined
                      in btc_parameters.py
             - save_path: string, the path of the folder to save models
@@ -60,8 +59,10 @@ class BTCTrainCAE():
 
         '''
 
-        self.mode = mode
-        self.net = "cae_" + mode
+        pool = paras["cae_pool"]
+        self.net = "cae_" + pool
+        if (self.net != CAE_STRIDE) and (self.net != CAE_POOL):
+            raise ValueError("Pool method should be 'stride' or 'pool'.")
 
         # Initialize BTCTFRecords to load data
         self.tfr = BTCTFRecords()
@@ -108,8 +109,8 @@ class BTCTrainCAE():
 
         # Initialize BTCModels to set general settings
         self.models = BTCModels(self.classes_num, act, alpha,
-                                bn_momentum, drop_rate, dims)
-        self.network = self._get_network()
+                                bn_momentum, drop_rate, dims, pool)
+        self.network = self.models.autoencoder
 
         # Computer the number of batches in each epoch for
         # both training and validating respectively
@@ -120,23 +121,6 @@ class BTCTrainCAE():
         self.train_metrics, self.validate_metrics = [], []
 
         return
-
-    def _get_network(self):
-        '''_GET_NETWORK
-
-            Return network function according to the given net's name.
-
-        '''
-
-        # Set models by given variable
-        if self.net == CAE_STRIDE:
-            network = self.models.autoencoder_stride
-        elif self.net == CAE_POOL:
-            network = self.models.autoencoder_pool
-        else:  # Raise error if model cannot be found
-            raise ValueError("Could not found model.")
-
-        return network
 
     def _get_learning_rates(self, num_epoches, learning_rates):
         '''_GET_LEARNING_RATES
@@ -416,7 +400,7 @@ class BTCTrainCAE():
         # Initialize counter
         tra_iters, val_iters, epoch_no = 0, 0, 0
         one_tra_iters, one_val_iters = 0, 0
-        best_val_lmean_oss = np.inf
+        best_val_mean_loss = np.inf
 
         # Lists to save loss and accuracy of each training step
         tloss_list = []
@@ -465,8 +449,8 @@ class BTCTrainCAE():
                     # Compute mean loss and mean accuracy of validating steps in one epoch
                     val_mean_loss = self._print_mean_metrics("Validate", epoch_no + 1, vloss_list)
 
-                    if val_mean_loss < best_val_lmean_oss:
-                        best_val_lmean_oss = val_mean_loss
+                    if val_mean_loss < best_val_mean_loss:
+                        best_val_mean_loss = val_mean_loss
                         # Save model after each epoch
                         self._save_model_per_epoch(sess, saver, epoch_no + 1)
 
@@ -522,23 +506,17 @@ class BTCTrainCAE():
 
 if __name__ == "__main__":
 
-    '''
-
-        Example of commandline:
-        python btc_train_cae.py --mode=stride
-        python btc_train_cae.py --mode=pool
-
-    '''
-
     parser = argparse.ArgumentParser()
 
-    help_str = "Select a mode in 'stride' or 'pool'."
-    parser.add_argument("--mode", action="store", dest="mode", help=help_str)
+    help_str = "Select a data in 'volume' or 'slice'."
+    parser.add_argument("--data", action="store", dest="data", help=help_str)
     args = parser.parse_args()
 
     parent_dir = os.path.dirname(os.getcwd())
     save_path = os.path.join(parent_dir, "models")
     logs_path = os.path.join(parent_dir, "logs")
 
-    btc = BTCTrainCAE(args.mode, parameters, save_path, logs_path)
+    parameters = get_parameters(args.data, "cae")
+
+    btc = BTCTrainCAE(parameters, save_path, logs_path)
     btc.train()
