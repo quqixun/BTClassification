@@ -2,7 +2,7 @@
 # Script for Training Autoencoders
 # Author: Qixun Qu
 # Create on: 2017/11/06
-# Modify on: 2017/11/11
+# Modify on: 2017/11/13
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -60,9 +60,8 @@ class BTCTrainCAE():
         '''
 
         pool = paras["cae_pool"]
-        self.net = "cae_" + pool
-        if (self.net != CAE_STRIDE) and (self.net != CAE_POOL):
-            raise ValueError("Pool method should be 'stride' or 'pool'.")
+        dims = paras["dims"]
+        self.net = "cae_" + pool + dims
 
         # Initialize BTCTFRecords to load data
         self.tfr = BTCTFRecords()
@@ -105,7 +104,6 @@ class BTCTrainCAE():
         alpha = None  # paras["alpha"]
         bn_momentum = paras["bn_momentum"]
         drop_rate = paras["drop_rate"]
-        dims = paras["dims"]
 
         # Initialize BTCModels to set general settings
         self.models = BTCModels(self.classes_num, act, alpha,
@@ -325,7 +323,7 @@ class BTCTrainCAE():
         # os.makedirs(ckpt_dir)
 
         # Save model's graph and variables of each epoch into folder
-        save_path = os.path.join(self.model_path, self.net)
+        save_path = os.path.join(self.model_path, "model")
         saver.save(sess, save_path, global_step=None)
         print((PCC + "[Epoch {}] ").format(epoch_no),
               ("Model was saved in: {}" + PCW).format(self.model_path))
