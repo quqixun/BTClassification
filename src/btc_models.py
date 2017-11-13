@@ -89,6 +89,7 @@ class BTCModels():
         else:
             raise ValueError("Cannot found dimentions in '2d' or '3d'.")
 
+        self.encoder = None
         if cae_pool is not None:
             if cae_pool == "stride":
                 self.encoder = self._encoder_stride
@@ -111,7 +112,8 @@ class BTCModels():
     # Basic Helper Functions
     #
 
-    def _conv(self, x, filters, kernel_size, strides=1, name="conv_var"):
+    def _conv(self, x, filters, kernel_size, strides=1,
+              name="conv_var"):
         '''_CONV
 
             Return 3D or 2D convolution layer with variables
@@ -248,8 +250,8 @@ class BTCModels():
 
         return
 
-    def _conv_bn_act(self, x, filters, kernel_size,
-                     strides=1, name="cba", act=True):
+    def _conv_bn_act(self, x, filters, kernel_size, strides=1,
+                     name="cba", act=True):
         '''_CONV_BN_ACT
 
             A convolution block, including three sections:
@@ -1119,11 +1121,11 @@ class BTCModels():
         '''_ENCODER_STRIDE
         '''
 
-        code = self._conv_bn_act(x, 12, 3, 2, "conv1")
+        code = self._conv_bn_act(x, 1, 3, 2, "conv1")
         code = self._dropout(code, "en_dropout1")
-        code = self._conv_bn_act(code, 9, 3, 2, "conv2")
+        code = self._conv_bn_act(code, 1, 3, 2, "conv2")
         code = self._dropout(code, "en_dropout2")
-        code = self._conv_bn_act(code, 6, 3, 2, "conv3")
+        code = self._conv_bn_act(code, 1, 3, 2, "conv3")
 
         return code
 
@@ -1131,13 +1133,13 @@ class BTCModels():
         '''_ENCODER_POOL
         '''
 
-        code = self._conv_bn_act(x, 6, 3, 1, "conv1")
+        code = self._conv_bn_act(x, 1, 3, 1, "conv1")
         code = self._pooling(code, 2, "max", "max_pool1")
         code = self._dropout(code, "en_dropout1")
-        code = self._conv_bn_act(code, 6, 3, 1, "conv2")
+        code = self._conv_bn_act(code, 1, 3, 1, "conv2")
         code = self._pooling(code, 2, "max", "max_pool2")
         code = self._dropout(code, "en_dropout2")
-        code = self._conv_bn_act(code, 6, 3, 1, "conv3")
+        code = self._conv_bn_act(code, 1, 3, 1, "conv3")
         code = self._pooling(code, 2, "max", "max_pool3")
 
         return code
@@ -1147,9 +1149,9 @@ class BTCModels():
         '''
 
         decode = self._dropout(code, "de_dropout1")
-        decode = self._deconv_bn_act(decode, 9, 3, 2, "deconv1")
+        decode = self._deconv_bn_act(decode, 1, 3, 2, "deconv1")
         decode = self._dropout(decode, "de_dropout2")
-        decode = self._deconv_bn_act(decode, 12, 3, 2, "deconv2")
+        decode = self._deconv_bn_act(decode, 1, 3, 2, "deconv2")
         decode = self._dropout(decode, "de_dropout3")
         decode = self._deconv_bn_act(decode, 4, 3, 2, "deconv3", False)
         decode = tf.nn.sigmoid(decode, "sigmoid")
@@ -1174,7 +1176,7 @@ class BTCModels():
 
         '''
 
-        if self.cae_pool is None:
+        if self.encoder is None:
             raise ValueError("Pool method is None.")
 
         self._check_input(x)
