@@ -2,7 +2,7 @@
 # Script for Training General CNN Models
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/11/07
+# Modify on: 2017/11/13
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -18,7 +18,7 @@
 
 '''
 
-Class BTCTrain
+Class BTCTrainCNN
 
 -1- Models are defined in class BTCModels.
 -2- Hyper-parameters can be set in btc_parameters.py.
@@ -38,11 +38,11 @@ import numpy as np
 import tensorflow as tf
 from btc_settings import *
 from btc_models import BTCModels
-from btc_tfrecords import BTCTFRecords
 from btc_parameters import parameters
+from btc_tfrecords import BTCTFRecords
 
 
-class BTCTrain():
+class BTCTrainCNN():
 
     def __init__(self, net, paras, save_path, logs_path):
         '''__INIT__
@@ -60,20 +60,21 @@ class BTCTrain():
 
         '''
 
-        self.net = net
+        dims = paras["dims"]
+        self.net = net + dims
 
         # Initialize BTCTFRecords to load data
         self.tfr = BTCTFRecords()
 
         # Create folders to keep models
         # if the folder is not exist
-        self.model_path = os.path.join(save_path, net)
+        self.model_path = os.path.join(save_path, self.net)
         if not os.path.isdir(self.model_path):
             os.makedirs(self.model_path)
 
         # Create folders to keep models
         # if the folder is not exist
-        self.logs_path = os.path.join(logs_path, net)
+        self.logs_path = os.path.join(logs_path, self.net)
         if os.path.isdir(self.logs_path):
             shutil.rmtree(self.logs_path)
         os.makedirs(self.logs_path)
@@ -100,7 +101,6 @@ class BTCTrain():
         alpha = paras["alpha"]
         bn_momentum = paras["bn_momentum"]
         drop_rate = paras["drop_rate"]
-        dims = paras["dims"]
 
         # Initialize BTCModels to set general settings
         self.models = BTCModels(self.classes_num, act, alpha,
@@ -575,5 +575,5 @@ if __name__ == "__main__":
     save_path = os.path.join(parent_dir, "models")
     logs_path = os.path.join(parent_dir, "logs")
 
-    btc = BTCTrain(args.model, parameters, save_path, logs_path)
+    btc = BTCTrainCNN(args.model, parameters, save_path, logs_path)
     btc.train()
