@@ -2,7 +2,7 @@
 # Script for CNNs' Hyper-Parameters
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/11/07
+# Modify on: 2017/11/14
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -71,8 +71,8 @@ tfrecords_dir = os.path.join(parent_dir, DATA_FOLDER,
                              TFRECORDS_FOLDER, PATCHES_FOLDER)
 
 # Create paths for training and validating tfrecords
-tpath = os.path.join(tfrecords_dir, "train.tfrecord")
-vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
+# tpath = os.path.join(tfrecords_dir, "train.tfrecord")
+# vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
 
 # Load dict from json file in which the number of
 # training and valdating set can be found
@@ -85,16 +85,16 @@ with open(json_path) as json_file:
 # validate_num = data_num["validate"]
 
 # Settings for partial dataset to test
-# tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
-# vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
-# train_num = 236
-# validate_num = 224
+tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
+vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
+train_num = 236
+validate_num = 224
 
 # Settings for decodeing tfrecords
 min_after_dequeue = max([train_num, validate_num])
 capacity = math.ceil(min_after_dequeue * 1.1)
 
-parameters = {
+cnn_parameters = {
     # Basic settings
     "dims": "3D",
     "train_path": tpath,
@@ -103,12 +103,12 @@ parameters = {
     "validate_num": validate_num,
     "classes_num": 3,
     "patch_shape": PATCH_SHAPE,
-    "capacity": 260,
-    "min_after_dequeue": 240,
+    "capacity": capacity,
+    "min_after_dequeue": min_after_dequeue,
     # Parameters for training
-    "batch_size": 16,
-    "num_epoches": [2, 2, 2],
-    "learning_rates": [1e-3, 1e-4, 1e-5],
+    "batch_size": 10,
+    "num_epoches": [2],
+    "learning_rates": [1e-3],
     # "learning_rate_first": 1e-3,
     # "learning_rate_last": 1e-4,
     "l2_loss_coeff": 0.001,
