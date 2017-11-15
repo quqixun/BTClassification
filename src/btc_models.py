@@ -41,7 +41,7 @@ class BTCModels():
 
     def __init__(self, classes, act="relu", alpha=None,
                  momentum=0.99, drop_rate=0.5, dims="3d",
-                 cae_pool=None):
+                 cae_pool=None, wta_lifetime_rate=None):
         '''__INIT__
 
             Initialization of BTCModels. In this functions,
@@ -105,6 +105,9 @@ class BTCModels():
 
         # A symbol for bottleneck in dense cnn
         self.bc = None
+
+        if wta_lifetime_rate is not None:
+            self.wta_lifetime_rate = wta_lifetime_rate
 
         return
 
@@ -1125,7 +1128,7 @@ class BTCModels():
         code = self._dropout(code, "en_dropout1")
         code = self._conv_bn_act(code, 1, 3, 2, "conv2")
         code = self._dropout(code, "en_dropout2")
-        code = self._conv_bn_act(code, 1, 3, 2, "conv3")
+        code = self._conv_bn_act(code, 100, 3, 2, "conv3")
 
         return code
 
@@ -1144,6 +1147,70 @@ class BTCModels():
 
         return code
 
+    def _wta_constraint(self, code, k=1):
+
+        def spatial_sparsity(code, k):
+            shape = code.get_shape().as_list()
+            n, c = shape[0], shape[-1]
+
+            if len(shape) == 5:
+                transpose_perm = [0, 4, 1, 2, 3]
+                threshold_shape = [n, 1, 1, 1, c]
+            elif len(shape) == 4:
+                transpose_perm = [0, 3, 1, 2]
+                threshold_shape = [n, 1, 1, c]
+            else:
+                raise ValueError("Cannot handle with the input.")
+
+            code_transpose = tf.transpose(code, transpose_perm)
+            code_reshape = tf.reshape(code_transpose, [n, c, -1])
+
+            code_top_k, _ = tf.nn.top_k(code_reshape, k)
+            code_top_k_min = code_top_k[..., k - 1]
+
+            threshold = tf.reshape(code_top_k_min, threshold_shape)
+            drop_map = tf.where(code < threshold,
+                                tf.zeros(shape, tf.float32),
+                                tf.ones(shape, tf.float32))
+
+            code = code * drop_map
+            winner = tf.reshape(code_top_k, [n, c, k])
+
+            return code, winner
+
+        def lifetime_sparsity(code, winner):
+            code_shape = code.get_shape().as_list()
+            winner_shape = winner.get_shape().as_list()
+            n, c = winner_shape[0], winner_shape[1]
+            k = int(self.wta_lifetime_rate * n)
+
+            winner_mean = tf.reduce_mean(winner, axis=2)
+            winner_mean = tf.transpose(winner_mean)
+            winner_mean_top_k, _ = tf.nn.top_k(winner_mean, k)
+            winner_mean_top_k_min = winner_mean_top_k[..., k - 1]
+            winner_mean_top_k_min = tf.reshape(winner_mean_top_k_min, [c, 1])
+
+            drop_map = tf.where(winner_mean < winner_mean_top_k_min,
+                                tf.zeros([c, n], tf.float32),
+                                tf.ones([c, n], tf.float32))
+            drop_map = tf.transpose(drop_map)
+
+            if len(code_shape) == 5:
+                reform_shape = [n, 1, 1, 1, c]
+            elif len(code_shape) == 4:
+                reform_shape = [n, 1, 1, c]
+            else:
+                raise ValueError("Cannot handle with the input.")
+
+            code = code * tf.reshape(drop_map, reform_shape)
+
+            return code
+
+        code, winner = spatial_sparsity(code, k)
+        code = lifetime_sparsity(code, winner)
+
+        return code
+
     def _decoder(self, code):
         '''_DECODER
         '''
@@ -1158,8 +1225,8 @@ class BTCModels():
 
         return decode
 
-    def autoencoder(self, x, is_training):
-        '''AUTOENCODER_STRIDE
+    def autoencoder(self, x, is_training, sparse="kl", k=None):
+        '''AUTOENCODER
 
             Autoencoder with stride pooling.
 
@@ -1183,6 +1250,10 @@ class BTCModels():
         self.is_training = is_training
 
         code = self.encoder(x)
+
+        if sparse == "wta":
+            code = self._wta_constraint(code, k)
+
         decode = self._decoder(code)
 
         self._check_output(x, decode)
@@ -1197,9 +1268,15 @@ class BTCModels():
         self.is_training = is_training
 
         code = self.encoder(x)
+        print(code.shape)
+        code = self._pooling(code, -1, "max", "global_maxpool")
+        print(code.shape)
         code = self._flatten(code, "flatten")
+        print(code.shape)
         code = self._dropout(code, "dropout")
+        print(code.shape)
         output = self._logits_fc(code, "logits")
+        print(output.shape)
 
         return output
 
@@ -1208,7 +1285,7 @@ if __name__ == "__main__":
 
     models = BTCModels(classes=3, act="relu", alpha=None,
                        momentum=0.99, drop_rate=0.5, dims="3d",
-                       cae_pool="stride")
+                       cae_pool="stride", wta_lifetime_rate=0.2)
 
     # Test function for cnn, full_cnn, res_cnn, dense_cnn and autoencoder
     x_3d = tf.placeholder(tf.float32, [32, 112, 112, 88, 4])
@@ -1220,5 +1297,6 @@ if __name__ == "__main__":
     # net = models.full_cnn(x_3d, is_training)
     # net = models.res_cnn(x_3d, is_training)
     # net = models.dense_cnn(x_3d, is_training)
-    # net = models.autoencoder(x_3d, is_training)
-    net = models.autoencoder_classier(x_3d, is_training)
+    net = models.autoencoder(x_3d, is_training)
+    # net = models.autoencoder(x_3d, is_training, "wta", 10)
+    # net = models.autoencoder_classier(x_3d, is_training)
