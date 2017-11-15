@@ -39,3 +39,7 @@
 - **Sparse autoencoder** [(Link)](https://pdfs.semanticscholar.org/eb2f/e260af00818907fe82024203d8a5a1386777.pdf)
 
   Ng, A., 2011. Sparse autoencoder. CS294A Lecture notes, 72(2011), pp.1-19.
+
+- **Winner-Take-All Autoencoders** [(Link)](https://arxiv.org/abs/1409.2752)
+
+  Makhzani, A. and Frey, B.J., 2015. Winner-take-all autoencoders. In Advances in Neural Information Processing Systems (pp. 2791-2799).
