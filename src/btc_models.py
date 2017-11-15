@@ -2,7 +2,7 @@
 # Script for Creating Models
 # Author: Qixun Qu
 # Create on: 2017/10/12
-# Modify on: 2017/11/11
+# Modify on: 2017/11/15
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -1268,15 +1268,10 @@ class BTCModels():
         self.is_training = is_training
 
         code = self.encoder(x)
-        print(code.shape)
         code = self._pooling(code, -1, "max", "global_maxpool")
-        print(code.shape)
         code = self._flatten(code, "flatten")
-        print(code.shape)
         code = self._dropout(code, "dropout")
-        print(code.shape)
         output = self._logits_fc(code, "logits")
-        print(output.shape)
 
         return output
 
@@ -1297,6 +1292,6 @@ if __name__ == "__main__":
     # net = models.full_cnn(x_3d, is_training)
     # net = models.res_cnn(x_3d, is_training)
     # net = models.dense_cnn(x_3d, is_training)
-    net = models.autoencoder(x_3d, is_training)
+    # net = models.autoencoder(x_3d, is_training)
     # net = models.autoencoder(x_3d, is_training, "wta", 10)
-    # net = models.autoencoder_classier(x_3d, is_training)
+    net = models.autoencoder_classier(x_3d, is_training)
