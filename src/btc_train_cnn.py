@@ -2,7 +2,7 @@
 # Script for Training General CNN Models
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/11/14
+# Modify on: 2017/11/15
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -59,9 +59,9 @@ class BTCTrainCNN(BTCTrain):
 
         super().__init__(paras)
 
-        self.net_name = self._set_net_name(net)
-        self.model_path = self._set_dir_path(save_path, self.net_name)
-        self.logs_path = self._set_dir_path(logs_path, self.net_name)
+        self.net_name = self.set_net_name(net)
+        self.model_path = self.set_dir_path(save_path, self.net_name)
+        self.logs_path = self.set_dir_path(logs_path, self.net_name)
 
         self.network = self._get_network(net)
 
@@ -96,8 +96,8 @@ class BTCTrainCNN(BTCTrain):
         '''
 
         # with tf.device("/cpu:0")
-        tra_data, tra_labels, val_data, val_labels = self._load_data()
-        x, y_input, is_training, learning_rate = self._inputs()
+        tra_data, tra_labels, val_data, val_labels = self.load_data()
+        x, y_input, is_training, learning_rate = self.inputs()
 
         # with tf.device("/gpu:0")
         # Obtain logits from the model
@@ -105,22 +105,22 @@ class BTCTrainCNN(BTCTrain):
 
         # Compute loss and accuracy and merge summary
         # The summary can be displayed by TensorBoard
-        loss = self._get_softmax_loss(y_input, y_output)
-        accuracy = self._get_accuracy(y_input, y_output)
+        loss = self.get_softmax_loss(y_input, y_output)
+        accuracy = self.get_accuracy(y_input, y_output)
         merged = tf.summary.merge_all()
 
-        train_op = self._create_ptimizer(learning_rate, loss)
+        train_op = self.create_optimizer(learning_rate, loss)
 
         # Create a saver to save model while training
         saver = tf.train.Saver()
         sess = tf.InteractiveSession()
-        sess.run(self._initialize_variables())
-        tra_writer, val_writer = self._create_writers(self.logs_path, sess.graph)
+        sess.run(self.initialize_variables())
+        tra_writer, val_writer = self.create_writers(self.logs_path, sess.graph)
 
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-        self._blue_print("\nTraining and Validating model: {}\n".format(self.net_name))
+        self.blue_print("\nTraining and Validating model: {}\n".format(self.net_name))
 
         # Initialize counter
         tra_iters, val_iters, epoch_no = 0, 0, 0
@@ -146,7 +146,7 @@ class BTCTrainCNN(BTCTrain):
                 taccuracy_list.append(taccuracy)
                 tra_writer.add_summary(tsummary, tra_iters)
                 self.train_metrics.append([tloss, taccuracy])
-                self._print_metrics("Train", epoch_no + 1, one_tra_iters, tloss, taccuracy)
+                self.print_metrics("Train", epoch_no + 1, one_tra_iters, tloss, taccuracy)
 
                 if tra_iters % self.tepoch_iters[epoch_no] == 0:
                     # Validating step
@@ -166,20 +166,20 @@ class BTCTrainCNN(BTCTrain):
                         vaccuracy_list.append(vaccuracy)
                         val_writer.add_summary(vsummary, val_iters)
                         self.validate_metrics.append([vloss, vaccuracy])
-                        self._print_metrics("Validate", epoch_no + 1, one_val_iters, vloss, vaccuracy)
+                        self.print_metrics("Validate", epoch_no + 1, one_val_iters, vloss, vaccuracy)
 
                     # Compute mean loss and mean accuracy of training steps
                     # in one epoch, and empty lists for next epoch
-                    self._print_mean_metrics("Train", epoch_no + 1, tloss_list, taccuracy_list)
+                    self.print_mean_metrics("Train", epoch_no + 1, tloss_list, taccuracy_list)
                     tloss_list, taccuracy_list = [], []
 
                     # Compute mean loss and mean accuracy of validating steps in one epoch
-                    val_mean_loss = self._print_mean_metrics("Validate", epoch_no + 1, vloss_list, vaccuracy_list)
+                    val_mean_loss = self.print_mean_metrics("Validate", epoch_no + 1, vloss_list, vaccuracy_list)
 
                     if val_mean_loss < best_val_lmean_oss:
                         best_val_lmean_oss = val_mean_loss
                         # Save model after each epoch
-                        self._save_model_per_epoch(sess, saver, epoch_no + 1)
+                        self.save_model_per_epoch(sess, saver, epoch_no + 1)
 
                     one_tra_iters = 0
                     one_val_iters = 0
@@ -191,11 +191,11 @@ class BTCTrainCNN(BTCTrain):
 
         except tf.errors.OutOfRangeError:
             # Stop training
-            self._blue_print("Training has stopped.")
+            self.blue_print("Training has stopped.")
             # Save metrics into json files
-            self._save_metrics("train_metrics.json", self.train_metrics)
-            self._save_metrics("validate_metrics.json", self.validate_metrics)
-            self._blue_print("Logs have been saved in: {}\n".format(self.logs_path))
+            self.save_metrics("train_metrics.json", self.train_metrics)
+            self.save_metrics("validate_metrics.json", self.validate_metrics)
+            self.blue_print("Logs have been saved in: {}\n".format(self.logs_path))
         finally:
             coord.request_stop()
 
@@ -220,7 +220,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     help_str = "Select a model in 'cnn', 'full_cnn', 'res_cnn' or 'dense_cnn'."
-    parser.add_argument("--model", action="store", dest="model", help=help_str)
+    parser.add_argument("--model", action="store", default="cnn",
+                        dest="model", help=help_str)
     args = parser.parse_args()
 
     parent_dir = os.path.dirname(os.getcwd())

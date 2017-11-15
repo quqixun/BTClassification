@@ -2,7 +2,7 @@
 # Script for Abstract Class for Training
 # Author: Qixun Qu
 # Create on: 2017/11/13
-# Modify on: 2017/11/14
+# Modify on: 2017/11/15
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -85,10 +85,10 @@ class BTCTrain(object):
     def _get_parameter(self, paras, name):
         return paras[name] if name in paras.keys() else None
 
-    def _set_net_name(self, net):
+    def set_net_name(self, net):
         return net + self.dims
 
-    def _set_dir_path(self, path, net_name):
+    def set_dir_path(self, path, net_name):
 
         dir_path = os.path.join(path, net_name)
 
@@ -205,7 +205,7 @@ class BTCTrain(object):
                                         capacity=self.capacity,
                                         min_after_dequeue=self.min_after_dequeue)
 
-    def _load_data(self):
+    def load_data(self):
         # Load data from tfrecord files
         with tf.name_scope("tfrecords"):
             tra_data, tra_labels = self._load_tfrecord(self.train_path)
@@ -213,7 +213,7 @@ class BTCTrain(object):
 
         return tra_data, tra_labels, val_data, val_labels
 
-    def _inputs(self):
+    def inputs(self):
         # Define inputs for model:
         # - features: 5D volume, shape in [batch_size, height, width, depth, channels]
         # - labels: 1D list, shape in [batch_size]
@@ -228,7 +228,7 @@ class BTCTrain(object):
 
         return x, y_input, is_training, learning_rate
 
-    def _get_softmax_loss(self, y_in, y_out, variables=None):
+    def get_softmax_loss(self, y_in, y_out, variables=None):
         '''_GET_SOFTMAX_LOSS
 
             Compute loss, which consists of softmax cross entropy
@@ -269,7 +269,7 @@ class BTCTrain(object):
 
         return loss
 
-    def _get_sparsity_loss(self, y_in, y_out, code):
+    def get_sparsity_loss(self, y_in, y_out, code):
         '''_GET_LOSS
 
             Compute loss, which consists of mean square loss,
@@ -313,7 +313,7 @@ class BTCTrain(object):
 
         return loss
 
-    def _get_accuracy(self, y_in_labels, y_out):
+    def get_accuracy(self, y_in_labels, y_out):
         '''_GET_ACCURACY
 
             Compute accuracy of classification.
@@ -340,7 +340,7 @@ class BTCTrain(object):
 
         return accuracy
 
-    def _create_optimizer(self, learning_rate, loss, var_list=None):
+    def create_optimizer(self, learning_rate, loss, var_list=None):
         # Optimize loss
         with tf.name_scope("train"):
             # Update moving_mean and moving_variance of
@@ -352,7 +352,7 @@ class BTCTrain(object):
 
         return train_op
 
-    def _initialize_variables(self):
+    def initialize_variables(self):
         # Define initialization of graph
         with tf.name_scope("init"):
             init = tf.group(tf.local_variables_initializer(),
@@ -360,14 +360,14 @@ class BTCTrain(object):
 
         return init
 
-    def _create_writers(self, logs_path, graph):
+    def create_writers(self, logs_path, graph):
         # Create writers to write logs in file
         tra_writer = tf.summary.FileWriter(os.path.join(logs_path, "train"), graph)
         val_writer = tf.summary.FileWriter(os.path.join(logs_path, "validate"), graph)
 
         return tra_writer, val_writer
 
-    def _print_metrics(self, stage, epoch_no, iters, loss, accuracy=None):
+    def print_metrics(self, stage, epoch_no, iters, loss, accuracy=None):
         '''_PRINT_METRICS
 
             Print metrics of each training and validating step.
@@ -389,11 +389,11 @@ class BTCTrain(object):
         if accuracy is not None:
             log_str += ", Accuracy: {0:.10f}".format(accuracy)
 
-        self._green_print(log_str)
+        self.green_print(log_str)
 
         return
 
-    def _print_mean_metrics(self, stage, epoch_no, loss_list, accuracy_list=None):
+    def print_mean_metrics(self, stage, epoch_no, loss_list, accuracy_list=None):
         '''_PRINT_MEAN_METRICS
 
             Print mean metrics after each training and validating epoch.
@@ -419,11 +419,11 @@ class BTCTrain(object):
             accuracy_mean = np.mean(accuracy_list)
             log_str += ", Mean Accuracy: {0:.10f}".format(accuracy_mean)
 
-        self._yellow_print(log_str)
+        self.yellow_print(log_str)
 
         return loss_mean
 
-    def _save_model_per_epoch(self, sess, saver, epoch_no):
+    def save_model_per_epoch(self, sess, saver, epoch_no):
         '''_SAVE_MODEL_PER_EPOCH
         '''
 
@@ -438,11 +438,11 @@ class BTCTrain(object):
 
         log_str = "[Epoch {}] ".format(epoch_no)
         log_str += "Model was saved in: {}".format(self.model_path)
-        self._cyan_print(log_str)
+        self.cyan_print(log_str)
 
         return
 
-    def _save_metrics(self, filename, data):
+    def save_metrics(self, filename, data):
         '''_SAVE_METRICS
 
             Save metrics (loss and accuracy) into pickle files.
@@ -477,14 +477,14 @@ class BTCTrain(object):
 
         return
 
-    def _green_print(self, log_str):
+    def green_print(self, log_str):
         print(PCG + log_str + PCW)
 
-    def _yellow_print(self, log_str):
+    def yellow_print(self, log_str):
         print(PCY + log_str + PCW)
 
-    def _blue_print(self, log_str):
+    def blue_print(self, log_str):
         print(PCB + log_str + PCW)
 
-    def _cyan_print(self, log_str):
+    def cyan_print(self, log_str):
         print(PCC + log_str + PCW)

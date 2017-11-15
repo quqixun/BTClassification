@@ -2,7 +2,7 @@
 # Script for Training Autoencoders
 # Author: Qixun Qu
 # Create on: 2017/11/06
-# Modify on: 2017/11/14
+# Modify on: 2017/11/15
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -57,9 +57,9 @@ class BTCTrainCAE(BTCTrain):
 
         super().__init__(paras)
 
-        self.net_name = self._set_net_name("cae_" + self.cae_pool)
-        self.model_path = self._set_dir_path(save_path, self.net_name)
-        self.logs_path = self._set_dir_path(logs_path, self.net_name)
+        self.net_name = self.set_net_name("cae_" + self.cae_pool)
+        self.model_path = self.set_dir_path(save_path, self.net_name)
+        self.logs_path = self.set_dir_path(logs_path, self.net_name)
 
         self.network = self.models.autoencoder
 
@@ -73,8 +73,8 @@ class BTCTrainCAE(BTCTrain):
         '''
 
         # with tf.device("/cpu:0")
-        tra_data, tra_labels, val_data, val_labels = self._load_data()
-        x, y_input, is_training, learning_rate = self._inputs()
+        tra_data, tra_labels, val_data, val_labels = self.load_data()
+        x, y_input, is_training, learning_rate = self.inputs()
 
         # with tf.device("/gpu:0")
         # Obtain logits from the model
@@ -82,21 +82,21 @@ class BTCTrainCAE(BTCTrain):
 
         # Compute loss and merge summary
         # The summary can be displayed by TensorBoard
-        loss = self._get_sparsity_loss(x, y_output, code)
+        loss = self.get_sparsity_loss(x, y_output, code)
         merged = tf.summary.merge_all()
 
-        train_op = self._create_optimizer(learning_rate, loss)
+        train_op = self.create_optimizer(learning_rate, loss)
 
         # Create a saver to save model while training
         saver = tf.train.Saver()
         sess = tf.InteractiveSession()
-        sess.run(self._initialize_variables())
-        tra_writer, val_writer = self._create_writers(self.logs_path, sess.graph)
+        sess.run(self.initialize_variables())
+        tra_writer, val_writer = self.create_writers(self.logs_path, sess.graph)
 
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-        self._blue_print("\nTraining and Validating model: {}\n".format(self.net_name))
+        self.blue_print("\nTraining and Validating model: {}\n".format(self.net_name))
 
         # Initialize counter
         tra_iters, val_iters, epoch_no = 0, 0, 0
@@ -121,7 +121,7 @@ class BTCTrainCAE(BTCTrain):
                 tloss_list.append(tloss)
                 tra_writer.add_summary(tsummary, tra_iters)
                 self.train_metrics.append(tloss)
-                self._print_metrics("Train", epoch_no + 1, one_tra_iters, tloss)
+                self.print_metrics("Train", epoch_no + 1, one_tra_iters, tloss)
 
                 if tra_iters % self.tepoch_iters[epoch_no] == 0:
                     # Validating step
@@ -140,20 +140,20 @@ class BTCTrainCAE(BTCTrain):
                         vloss_list.append(vloss)
                         val_writer.add_summary(vsummary, val_iters)
                         self.validate_metrics.append(vloss)
-                        self._print_metrics("Validate", epoch_no + 1, one_val_iters, vloss)
+                        self.print_metrics("Validate", epoch_no + 1, one_val_iters, vloss)
 
                     # Compute mean loss and mean accuracy of training steps
                     # in one epoch, and empty lists for next epoch
-                    self._print_mean_metrics("Train", epoch_no + 1, tloss_list)
+                    self.print_mean_metrics("Train", epoch_no + 1, tloss_list)
                     tloss_list = []
 
                     # Compute mean loss and mean accuracy of validating steps in one epoch
-                    val_mean_loss = self._print_mean_metrics("Validate", epoch_no + 1, vloss_list)
+                    val_mean_loss = self.print_mean_metrics("Validate", epoch_no + 1, vloss_list)
 
                     if val_mean_loss < best_val_mean_loss:
                         best_val_mean_loss = val_mean_loss
                         # Save model after each epoch
-                        self._save_model_per_epoch(sess, saver, epoch_no + 1)
+                        self.save_model_per_epoch(sess, saver, epoch_no + 1)
 
                     one_tra_iters = 0
                     one_val_iters = 0
@@ -165,11 +165,11 @@ class BTCTrainCAE(BTCTrain):
 
         except tf.errors.OutOfRangeError:
             # Stop training
-            self._blue_print("Training has stopped.")
+            self.blue_print("Training has stopped.")
             # Save metrics into json files
-            self._save_metrics("train_metrics.json", self.train_metrics)
-            self._save_metrics("validate_metrics.json", self.validate_metrics)
-            self._blue_print("Logs have been saved in: {}\n".format(self.logs_path))
+            self.save_metrics("train_metrics.json", self.train_metrics)
+            self.save_metrics("validate_metrics.json", self.validate_metrics)
+            self.blue_print("Logs have been saved in: {}\n".format(self.logs_path))
         finally:
             coord.request_stop()
 
@@ -183,8 +183,14 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    help_str = "Select a data in 'volume' or 'slice'."
-    parser.add_argument("--data", action="store", dest="data", help=help_str)
+    data_help_str = "Select a data in 'volume' or 'slice'."
+    parser.add_argument("--data", action="store", default="volume",
+                        dest="data", help=data_help_str)
+
+    # sparse_help_str = "Select a sparse constraint in 'kl' and 'wta'."
+    # parser.add_argument("--sparse", action="store", default="kl",
+    #                     dest="sparse", help=sparse_help_str)
+
     args = parser.parse_args()
 
     parent_dir = os.path.dirname(os.getcwd())
