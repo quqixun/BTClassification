@@ -2,7 +2,7 @@
 # Script for Creating Models
 # Author: Qixun Qu
 # Create on: 2017/10/12
-# Modify on: 2017/11/15
+# Modify on: 2017/11/16
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -41,7 +41,7 @@ class BTCModels():
 
     def __init__(self, classes, act="relu", alpha=None,
                  momentum=0.99, drop_rate=0.5, dims="3d",
-                 cae_pool=None, wta_lifetime_rate=None):
+                 cae_pool=None, lifetime_rate=None):
         '''__INIT__
 
             Initialization of BTCModels. In this functions,
@@ -106,8 +106,7 @@ class BTCModels():
         # A symbol for bottleneck in dense cnn
         self.bc = None
 
-        if wta_lifetime_rate is not None:
-            self.wta_lifetime_rate = wta_lifetime_rate
+        self.lifetime_rate = lifetime_rate
 
         return
 
@@ -927,8 +926,8 @@ class BTCModels():
         # Obtain the shape of input
         x_dims = len(x.get_shape().as_list())
 
-        if ((x_dims == 5 and (self.dims == "3d" or self.dims == "3D")) or
-            (x_dims == 4 and (self.dims == "2d" or self.dims == "2D"))):
+        if (x_dims == 5 and (self.dims == "3d" or self.dims == "3D")) or \
+           (x_dims == 4 and (self.dims == "2d" or self.dims == "2D")):
             pass
         else:  # The input is unwanted
             msg = ("Your model deals with {0} data, the input tensor should be {1}D. " +
@@ -1128,7 +1127,7 @@ class BTCModels():
         code = self._dropout(code, "en_dropout1")
         code = self._conv_bn_act(code, 1, 3, 2, "conv2")
         code = self._dropout(code, "en_dropout2")
-        code = self._conv_bn_act(code, 100, 3, 2, "conv3")
+        code = self._conv_bn_act(code, 20, 3, 2, "conv3")
 
         return code
 
@@ -1182,7 +1181,7 @@ class BTCModels():
             code_shape = code.get_shape().as_list()
             winner_shape = winner.get_shape().as_list()
             n, c = winner_shape[0], winner_shape[1]
-            k = int(self.wta_lifetime_rate * n)
+            k = int(self.lifetime_rate * n) + 1
 
             winner_mean = tf.reduce_mean(winner, axis=2)
             winner_mean = tf.transpose(winner_mean)
@@ -1225,7 +1224,7 @@ class BTCModels():
 
         return decode
 
-    def autoencoder(self, x, is_training, sparse="kl", k=None):
+    def autoencoder(self, x, is_training, sparse_type=None, k=None):
         '''AUTOENCODER
 
             Autoencoder with stride pooling.
@@ -1251,7 +1250,7 @@ class BTCModels():
 
         code = self.encoder(x)
 
-        if sparse == "wta":
+        if sparse_type == "wta":
             code = self._wta_constraint(code, k)
 
         decode = self._decoder(code)
@@ -1280,7 +1279,7 @@ if __name__ == "__main__":
 
     models = BTCModels(classes=3, act="relu", alpha=None,
                        momentum=0.99, drop_rate=0.5, dims="3d",
-                       cae_pool="stride", wta_lifetime_rate=0.2)
+                       cae_pool="stride", lifetime_rate=0.2)
 
     # Test function for cnn, full_cnn, res_cnn, dense_cnn and autoencoder
     x_3d = tf.placeholder(tf.float32, [32, 112, 112, 88, 4])
