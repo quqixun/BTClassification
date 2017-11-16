@@ -2,7 +2,7 @@
 # Script for Abstract Class for Training
 # Author: Qixun Qu
 # Create on: 2017/11/13
-# Modify on: 2017/11/15
+# Modify on: 2017/11/16
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -64,13 +64,16 @@ class BTCTrain(object):
         self.drop_rate = paras["drop_rate"]
 
         self.cae_pool = self._get_parameter(paras, "cae_pool")
+        self.sparse_type = self._get_parameter(paras, "sparse_type")
         self.kl_coeff = self._get_parameter(paras, "kl_coeff")
         self.p = self._get_parameter(paras, "sparse_level")
+        self.k = self._get_parameter(paras, "winner_nums")
+        self.lifetime_rate = self._get_parameter(paras, "lifetime_rate")
 
         # Initialize BTCModels to set general settings
         self.models = BTCModels(self.classes_num, self.act, self.alpha,
                                 self.bn_momentum, self.drop_rate,
-                                self.dims, self.cae_pool)
+                                self.dims, self.cae_pool, self.lifetime_rate)
 
         # Computer the number of batches in each epoch for
         # both training and validating respectively
@@ -228,6 +231,18 @@ class BTCTrain(object):
 
         return x, y_input, is_training, learning_rate
 
+    def _get_l2_loss(self, variables=None):
+        '''_GET_L2_LOSS
+
+            Compute l2 regularization term
+
+        '''
+
+        if variables is None:
+            variables = tf.trainable_variables()
+
+        return tf.add_n([tf.nn.l2_loss(v) for v in variables if "kernel" in v.name])
+
     def get_softmax_loss(self, y_in, y_out, variables=None):
         '''_GET_SOFTMAX_LOSS
 
@@ -253,19 +268,26 @@ class BTCTrain(object):
             return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_in_onehot,
                                                                           logits=y_out))
 
-        # Compute l2 regularization term
-        def l2_loss(variables):
-            if variables is None:
-                variables = tf.trainable_variables()
-            return tf.add_n([tf.nn.l2_loss(v) for v in variables if "kernel" in v.name])
-
         with tf.name_scope("loss"):
             # Regularization term to reduce overfitting
             loss = softmax_loss(y_in, y_out)
-            loss += l2_loss(variables) * self.l2_loss_coeff
+            loss += self._get_l2_loss(variables) * self.l2_loss_coeff
 
         # Add loss into summary
         tf.summary.scalar("loss", loss)
+
+        return loss
+
+    def get_mean_square_loss(self, y_in, y_out):
+        '''GET_RECONSTRUCTION_LOSS
+
+            Compute mean square loss between
+            input and the reconstruction
+
+        '''
+
+        loss = self._get_l2_loss() * self.l2_loss_coeff
+        loss += tf.div(tf.reduce_mean(tf.square(y_out - y_in)), 2)
 
         return loss
 
@@ -287,15 +309,6 @@ class BTCTrain(object):
 
         '''
 
-        # Compute mean square loss between input and the reconstruction
-        def mean_square_loss(y_in, y_out):
-            return tf.div(tf.reduce_mean(tf.square(y_out - y_in)), 2)
-
-        # Compute l2 regularization term
-        def l2_loss():
-            variables = tf.trainable_variables()
-            return tf.add_n([tf.nn.l2_loss(v) for v in variables if "kernel" in v.name])
-
         # Compute sparsity penalty term
         def sparse_penalty(p, p_hat):
             sp1 = p * (tf.log(p) - tf.log(p_hat))
@@ -303,8 +316,7 @@ class BTCTrain(object):
             return sp1 + sp2
 
         with tf.name_scope("loss"):
-            loss = mean_square_loss(y_in, y_out)
-            loss += l2_loss() * self.l2_loss_coeff
+            loss = self.get_mean_square_loss(y_in, y_out)
             p_hat = tf.reduce_mean(code, axis=[1, 2, 3]) + 1e-8
             loss += tf.reduce_sum(sparse_penalty(self.p, p_hat)) * self.kl_coeff
 
