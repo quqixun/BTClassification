@@ -388,7 +388,7 @@ class BTCPatches():
                 core_mask = snm.binary_dilation(original_core_mask,
                                                 structure=kernel,
                                                 iterations=MORP_ITER_NUM)
-            elif (morp == "eroded"):   # Erosion
+            elif morp == "eroded":  # Erosion
                 if enable_eroded:  # The tumor can be eroded.
                     core_mask = snm.binary_erosion(original_core_mask,
                                                    structure=kernel,
