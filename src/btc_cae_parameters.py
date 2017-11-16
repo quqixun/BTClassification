@@ -2,7 +2,7 @@
 # Script for CAEs' Hyper-Parameters
 # Author: Qixun Qu
 # Create on: 2017/11/06
-# Modify on: 2017/11/11
+# Modify on: 2017/11/16
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -63,7 +63,7 @@ import math
 from btc_settings import *
 
 
-def get_parameters(data="volume", mode="cae"):
+def get_parameters(mode="cae", data="volume", sparse="kl"):
     '''GET_PARAMETERS
     '''
 
@@ -77,6 +77,21 @@ def get_parameters(data="volume", mode="cae"):
         data_dims = "2D"
     else:
         raise ValueError("Cannot found data type in 'volume' or 'slice'.")
+
+    if sparse == "kl":
+        activation = "sigmoid"
+        kl_coeff = 0.001
+        sparse_level = 0.05
+        winner_nums = None
+        lifetime_rate = None
+    elif sparse == "wta":
+        activation = "relu"
+        kl_coeff = None
+        sparse_level = None
+        winner_nums = 10
+        lifetime_rate = 0.5
+    else:
+        raise ValueError("Cannot found sparse type in 'kl' or 'wta'.")
 
     # Set path of the folder in where tfrecords are save in
     parent_dir = os.path.dirname(os.getcwd())
@@ -115,17 +130,20 @@ def get_parameters(data="volume", mode="cae"):
                  "capacity": capacity,
                  "min_after_dequeue": min_after_dequeue,
                  "batch_size": 1,
-                 "num_epoches": [2],
+                 "num_epoches": [1],
                  "learning_rates": [1e-3],
                  # "learning_rate_first": 1e-3,
                  # "learning_rate_last": 1e-4,
                  "l2_loss_coeff": 0.001,
-                 "kl_coeff": 0.001,
-                 "sparse_level": 0.05,
-                 "activation": "sigmoid",
+                 "activation": activation,
                  "bn_momentum": 0.99,
                  "drop_rate": 0.5,
-                 "cae_pool": "stride"}
+                 "cae_pool": "stride",
+                 "sparse_type": sparse,
+                 "kl_coeff": kl_coeff,
+                 "sparse_level": sparse_level,
+                 "winner_nums": winner_nums,
+                 "lifetime_rate": lifetime_rate}
 
     clf_paras = {"dims": data_dims,
                  "train_path": tpath,
@@ -136,8 +154,8 @@ def get_parameters(data="volume", mode="cae"):
                  "patch_shape": data_shape,
                  "capacity": capacity,
                  "min_after_dequeue": min_after_dequeue,
-                 "batch_size": 3,
-                 "num_epoches": [2],
+                 "batch_size": 20,
+                 "num_epoches": [10],
                  "learning_rates": [1e-3],
                  # "learning_rate_first": 1e-3,
                  # "learning_rate_last": 1e-4,
@@ -145,7 +163,7 @@ def get_parameters(data="volume", mode="cae"):
                  "activation": "relu",  # "lrelu"
                  "alpha": None,
                  "bn_momentum": 0.99,
-                 "drop_rate": 0.5,
+                 "drop_rate": 0.0,
                  "cae_pool": "stride"}
 
     if mode == "cae":
