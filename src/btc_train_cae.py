@@ -2,7 +2,7 @@
 # Script for Training Autoencoders
 # Author: Qixun Qu
 # Create on: 2017/11/06
-# Modify on: 2017/11/15
+# Modify on: 2017/11/16
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -78,11 +78,15 @@ class BTCTrainCAE(BTCTrain):
 
         # with tf.device("/gpu:0")
         # Obtain logits from the model
-        code, y_output = self.network(x, is_training)
+        code, y_output = self.network(x, is_training,
+                                      self.sparse_type, self.k)
 
         # Compute loss and merge summary
         # The summary can be displayed by TensorBoard
-        loss = self.get_sparsity_loss(x, y_output, code)
+        if self.sparse_type == "kl":
+            loss = self.get_sparsity_loss(x, y_output, code)
+        elif self.sparse_type == "wta":
+            loss = self.get_mean_square_loss(x, y_output)
         merged = tf.summary.merge_all()
 
         train_op = self.create_optimizer(learning_rate, loss)
@@ -187,9 +191,9 @@ if __name__ == "__main__":
     parser.add_argument("--data", action="store", default="volume",
                         dest="data", help=data_help_str)
 
-    # sparse_help_str = "Select a sparse constraint in 'kl' and 'wta'."
-    # parser.add_argument("--sparse", action="store", default="kl",
-    #                     dest="sparse", help=sparse_help_str)
+    sparse_help_str = "Select a sparse constraint in 'kl' and 'wta'."
+    parser.add_argument("--sparse", action="store", default="kl",
+                        dest="sparse", help=sparse_help_str)
 
     args = parser.parse_args()
 
@@ -197,7 +201,7 @@ if __name__ == "__main__":
     save_path = os.path.join(parent_dir, "models")
     logs_path = os.path.join(parent_dir, "logs")
 
-    parameters = get_parameters(args.data, "cae")
+    parameters = get_parameters("cae", args.data, args.sparse)
 
     btc = BTCTrainCAE(parameters, save_path, logs_path)
     btc.train()

@@ -3,7 +3,7 @@
 # for Autoencoders
 # Author: Qixun Qu
 # Create on: 2017/11/11
-# Modify on: 2017/11/15
+# Modify on: 2017/11/16
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     save_path = os.path.join(parent_dir, "models")
     logs_path = os.path.join(parent_dir, "logs")
 
-    parameters = get_parameters(args.data, "clf")
+    parameters = get_parameters("clf", args.data)
 
     btc = BTCTrainCAEClassifier(parameters, save_path, logs_path)
     btc.train()
