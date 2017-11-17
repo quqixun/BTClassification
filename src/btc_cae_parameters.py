@@ -2,7 +2,7 @@
 # Script for CAEs' Hyper-Parameters
 # Author: Qixun Qu
 # Create on: 2017/11/06
-# Modify on: 2017/11/16
+# Modify on: 2017/11/17
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -21,6 +21,7 @@
 Hyper-parameters for training pipeline
 
 -1- Basic Settings:
+    - dims: string, dimentions of input
     - train_path: string, the path of tfrecord for training
     - validate_path: string, the path of tfrecord for validating
     - train_num: int, the number of patches in training set
@@ -40,9 +41,11 @@ Hyper-parameters for training pipeline
     - learning_rate_first: float, the learning rate for first epoch
     - learning_rate_last: float, the learning rate for last epoch
     - l2_loss_coeff: float, coeddicient of l2 regularization item
-    - sparse_penalty_coeff: float, coefficient of sparse penalty term
+    - kl_coeff: float, coefficient of sparse penalty term
     - sparse_level: float, sparsity parameter
-    - more parameters to be added
+    - winner_nums: the number of winners in Winner-Take-All autoencoder
+    - lifetime_rate: the percentage of winners to be kept in
+                     Winner-Take-All autoencoder
 
 -3- Parameters for Constructing Model
     - activation: string, indicates the activation method by either
@@ -51,6 +54,8 @@ Hyper-parameters for training pipeline
                    normalization, typically values are 0.999, 0.99, 0.9, etc
     - drop_rate: float, rate of dropout of input units, which is
                  between 0 and 1
+    - cae_pool: pooling method in autoencoder
+    - sparse_type: sparse constraint methods wither in "kl" or "wta"
 
 '''
 
@@ -65,8 +70,22 @@ from btc_settings import *
 
 def get_parameters(mode="cae", data="volume", sparse="kl"):
     '''GET_PARAMETERS
+
+        Return parameters for training autoencoder and classifier.
+
+        Inputs:
+        -------
+        - mode: string, "cae" for autoencoder, "clf" for classifier
+        - data: string, "volume" for 3D data, "slices" for 2D data
+        - sparse: string, "kl" for KL-divergence sparcity constraint,
+                  "wta" for Winner-Take-All constraint
+
+        Output:
+        - a dictionary of parameters
+
     '''
 
+    # Check value of "data"
     if data == "volume":
         data_folder = VOLUMES_FOLDER
         data_shape = VOLUME_SHAPE
@@ -78,6 +97,7 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
     else:
         raise ValueError("Cannot found data type in 'volume' or 'slice'.")
 
+    # Check value of "sparse"
     if sparse == "kl":
         activation = "sigmoid"
         kl_coeff = 0.001
@@ -110,6 +130,7 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
     if not os.path.isfile(json_path):
         raise IOError("The json file is not exist.")
 
+    # Load json file to read the number of data
     with open(json_path) as json_file:
         data_num = json.load(json_file)
 
@@ -120,6 +141,7 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
     min_after_dequeue = max([train_num, validate_num])
     capacity = math.ceil(min_after_dequeue * 1.05)
 
+    # Form parameters for autoencoder
     cae_paras = {"dims": data_dims,
                  "train_path": tpath,
                  "validate_path": vpath,
@@ -145,6 +167,7 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
                  "winner_nums": winner_nums,
                  "lifetime_rate": lifetime_rate}
 
+    # Form parameters for classifier
     clf_paras = {"dims": data_dims,
                  "train_path": tpath,
                  "validate_path": vpath,
@@ -166,6 +189,7 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
                  "drop_rate": 0.0,
                  "cae_pool": "stride"}
 
+    # Check "mode" and return parameters
     if mode == "cae":
         return cae_paras
     elif mode == "clf":

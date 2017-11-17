@@ -2,7 +2,7 @@
 # Script for CNNs' Hyper-Parameters
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/11/14
+# Modify on: 2017/11/17
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -22,6 +22,7 @@
 Hyper-parameters for training pipeline
 
 -1- Basic Settings:
+    - dims: string, dimentions of input
     - train_path: string, the path of tfrecord for training
     - validate_path: string, the path of tfrecord for validating
     - train_num: int, the number of patches in training set
@@ -41,7 +42,6 @@ Hyper-parameters for training pipeline
     - learning_rate_first: float, the learning rate for first epoch
     - learning_rate_last: float, the learning rate for last epoch
     - l2_loss_coeff: float, coeddicient of le regularization item
-    - more parameters to be added
 
 -3- Parameters for Constructing Model
     - activation: string, indicates the activation method by either
@@ -71,8 +71,8 @@ tfrecords_dir = os.path.join(parent_dir, DATA_FOLDER,
                              TFRECORDS_FOLDER, PATCHES_FOLDER)
 
 # Create paths for training and validating tfrecords
-# tpath = os.path.join(tfrecords_dir, "train.tfrecord")
-# vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
+tpath = os.path.join(tfrecords_dir, "train.tfrecord")
+vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
 
 # Load dict from json file in which the number of
 # training and valdating set can be found
@@ -81,14 +81,14 @@ json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
 with open(json_path) as json_file:
     data_num = json.load(json_file)
 
-# train_num = data_num["train"]
-# validate_num = data_num["validate"]
+train_num = data_num["train"]
+validate_num = data_num["validate"]
 
 # Settings for partial dataset to test
-tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
-vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
-train_num = 236
-validate_num = 224
+# tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
+# vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
+# train_num = 236
+# validate_num = 224
 
 # Settings for decodeing tfrecords
 min_after_dequeue = max([train_num, validate_num])

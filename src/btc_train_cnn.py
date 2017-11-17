@@ -2,7 +2,7 @@
 # Script for Training General CNN Models
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/11/15
+# Modify on: 2017/11/17
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -71,6 +71,14 @@ class BTCTrainCNN(BTCTrain):
         '''_GET_NETWORK
 
             Return network function according to the given net's name.
+
+            Input:
+            ------
+            - net: string, the net's name
+
+            Output:
+            -------
+            - the choosen network
 
         '''
 

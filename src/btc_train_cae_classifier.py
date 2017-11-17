@@ -3,7 +3,7 @@
 # for Autoencoders
 # Author: Qixun Qu
 # Create on: 2017/11/11
-# Modify on: 2017/11/16
+# Modify on: 2017/11/17
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -43,11 +43,24 @@ class BTCTrainCAEClassifier(BTCTrain):
 
     def __init__(self, paras, save_path, logs_path):
         '''__INIT__
+
+            Initialization of class BTCTrain to set parameters
+            for constructing, training and validating models.
+
+            Inputs:
+            -------
+            - paras: dict, parameters for training the model, defined
+                     in btc_parameters.py
+            - save_path: string, the path of the folder to save models
+            - logs_path: string, the path of the folder to save logs
+
         '''
 
         super().__init__(paras)
 
+        # The name of autoencoder
         self.net_name = self.set_net_name("cae_" + self.cae_pool)
+        # The name of classifier
         self.clfier = self.net_name + "_clf"
         self.coder_path = os.path.join(save_path, self.net_name, "model")
 

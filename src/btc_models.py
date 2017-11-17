@@ -2,7 +2,7 @@
 # Script for Creating Models
 # Author: Qixun Qu
 # Create on: 2017/10/12
-# Modify on: 2017/11/16
+# Modify on: 2017/11/17
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -24,7 +24,9 @@ Class BTCModels
     basic modules to build simple CNN models.
 -2- Define several specific helper functions to construct
     CNN models with more complicate structures.
--3- Build models: CNN, Full-CNN, Res-CNN and Dense-CNN.
+-3- Build models: CNN, Full-CNN, Res-CNN and Dense-CNN,
+    and sparsity autoencoder with either KL constraint and
+    Winner-Take-All constraint.
 
 '''
 
@@ -59,13 +61,20 @@ class BTCModels():
             - drop_rate: float, rate of dropout of input units,
                          which is between 0 and 1
             - dims: string, "3d" ("3D") or "2d" ("2D")
+            - cae_pool: sreing, "stride" or "pool"
+            - lifetime_rate: float, the percentage of how many
+                             sparsity code are kept in autoencoder
 
         '''
 
+        # The number of classes
         self.classes = classes
 
+        # Settings for activation
         self.act = act
         self.alpha = alpha
+
+        # Settings for batch normalization
         self.momentum = momentum
         self.drop_rate = drop_rate
 
@@ -89,6 +98,7 @@ class BTCModels():
         else:
             raise ValueError("Cannot found dimentions in '2d' or '3d'.")
 
+        # Set encoder function
         self.encoder = None
         if cae_pool is not None:
             if cae_pool == "stride":
@@ -106,6 +116,8 @@ class BTCModels():
         # A symbol for bottleneck in dense cnn
         self.bc = None
 
+        # Set lifetime rate for autoencoder with
+        # Winner-Take-All constraint
         self.lifetime_rate = lifetime_rate
 
         return
@@ -118,7 +130,7 @@ class BTCModels():
               name="conv_var"):
         '''_CONV
 
-            Return 3D or 2D convolution layer with variables
+            Return 3D or 2D convolutional tensor with variables
             initialized by xavier method.
 
             Usages:
@@ -128,7 +140,7 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - filters: int, the number of kernels
             - kernel_size: int, the size of kernel
             - strides: int, strides along dimentions
@@ -136,7 +148,7 @@ class BTCModels():
 
             Output:
             -------
-            - a 3D or 2D convolution layer
+            - a 3D or 2D convolutional tensor
 
         '''
 
@@ -154,7 +166,7 @@ class BTCModels():
     def _fully_connected(self, x, units, name="fc_var"):
         '''_FULLY_CONNECTED
 
-            Return fully connected layer with variables
+            Return fully connected tensor with variables
             initialized by xavier method.
 
             Usages:
@@ -164,13 +176,13 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - units: int, the number of neurons
             - name: string, layer's name
 
             Outputs:
             --------
-            - a fully connected layer
+            - a fully connected tensor
 
         '''
 
@@ -183,7 +195,7 @@ class BTCModels():
     def _batch_norm(self, x, name="bn_var"):
         '''_BATCH_NORM
 
-            Normalize the input layer.
+            Normalize the input tensor.
             Momentum and symbol of is_training have been
             assigned while the class is initialized.
 
@@ -194,12 +206,12 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - name: string, layer's name
 
             Output:
             -------
-            - normalized layer
+            - normalized tensor
 
         '''
 
@@ -212,8 +224,8 @@ class BTCModels():
     def _activate(self, x, name="act"):
         '''_ACTIVATE
 
-           Activate input layer. Two approaches can be available,
-           which are ReLU or leaky ReLU.
+           Activate input tensor. Several approaches can be available,
+           which are ReLU, leaky ReLU, Sigmoid or Tanh.
            Activation method and setting has been set while the
            class is initialized.
 
@@ -224,12 +236,12 @@ class BTCModels():
 
            Inputs:
            -------
-           - x: tensor, input layer
+           - x: tensor, input tensor
            - name: string, layer's name
 
            Output:
            -------
-           - an activated layer
+           - an activated tensor
 
         '''
 
@@ -237,12 +249,9 @@ class BTCModels():
             if self.act == "relu":
                 return tf.nn.relu(x, name)
             elif self.act == "lrelu":
-                # Set slope of leaky ReLU
                 f1 = 0.5 * (1 + self.alpha)
                 f2 = 0.5 * (1 - self.alpha)
                 return f1 * x + f2 * tf.abs(x)
-                # alpha = 0.2 if self.alpha is None else self.alpha
-                # return tf.nn.leaky_relu(x, alpha, name)
             elif self.act == "sigmoid":
                 return tf.nn.sigmoid(x, name)
             elif self.act == "tanh":
@@ -268,7 +277,7 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - filters: int, the number of kernels
             - kernel_size: int, the size of kernel
             - strides: int, strides along dimentions
@@ -277,14 +286,14 @@ class BTCModels():
                    method, if None, return inactivated layer
 
             Output:
-            - a convoluted, normalized and activated (if not None) layer
+            - a convoluted, normalized and activated (if not None) tensor
 
         '''
 
         with tf.variable_scope(name):
             cba = self._conv(x, filters, kernel_size, strides)
             cba = self._batch_norm(cba)
-            if act:  # If act is None, return inactivated result
+            if act:  # If act is None, return inactivated tensor
                 cba = self._activate(cba)
 
         return cba
@@ -304,13 +313,13 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - units: int, the number of neurons
             - name: string, layer's name
 
             Output:
             -------
-            - a fully connected, normalized and activated layer
+            - a fully connected, normalized and activated tensor
 
         '''
 
@@ -333,7 +342,7 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - psize: int or a list of ints,
                      the size of pooling window, and the
                      strides of pooling operation as well,
@@ -343,10 +352,11 @@ class BTCModels():
 
             Output:
             -------
-            - the layer after max pooling
+            - the tensor after max pooling
 
         '''
 
+        # Global max pooling if psize is -1
         if psize == -1:
             psize = x.get_shape().as_list()[1:-1]
 
@@ -368,7 +378,7 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - psize: int or a list of ints,
                      the size of pooling window, and the
                      strides of pooling operation as well,
@@ -378,10 +388,11 @@ class BTCModels():
 
             Output:
             -------
-            - the layer after average pooling
+            - the tensor after average pooling
 
         '''
 
+        # Global acerage pooling if psize is -1
         if psize == -1:
             psize = x.get_shape().as_list()[1:-1]
 
@@ -391,6 +402,25 @@ class BTCModels():
 
     def _pooling(self, x, psize=2, mode="max", name="pool"):
         '''_POOLING
+
+            Apply pooling method on input tensor with either
+            max pooling or average pooling.
+
+            Inputs:
+            -------
+            - x: tensor, the input tensor
+            - psize: int or a list of ints,
+                     the size of pooling window, and the
+                     strides of pooling operation as well,
+                     if it equals to -1, the function performs
+                     global max pooling
+            - mode: string, "max" or "avg"
+            - name: string, layer's name
+
+            Output:
+            -------
+            - the tensor after pooling
+
         '''
 
         if mode == "max":
@@ -414,17 +444,17 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: 5D or 4D tensor, input layer
+            - x: 5D or 4D tensor, input tensor
             - name: string, layer's name
 
             Output:
             -------
-            - a flattened layer
+            - a flattened tensor
 
         '''
 
-        # Obtain the number of features contained in
-        # the input layer
+        # Obtain the number of features
+        # contained in the input layer
         x_shape = x.get_shape().as_list()
         f_shape = reduce(mul, x_shape[1:], 1)
 
@@ -444,12 +474,12 @@ class BTCModels():
             - full:  self._dropout(x, "dropout")
 
             Inputs:
-            - x: tensor in 5D, 4D or 1D, input layer
+            - x: tensor in 5D, 4D or 1D, input tensor
             - name: string, layer's name
 
             Output:
             -------
-            - the dropout layer or untouched layer
+            - the dropout layer or untouched tensor
 
         '''
 
@@ -469,7 +499,7 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - name: layer's name
 
             Output:
@@ -487,7 +517,7 @@ class BTCModels():
     def _logits_conv(self, x, name="logits"):
         '''_LOGITS_CONV
 
-            Generate logits by convolutional layer.
+            Generate logits by convolutional tensor.
             The output size is equal to the number of classes.
 
             Usages:
@@ -497,7 +527,7 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - name: layer's name
 
             Output:
@@ -529,7 +559,7 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - filters: list with three ints, indicates the number
                        of filters of each convolutional layer
             - strides: int, strides along three dimentions for the
@@ -595,7 +625,7 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - growth_rate: int, the number of kernels in
                            each internal section
             - internals: int, the number of internals
@@ -630,7 +660,7 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - growth_rate: int, the number of kernels
             - no: string, internal number
             - name: string, block's name
@@ -676,7 +706,7 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - filters: int, also known as growth rate, the number of
                        filters in composite section
             - name: string, section's name
@@ -708,7 +738,7 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - filters: int, also known as growth rate,
                        the number of filters
             - kernel_size: int, the size of kernels
@@ -743,7 +773,7 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - name: string, section's name
 
             Output:
@@ -772,7 +802,7 @@ class BTCModels():
 
             Inputs:
             -------
-            - x: tensor, input layer
+            - x: tensor, input tensor
             - name: string, section's name
 
             Output:
@@ -865,49 +895,206 @@ class BTCModels():
 
         return dba
 
-    #
-    # A Simple Test Case
-    #
+    def _encoder_stride(self, x):
+        '''_ENCODER_STRIDE
 
-    def test(self, x, is_training):
-        '''_TEST
-
-            A function to test basic helpers.
+            Encoder sectio of autoencoder.
+            Each convolutional layer has strides 2.
+            No other pooling methods are applied.
 
             Inputs:
             -------
-            - x: tensor placeholder, input volumes in batch
-            - is_training: boolean placeholder, indicates the mode,
-                           True: training mode,
-                           False: validating and inferencing mode
+            - x: tensor, original input
+
+            Output:
+            -------
+            - compressed representation of input sample
 
         '''
 
-        self._check_input(x)
-        self.is_training = is_training
+        code = self._conv_bn_act(x, 1, 3, 2, "conv1")
+        code = self._dropout(code, "en_dropout1")
+        code = self._conv_bn_act(code, 1, 3, 2, "conv2")
+        code = self._dropout(code, "en_dropout2")
+        code = self._conv_bn_act(code, 20, 3, 2, "conv3")
 
-        net = self._conv_bn_act(x, 2, 3, 1, "layer1")
-        net = self._max_pool(net, 2, "max_pool1")
-        net = self._conv_bn_act(net, 2, 3, 1, "layer2")
-        net = self._average_pool(net, 2, "avg_pool2")
-        net = self._conv_bn_act(net, 2, 3, 1, "layer3")
-        net = self._max_pool(net, 2, "max_pool3")
-        net = self._flatten(net, "flatten")
-        net = self._fc_bn_act(net, 64, "fcn1")
-        net = self._dropout(net, "drop1")
-        net = self._fc_bn_act(net, 64, "fcn2")
-        net = self._dropout(net, "drop2")
-        net = self._logits_fc(net, "logits")
-        net = tf.nn.softmax(logits=net, name="softmax")
+        return code
 
-        print("Simple test of Class BTCModels")
-        print("Input n volumes in 3 classes")
-        print("Output probabilities' shape: ", net.shape)
+    def _encoder_pool(self, x):
+        '''_ENCODER_POOL
 
-        return
+            Encoder sectio of autoencoder.
+            Convolutional layer has strides 1.
+            Max pooling method is applied after
+            each convolutional layer.
+
+            Inputs:
+            -------
+            - x: tensor, original input
+
+            Output:
+            -------
+            - compressed representation of input sample
+
+        '''
+
+        code = self._conv_bn_act(x, 1, 3, 1, "conv1")
+        code = self._pooling(code, 2, "max", "max_pool1")
+        code = self._dropout(code, "en_dropout1")
+        code = self._conv_bn_act(code, 1, 3, 1, "conv2")
+        code = self._pooling(code, 2, "max", "max_pool2")
+        code = self._dropout(code, "en_dropout2")
+        code = self._conv_bn_act(code, 1, 3, 1, "conv3")
+        code = self._pooling(code, 2, "max", "max_pool3")
+
+        return code
+
+    def _wta_constraint(self, code, k=1):
+        '''_WTA_CONSTRAINT
+
+            Winner-Take-All constraint to generate sparse
+            representation by keeping largest values of
+            the compression code, which consists of two steps:
+            - get spatial sparsity
+            - get lifetime sparsity
+
+            Inputs:
+            -------
+            - code: tensor, compressed code after encoder
+            - k: int, the number of largest values to be kept
+            - another parameter, lifetime_rate, has been assigned
+              when the instance is initialized
+
+            Output:
+            -------
+            - sparse representation
+
+        '''
+
+        # The function to kept k largest values in
+        # code, and set others to zeros.
+        def spatial_sparsity(code, k):
+            # Obtain the shape of code
+            # n: batch size
+            # c: the number of feaure maps
+            #    (or the number of filters)
+            shape = code.get_shape().as_list()
+            n, c = shape[0], shape[-1]
+
+            # As the input tensor could be 5D or 4D,
+            # set up parameters for different inputs
+            if len(shape) == 5:
+                transpose_perm = [0, 4, 1, 2, 3]
+                threshold_shape = [n, 1, 1, 1, c]
+            elif len(shape) == 4:
+                transpose_perm = [0, 3, 1, 2]
+                threshold_shape = [n, 1, 1, c]
+            else:
+                raise ValueError("Cannot handle with the input.")
+
+            code_transpose = tf.transpose(code, transpose_perm)
+            code_reshape = tf.reshape(code_transpose, [n, c, -1])
+
+            # Get top k values of code
+            code_top_k, _ = tf.nn.top_k(code_reshape, k)
+            # Get the minimum of top k values to do thresholding
+            code_top_k_min = code_top_k[..., k - 1]
+
+            # Threshold the code, the indices of top k values is 1,
+            # and set others to 0
+            threshold = tf.reshape(code_top_k_min, threshold_shape)
+            drop_map = tf.where(code < threshold,
+                                tf.zeros(shape, tf.float32),
+                                tf.ones(shape, tf.float32))
+
+            # Keep top k value in code
+            code = code * drop_map
+            # Save top k values as winner
+            winner = tf.reshape(code_top_k, [n, c, k])
+
+            return code, winner
+
+        # The function to carry out lifetime sparsity.
+        # For example, the batch size is 64, which means each
+        # filter will lead to 64 winners, lifetime sparsity
+        # is going to keep largest winners in the percentage of
+        # self.lifetime_rate, and set others to zeros. Those left
+        # feature maps are winners in winners.
+        def lifetime_sparsity(code, winner):
+            # Obtain the shape of code and winner
+            # n: batch size
+            # c: the number of feaure maps
+            #    (or the number of filters)
+            # k: the number of winners to be kept
+            code_shape = code.get_shape().as_list()
+            winner_shape = winner.get_shape().as_list()
+            n, c = winner_shape[0], winner_shape[1]
+            k = int(self.lifetime_rate * n) + 1
+
+            # Compute mean value of each winner
+            winner_mean = tf.reduce_mean(winner, axis=2)
+            winner_mean = tf.transpose(winner_mean)
+            # Get top k mean values of top k winners
+            winner_mean_top_k, _ = tf.nn.top_k(winner_mean, k)
+            # Get the minimum of top k values to do thresholding
+            winner_mean_top_k_min = winner_mean_top_k[..., k - 1]
+            winner_mean_top_k_min = tf.reshape(winner_mean_top_k_min, [c, 1])
+
+            # Threshold the winner, the indices of top k winners is 1,
+            # and set others to 0
+            drop_map = tf.where(winner_mean < winner_mean_top_k_min,
+                                tf.zeros([c, n], tf.float32),
+                                tf.ones([c, n], tf.float32))
+            drop_map = tf.transpose(drop_map)
+
+            # As the input tensor could be 5D or 4D,
+            # set up parameters for different inputs
+            if len(code_shape) == 5:
+                reform_shape = [n, 1, 1, 1, c]
+            elif len(code_shape) == 4:
+                reform_shape = [n, 1, 1, c]
+            else:
+                raise ValueError("Cannot handle with the input.")
+
+            # Keep top k winners in code
+            code = code * tf.reshape(drop_map, reform_shape)
+
+            return code
+
+        # Winner-Take-All constraint
+        code, winner = spatial_sparsity(code, k)
+        code = lifetime_sparsity(code, winner)
+
+        return code
+
+    def _decoder(self, code):
+        '''_DECODER
+
+            Decoder section of autoencoder to
+            reconstruct code to input.
+
+            Input:
+            ------
+            - code: tensor, compressed representation
+
+            Output:
+            -------
+            - the reconstruction from code
+
+        '''
+
+        decode = self._dropout(code, "de_dropout1")
+        decode = self._deconv_bn_act(decode, 1, 3, 2, "deconv1")
+        decode = self._dropout(decode, "de_dropout2")
+        decode = self._deconv_bn_act(decode, 1, 3, 2, "deconv2")
+        decode = self._dropout(decode, "de_dropout3")
+        decode = self._deconv_bn_act(decode, 4, 3, 2, "deconv3", False)
+        decode = tf.nn.sigmoid(decode, "sigmoid")
+
+        return decode
 
     #
-    # Contruct Models
+    # Error Check
     #
 
     def _check_input(self, x):
@@ -962,6 +1149,51 @@ class BTCModels():
             raise ValueError(msg)
 
         return
+
+    #
+    # A Simple Test Case
+    #
+
+    def test(self, x, is_training):
+        '''_TEST
+
+            A function to test basic helpers.
+
+            Inputs:
+            -------
+            - x: tensor placeholder, input volumes in batch
+            - is_training: boolean placeholder, indicates the mode,
+                           True: training mode,
+                           False: validating and inferencing mode
+
+        '''
+
+        self._check_input(x)
+        self.is_training = is_training
+
+        net = self._conv_bn_act(x, 2, 3, 1, "layer1")
+        net = self._max_pool(net, 2, "max_pool1")
+        net = self._conv_bn_act(net, 2, 3, 1, "layer2")
+        net = self._average_pool(net, 2, "avg_pool2")
+        net = self._conv_bn_act(net, 2, 3, 1, "layer3")
+        net = self._max_pool(net, 2, "max_pool3")
+        net = self._flatten(net, "flatten")
+        net = self._fc_bn_act(net, 64, "fcn1")
+        net = self._dropout(net, "drop1")
+        net = self._fc_bn_act(net, 64, "fcn2")
+        net = self._dropout(net, "drop2")
+        net = self._logits_fc(net, "logits")
+        net = tf.nn.softmax(logits=net, name="softmax")
+
+        print("Simple test of Class BTCModels")
+        print("Input n volumes in 3 classes")
+        print("Output probabilities' shape: ", net.shape)
+
+        return
+
+    #
+    # Contruct Models
+    #
 
     def cnn(self, x, is_training):
         '''CNN
@@ -1119,111 +1351,6 @@ class BTCModels():
 
         return net
 
-    def _encoder_stride(self, x):
-        '''_ENCODER_STRIDE
-        '''
-
-        code = self._conv_bn_act(x, 1, 3, 2, "conv1")
-        code = self._dropout(code, "en_dropout1")
-        code = self._conv_bn_act(code, 1, 3, 2, "conv2")
-        code = self._dropout(code, "en_dropout2")
-        code = self._conv_bn_act(code, 20, 3, 2, "conv3")
-
-        return code
-
-    def _encoder_pool(self, x):
-        '''_ENCODER_POOL
-        '''
-
-        code = self._conv_bn_act(x, 1, 3, 1, "conv1")
-        code = self._pooling(code, 2, "max", "max_pool1")
-        code = self._dropout(code, "en_dropout1")
-        code = self._conv_bn_act(code, 1, 3, 1, "conv2")
-        code = self._pooling(code, 2, "max", "max_pool2")
-        code = self._dropout(code, "en_dropout2")
-        code = self._conv_bn_act(code, 1, 3, 1, "conv3")
-        code = self._pooling(code, 2, "max", "max_pool3")
-
-        return code
-
-    def _wta_constraint(self, code, k=1):
-
-        def spatial_sparsity(code, k):
-            shape = code.get_shape().as_list()
-            n, c = shape[0], shape[-1]
-
-            if len(shape) == 5:
-                transpose_perm = [0, 4, 1, 2, 3]
-                threshold_shape = [n, 1, 1, 1, c]
-            elif len(shape) == 4:
-                transpose_perm = [0, 3, 1, 2]
-                threshold_shape = [n, 1, 1, c]
-            else:
-                raise ValueError("Cannot handle with the input.")
-
-            code_transpose = tf.transpose(code, transpose_perm)
-            code_reshape = tf.reshape(code_transpose, [n, c, -1])
-
-            code_top_k, _ = tf.nn.top_k(code_reshape, k)
-            code_top_k_min = code_top_k[..., k - 1]
-
-            threshold = tf.reshape(code_top_k_min, threshold_shape)
-            drop_map = tf.where(code < threshold,
-                                tf.zeros(shape, tf.float32),
-                                tf.ones(shape, tf.float32))
-
-            code = code * drop_map
-            winner = tf.reshape(code_top_k, [n, c, k])
-
-            return code, winner
-
-        def lifetime_sparsity(code, winner):
-            code_shape = code.get_shape().as_list()
-            winner_shape = winner.get_shape().as_list()
-            n, c = winner_shape[0], winner_shape[1]
-            k = int(self.lifetime_rate * n) + 1
-
-            winner_mean = tf.reduce_mean(winner, axis=2)
-            winner_mean = tf.transpose(winner_mean)
-            winner_mean_top_k, _ = tf.nn.top_k(winner_mean, k)
-            winner_mean_top_k_min = winner_mean_top_k[..., k - 1]
-            winner_mean_top_k_min = tf.reshape(winner_mean_top_k_min, [c, 1])
-
-            drop_map = tf.where(winner_mean < winner_mean_top_k_min,
-                                tf.zeros([c, n], tf.float32),
-                                tf.ones([c, n], tf.float32))
-            drop_map = tf.transpose(drop_map)
-
-            if len(code_shape) == 5:
-                reform_shape = [n, 1, 1, 1, c]
-            elif len(code_shape) == 4:
-                reform_shape = [n, 1, 1, c]
-            else:
-                raise ValueError("Cannot handle with the input.")
-
-            code = code * tf.reshape(drop_map, reform_shape)
-
-            return code
-
-        code, winner = spatial_sparsity(code, k)
-        code = lifetime_sparsity(code, winner)
-
-        return code
-
-    def _decoder(self, code):
-        '''_DECODER
-        '''
-
-        decode = self._dropout(code, "de_dropout1")
-        decode = self._deconv_bn_act(decode, 1, 3, 2, "deconv1")
-        decode = self._dropout(decode, "de_dropout2")
-        decode = self._deconv_bn_act(decode, 1, 3, 2, "deconv2")
-        decode = self._dropout(decode, "de_dropout3")
-        decode = self._deconv_bn_act(decode, 4, 3, 2, "deconv3", False)
-        decode = tf.nn.sigmoid(decode, "sigmoid")
-
-        return decode
-
     def autoencoder(self, x, is_training, sparse_type=None, k=None):
         '''AUTOENCODER
 
@@ -1235,10 +1362,12 @@ class BTCModels():
             - is_training: boolean placeholder, indicates the mode,
                            True: training mode,
                            False: validating and inferencing mode
+            - sparse_type: string, "kl" or "wta"
+            - k: int, parameters for Winner-Take-All constraint
 
             Output:
             -------
-            - a tensor whose shape is same as input
+            - a reconstructed tensor of input
 
         '''
 
@@ -1248,11 +1377,14 @@ class BTCModels():
         self._check_input(x)
         self.is_training = is_training
 
+        # Encoder section
         code = self.encoder(x)
 
+        # Winner-Take-All constraint
         if sparse_type == "wta":
             code = self._wta_constraint(code, k)
 
+        # Decoder section
         decode = self._decoder(code)
 
         self._check_output(x, decode)
@@ -1261,12 +1393,30 @@ class BTCModels():
 
     def autoencoder_classier(self, x, is_training):
         '''CAE_CLASSIER_STRIDE
+
+            Apply pre-trained model to generate code
+            for each case. Train logistic regression
+            to classify input case.
+
+            Inputs:
+            -------
+            - x: tensor placeholder, input volumes in batch
+            - is_training: boolean placeholder, indicates the mode,
+                           True: training mode,
+                           False: validating and inferencing mode
+
+            Output:
+            -------
+            - output logits after classifier
+
         '''
 
         self._check_input(x)
         self.is_training = is_training
 
+        # Encoder section
         code = self.encoder(x)
+        # Global max pooling
         code = self._pooling(code, -1, "max", "global_maxpool")
         code = self._flatten(code, "flatten")
         code = self._dropout(code, "dropout")

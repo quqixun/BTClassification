@@ -2,7 +2,7 @@
 # Script for Abstract Class for Training
 # Author: Qixun Qu
 # Create on: 2017/11/13
-# Modify on: 2017/11/16
+# Modify on: 2017/11/17
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -19,6 +19,25 @@
 '''
 
 Class BTCTrain
+
+The parent class for:
+- BTCTrainCNN
+- BTCTrainCAE
+- BTCTrainCAEClassifier
+
+In this class, functions are provided to train
+models with different structures, including:
+- load_data: load data for training and validating
+             from tfrecords files
+- inputs: declear placeholders
+- get_softmax_loss: compute loss for general cnn models
+- get_sparsity_loss: compute loss for sparsity autoencoder
+                     with KL-dicengence constraint
+- get_mean_square_loss: compute reconstruction loss for
+                        autoencoder classifier
+- get_accuracy: compute classification accuracy
+- create_optimizer: create optimizer to minimize loss
+- initialize_variables: initialize variables of filters
 
 '''
 
@@ -39,34 +58,54 @@ class BTCTrain(object):
 
     def __init__(self, paras):
         '''__INIT__
+
+            Initialize parameters from given dictionary.
+
+            Input:
+            ------
+            - paras: dict, can be found in btc_cnn_parameters.py
+                     and btc_cae_parameters.py
+
         '''
 
         # Initialize BTCTFRecords to load data
         self.tfr = BTCTFRecords()
 
+        # Setting for input
+        # Dimentions of input
         self.dims = paras["dims"]
+        # Path for tfrecord of training set
         self.train_path = paras["train_path"]
+        # Path for tfrecords of validating set
         self.validate_path = paras["validate_path"]
+        # The number of classes
         self.classes_num = paras["classes_num"]
+        # Input tensor's shape
         self.patch_shape = paras["patch_shape"]
+        # Parameters for loading tfrecords
         self.capacity = paras["capacity"]
         self.min_after_dequeue = paras["min_after_dequeue"]
 
+        # Training settings
         self.batch_size = paras["batch_size"]
         self.num_epoches = np.sum(paras["num_epoches"])
         self.learning_rates = self._set_learning_rates(
             paras["num_epoches"], paras["learning_rates"])
         self.l2_loss_coeff = paras["l2_loss_coeff"]
 
+        # Settings for constructing models
         self.act = paras["activation"]
         self.alpha = self._get_parameter(paras, "alpha")
         self.bn_momentum = paras["bn_momentum"]
         self.drop_rate = paras["drop_rate"]
 
+        # Settings for autoencoder
         self.cae_pool = self._get_parameter(paras, "cae_pool")
         self.sparse_type = self._get_parameter(paras, "sparse_type")
+        # KL constraint
         self.kl_coeff = self._get_parameter(paras, "kl_coeff")
         self.p = self._get_parameter(paras, "sparse_level")
+        # Winner-Take-All constraint
         self.k = self._get_parameter(paras, "winner_nums")
         self.lifetime_rate = self._get_parameter(paras, "lifetime_rate")
 
@@ -86,15 +125,62 @@ class BTCTrain(object):
         return
 
     def _get_parameter(self, paras, name):
+        '''_GET_PARAMETER
+
+            Extract value from dictionary according to the
+            given name. If the name is not exist, return None.
+
+            Inputs:
+            -------
+            - paras: dict, parameters
+            - name: string, attribute's name you want to get
+
+            Output:
+            - value of attribute or None
+
+        '''
+
         return paras[name] if name in paras.keys() else None
 
     def set_net_name(self, net):
+        '''SET_NET_NAME
+
+            Concatenate string to set net's name.
+
+            Input:
+            -----
+            - net: string, the original net's name
+
+            Output:
+            -------
+            - new name of the net witch indicates
+              the dimentions of input data
+
+        '''
+
         return net + self.dims
 
     def set_dir_path(self, path, net_name):
+        '''SET_DIR_NAME
+
+            Generate folders to save models and logs.
+
+            Inputs:
+            -------
+            - path: string, the path of parent directory
+                    of models and logs
+            - net_name: string, net's name
+
+            Output:
+            -------
+            - the path of directory
+
+        '''
 
         dir_path = os.path.join(path, net_name)
 
+        # If the directory is exist, remove all contents
+        # and create a new empty folder
         if os.path.isdir(dir_path):
             shutil.rmtree(dir_path)
         os.makedirs(dir_path)
@@ -209,7 +295,17 @@ class BTCTrain(object):
                                         min_after_dequeue=self.min_after_dequeue)
 
     def load_data(self):
-        # Load data from tfrecord files
+        '''LOAD_DATA
+
+            Load training data and validating data
+            from tfrecord files.
+
+            Outputs:
+            - tra_data, val_data: shuffled data
+            - tra_labels, val_labels: data labels
+
+        '''
+
         with tf.name_scope("tfrecords"):
             tra_data, tra_labels = self._load_tfrecord(self.train_path)
             val_data, val_labels = self._load_tfrecord(self.validate_path)
@@ -217,16 +313,25 @@ class BTCTrain(object):
         return tra_data, tra_labels, val_data, val_labels
 
     def inputs(self):
-        # Define inputs for model:
-        # - features: 5D volume, shape in [batch_size, height, width, depth, channels]
-        # - labels: 1D list, shape in [batch_size]
-        # - training symbol: boolean
+        '''INPUTS
+
+            Create placeholders that will be input into the model.
+            - x: data, 5D tensor, shape in [batch_size, height, width, depth, channels],
+                 or 4D tensor, shape in [batch_size, height, width, channels]
+            - y_input: labels for x
+            - is_training: a symbol to describe mode, True for training mode,
+                           False for validating and testing mode
+            - learning_rate: the learning rate for one epoch
+
+        '''
+
         with tf.name_scope("inputs"):
             x = tf.placeholder(tf.float32, [self.batch_size] + self.patch_shape, "volumes")
             y_input = tf.placeholder(tf.int64, [None], "labels")
             is_training = tf.placeholder(tf.bool, [], "mode")
             learning_rate = tf.placeholder_with_default(0.0, [], "learning_rate")
 
+        # Add learning rate into observation
         tf.summary.scalar("learning rate", learning_rate)
 
         return x, y_input, is_training, learning_rate
@@ -234,17 +339,26 @@ class BTCTrain(object):
     def _get_l2_loss(self, variables=None):
         '''_GET_L2_LOSS
 
-            Compute l2 regularization term
+            Compute l2 regularization term.
+
+            Input:
+            ------
+            - variables: list of tensors, indicates l2 loss
+                         computed from which variables
+
+            Output:
+            - le regularization term
 
         '''
 
+        # Use all trainable variables
         if variables is None:
             variables = tf.trainable_variables()
 
         return tf.add_n([tf.nn.l2_loss(v) for v in variables if "kernel" in v.name])
 
     def get_softmax_loss(self, y_in, y_out, variables=None):
-        '''_GET_SOFTMAX_LOSS
+        '''GET_SOFTMAX_LOSS
 
             Compute loss, which consists of softmax cross entropy
             and l2 regularization term.
@@ -253,10 +367,12 @@ class BTCTrain(object):
             -------
             - y_in: tensor, input labels
             - y_out: tensor, model outputs
+            - variables: list of tensors, indicates l2 loss
+                         computed from which variables
 
             Output:
             -------
-            - śoftmax cross entropy + l2 loss
+            - softmax cross entropy + l2 loss
 
         '''
 
@@ -269,8 +385,8 @@ class BTCTrain(object):
                                                                           logits=y_out))
 
         with tf.name_scope("loss"):
-            # Regularization term to reduce overfitting
             loss = softmax_loss(y_in, y_out)
+            # Regularization term to reduce overfitting
             loss += self._get_l2_loss(variables) * self.l2_loss_coeff
 
         # Add loss into summary
@@ -279,10 +395,18 @@ class BTCTrain(object):
         return loss
 
     def get_mean_square_loss(self, y_in, y_out):
-        '''GET_RECONSTRUCTION_LOSS
+        '''GET_MEAN_SQUARE_LOSS
 
             Compute mean square loss between
-            input and the reconstruction
+            input and the reconstruction.
+
+            Inputs:
+            -------
+            - y_in: tensor, original input
+            - y_out: tensor, reconstruction
+
+            Output:
+            - mean squqre loss
 
         '''
 
@@ -292,7 +416,7 @@ class BTCTrain(object):
         return loss
 
     def get_sparsity_loss(self, y_in, y_out, code):
-        '''_GET_LOSS
+        '''GET_SPARSITY_LOSS
 
             Compute loss, which consists of mean square loss,
             l2 regularization term and sparsity penalty term.
@@ -317,6 +441,7 @@ class BTCTrain(object):
 
         with tf.name_scope("loss"):
             loss = self.get_mean_square_loss(y_in, y_out)
+            # Average value of activated code
             p_hat = tf.reduce_mean(code, axis=[1, 2, 3]) + 1e-8
             loss += tf.reduce_sum(sparse_penalty(self.p, p_hat)) * self.kl_coeff
 
@@ -326,7 +451,7 @@ class BTCTrain(object):
         return loss
 
     def get_accuracy(self, y_in_labels, y_out):
-        '''_GET_ACCURACY
+        '''GET_ACCURACY
 
             Compute accuracy of classification.
 
@@ -353,6 +478,22 @@ class BTCTrain(object):
         return accuracy
 
     def create_optimizer(self, learning_rate, loss, var_list=None):
+        '''CREATE_OPTIMIZER
+
+            Create optimizer to minimize loss:
+
+            inputs:
+            -------
+            - learning_rate: float, learning rate of one training epoch
+            - loss: the loss needs to be minimized
+            - var_list: variables to be updated
+
+            Ouput:
+            ------
+            - the optimizer
+
+        '''
+
         # Optimize loss
         with tf.name_scope("train"):
             # Update moving_mean and moving_variance of
@@ -365,7 +506,12 @@ class BTCTrain(object):
         return train_op
 
     def initialize_variables(self):
-        # Define initialization of graph
+        '''INITIALIZE_VARIABLES
+
+            Initialize global and local variables.
+
+        '''
+
         with tf.name_scope("init"):
             init = tf.group(tf.local_variables_initializer(),
                             tf.global_variables_initializer())
@@ -373,6 +519,20 @@ class BTCTrain(object):
         return init
 
     def create_writers(self, logs_path, graph):
+        '''CREATE_WRITERS
+
+            Create writers to save logs in given path.
+
+            Inputs:
+            -------
+            - logs_path: string, the path of directory to save logs
+            - graph: a computation graph
+
+            Outputs:
+            - writers for training process and validating process
+
+        '''
+
         # Create writers to write logs in file
         tra_writer = tf.summary.FileWriter(os.path.join(logs_path, "train"), graph)
         val_writer = tf.summary.FileWriter(os.path.join(logs_path, "validate"), graph)
@@ -380,7 +540,7 @@ class BTCTrain(object):
         return tra_writer, val_writer
 
     def print_metrics(self, stage, epoch_no, iters, loss, accuracy=None):
-        '''_PRINT_METRICS
+        '''PRINT_METRICS
 
             Print metrics of each training and validating step.
 
@@ -406,7 +566,7 @@ class BTCTrain(object):
         return
 
     def print_mean_metrics(self, stage, epoch_no, loss_list, accuracy_list=None):
-        '''_PRINT_MEAN_METRICS
+        '''PRINT_MEAN_METRICS
 
             Print mean metrics after each training and validating epoch.
 
@@ -436,13 +596,17 @@ class BTCTrain(object):
         return loss_mean
 
     def save_model_per_epoch(self, sess, saver, epoch_no):
-        '''_SAVE_MODEL_PER_EPOCH
-        '''
+        '''SAVE_MODEL_PER_EPOCH
 
-        # ckpt_dir = os.path.join(self.model_path, "epoch-" + str(epoch_no))
-        # if os.path.isdir(ckpt_dir):
-        #     shutil.rmtree(ckpt_dir)
-        # os.makedirs(ckpt_dir)
+            Save model into checkpoint.
+
+            Inputs:
+            -------
+            - sess: the session of training
+            - saver: the saver created before training
+            - epoch_no: int, epoch number
+
+        '''
 
         # Save model's graph and variables of each epoch into folder
         save_path = os.path.join(self.model_path, "model")
@@ -455,7 +619,7 @@ class BTCTrain(object):
         return
 
     def save_metrics(self, filename, data):
-        '''_SAVE_METRICS
+        '''SAVE_METRICS
 
             Save metrics (loss and accuracy) into pickle files.
             Durectiry has been set as self.logs_path.
@@ -470,16 +634,17 @@ class BTCTrain(object):
 
         metrics_num = len(np.shape(data))
 
-        if metrics_num == 2:
+        if metrics_num == 2:  # Input metrics have loss and accuracy
             loss = ["{0:.6f}".format(d[0]) for d in data]
             accuracy = ["{0:.6f}".format(d[1]) for d in data]
             metrics = {"loss": loss, "accuracy": accuracy}
-        elif metrics_num == 1:
+        elif metrics_num == 1:  # Input metrics only have loss
             loss = ["{0:.6f}".format(d) for d in data]
             metrics = {"loss": loss}
         else:
             raise ValueError("Too many metrics to record.")
 
+        # Save metrics into json file
         json_path = os.path.join(self.logs_path, filename)
         if os.path.isfile(json_path):
             os.remove(txt_path)
@@ -488,6 +653,10 @@ class BTCTrain(object):
             json.dump(metrics, json_file)
 
         return
+
+    #
+    # Helper functions to print information in color
+    #
 
     def green_print(self, log_str):
         print(PCG + log_str + PCW)

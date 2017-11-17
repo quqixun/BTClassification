@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/11/09
+# Modify on: 2017/11/17
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -22,10 +22,10 @@ Basic Settings for Classification Process
 
 --- Reorganization
 --- Preprocessing
---- Patches Generation
+--- Augmentation
+--- Generation of Training Set
+    and Validation Set
 --- Build Models
---- Train Models
---- ...
 
 '''
 
