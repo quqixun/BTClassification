@@ -280,7 +280,7 @@ class BTCTFRecords():
                     if np.max(channel) == 0:
                         return None
                     temp[..., c] = channel / np.max(channel)
-            return temp
+            return temp.astype(np.float32)
 
         print("Create TFRecord to " + mode)
 
