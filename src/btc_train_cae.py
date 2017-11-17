@@ -57,7 +57,7 @@ class BTCTrainCAE(BTCTrain):
 
         super().__init__(paras)
 
-        self.net_name = self.set_net_name("cae_" + self.cae_pool)
+        self.net_name = self.set_net_name("cae")
         self.model_path = self.set_dir_path(save_path, self.net_name)
         self.logs_path = self.set_dir_path(logs_path, self.net_name)
 

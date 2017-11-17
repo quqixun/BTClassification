@@ -90,10 +90,12 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
         data_folder = VOLUMES_FOLDER
         data_shape = VOLUME_SHAPE
         data_dims = "3D"
+        batch_size = 1
     elif data == "slice":
         data_folder = SLICES_FOLDER
         data_shape = SLICE_SHAPE
         data_dims = "2D"
+        batch_size = 16
     else:
         raise ValueError("Cannot found data type in 'volume' or 'slice'.")
 
@@ -151,7 +153,7 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
                  "patch_shape": data_shape,
                  "capacity": capacity,
                  "min_after_dequeue": min_after_dequeue,
-                 "batch_size": 1,
+                 "batch_size": batch_size,
                  "num_epoches": [1],
                  "learning_rates": [1e-3],
                  # "learning_rate_first": 1e-3,
@@ -177,7 +179,7 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
                  "patch_shape": data_shape,
                  "capacity": capacity,
                  "min_after_dequeue": min_after_dequeue,
-                 "batch_size": 20,
+                 "batch_size": 16,
                  "num_epoches": [10],
                  "learning_rates": [1e-3],
                  # "learning_rate_first": 1e-3,

@@ -158,7 +158,15 @@ class BTCTrain(object):
 
         '''
 
-        return net + self.dims
+        net_name = net + "_" + self.dims
+
+        if self.cae_pool is not None:
+            net_name += "_" + self.cae_pool
+
+        if self.sparse_type is not None:
+            net_name += "_" + self.sparse_type
+
+        return net_name
 
     def set_dir_path(self, path, net_name):
         '''SET_DIR_NAME

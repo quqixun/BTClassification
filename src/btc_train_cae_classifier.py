@@ -59,7 +59,7 @@ class BTCTrainCAEClassifier(BTCTrain):
         super().__init__(paras)
 
         # The name of autoencoder
-        self.net_name = self.set_net_name("cae_" + self.cae_pool)
+        self.net_name = self.set_net_name("cae")
         # The name of classifier
         self.clfier = self.net_name + "_clf"
         self.coder_path = os.path.join(save_path, self.net_name, "model")
