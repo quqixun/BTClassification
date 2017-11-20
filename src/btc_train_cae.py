@@ -2,7 +2,7 @@
 # Script for Training Autoencoders
 # Author: Qixun Qu
 # Create on: 2017/11/06
-# Modify on: 2017/11/16
+# Modify on: 2017/11/20
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -31,6 +31,7 @@ Class BTCTrainCAE
 from __future__ import print_function
 
 import os
+import time
 import argparse
 import numpy as np
 import tensorflow as tf
@@ -110,13 +111,22 @@ class BTCTrainCAE(BTCTrain):
         # Lists to save loss and accuracy of each training step
         tloss_list = []
 
+        # Initialize the timer to count time of one epoch
+        epoch_time = time.time()
+
         try:
             while not coord.should_stop():
+                # Initialize the timer to count time of one training step
+                tra_step_time = time.time()
+
                 # Training step
                 # Feed the graph, run optimizer and get metrics
                 tx, ty = sess.run([tra_data, tra_labels])
                 tra_fd = {x: tx, y_input: ty, is_training: True, learning_rate: self.learning_rates[epoch_no]}
                 tsummary, tloss, _ = sess.run([merged, loss, train_op], feed_dict=tra_fd)
+
+                # Get the time of one training step
+                tstime = self.get_time(tra_step_time)
 
                 tra_iters += 1
                 one_tra_iters += 1
@@ -125,17 +135,23 @@ class BTCTrainCAE(BTCTrain):
                 tloss_list.append(tloss)
                 tra_writer.add_summary(tsummary, tra_iters)
                 self.train_metrics.append(tloss)
-                self.print_metrics("Train", epoch_no + 1, one_tra_iters, tloss)
+                self.print_metrics("Train", epoch_no + 1, one_tra_iters, tstime, tloss)
 
                 if tra_iters % self.tepoch_iters[epoch_no] == 0:
                     # Validating step
                     # Lists to save loss and accuracy of each validating step
                     vloss_list = []
                     while val_iters < self.vepoch_iters[epoch_no]:
+                        # Initialize the timer to count time of one validating step
+                        val_step_time = time.time()
+
                         # Feed the graph, get metrics
                         vx, vy = sess.run([val_data, val_labels])
                         val_fd = {x: vx, y_input: vy, is_training: False}
                         vsummary, vloss = sess.run([merged, loss], feed_dict=val_fd)
+
+                        # Get the time of one validating step
+                        vstime = self.get_time(val_step_time)
 
                         one_val_iters += 1
                         val_iters += 1
@@ -144,7 +160,11 @@ class BTCTrainCAE(BTCTrain):
                         vloss_list.append(vloss)
                         val_writer.add_summary(vsummary, val_iters)
                         self.validate_metrics.append(vloss)
-                        self.print_metrics("Validate", epoch_no + 1, one_val_iters, vloss)
+                        self.print_metrics("Validate", epoch_no + 1, one_val_iters, vstime, vloss)
+
+                    # Get the time of one epoch
+                    self.print_time(epoch_no + 1, self.get_time(epoch_time))
+                    epoch_time = time.time()
 
                     # Compute mean loss and mean accuracy of training steps
                     # in one epoch, and empty lists for next epoch
