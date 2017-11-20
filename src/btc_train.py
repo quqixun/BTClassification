@@ -2,7 +2,7 @@
 # Script for Abstract Class for Training
 # Author: Qixun Qu
 # Create on: 2017/11/13
-# Modify on: 2017/11/17
+# Modify on: 2017/11/20
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -46,6 +46,7 @@ from __future__ import print_function
 
 import os
 import json
+import time
 import shutil
 import numpy as np
 import tensorflow as tf
@@ -547,7 +548,7 @@ class BTCTrain(object):
 
         return tra_writer, val_writer
 
-    def print_metrics(self, stage, epoch_no, iters, loss, accuracy=None):
+    def print_metrics(self, stage, epoch_no, iters, rtime, loss, accuracy=None):
         '''PRINT_METRICS
 
             Print metrics of each training and validating step.
@@ -557,6 +558,7 @@ class BTCTrain(object):
             - stage: string, "Train" or "Validate"
             - epoch_no: int, epoch number
             - iters: int, step number
+            - rtime: string, time cost of one step
             - loss: float, loss
             - accuracy: float, classification accuracy
 
@@ -568,6 +570,8 @@ class BTCTrain(object):
 
         if accuracy is not None:
             log_str += ", Accuracy: {0:.10f}".format(accuracy)
+
+        log_str += ", Time Cost: " + rtime
 
         self.green_print(log_str)
 
@@ -602,6 +606,26 @@ class BTCTrain(object):
         self.yellow_print(log_str)
 
         return loss_mean
+
+    def print_time(self, epoch_no, epoch_time):
+        '''PRINT_TIME
+
+            Print time cost of one epoch, insluding
+            training and validating steps.
+
+            Inputs:
+            -------
+            - epoch_no: int, epoch number
+            - epoch_time: string, time cost of one epoch
+
+        '''
+
+        time_str = "[Epoch {}] ".format(epoch_no)
+        time_str += "Time Cost: " + epoch_time
+
+        self.yellow_print(time_str)
+
+        return
 
     def save_model_per_epoch(self, sess, saver, epoch_no):
         '''SAVE_MODEL_PER_EPOCH
@@ -677,3 +701,37 @@ class BTCTrain(object):
 
     def cyan_print(self, log_str):
         print(PCC + log_str + PCW)
+
+    #
+    # Helper function of timer
+    #
+
+    def get_time(self, start_time):
+        '''GET_TIME
+
+            Obtain the time interval between
+            the given start time and now.
+
+            Inputs:
+            -------
+            - start_time: float, start time
+
+            Output:
+            -------
+            - a string of time interval with unit
+
+        '''
+
+        # Default unit is "seconds"
+        time_num = time.time() - start_time
+        time_str = "{0:.3f}s".format(time_num)
+
+        # Change unit to "minutes"
+        if time_num >= 60:
+            time_str = "{0:.3f}m".format(time_num / 60)
+
+        # Change unit to "hours"
+        if time_num >= 3600:
+            time_str = "{0:.3f}h".format(time_num / 3600)
+
+        return time_str
