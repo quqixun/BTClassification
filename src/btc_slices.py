@@ -199,6 +199,11 @@ class BTCSlices():
             right_pad = np.zeros(vshape)
             return np.hstack((left_pad, volume, right_pad))
 
+        # The function to obtain the horizontal mirror
+        # of input slice to enlarge dataset
+        def horizontal_mirror(image):
+            return np.fliplr(image)
+
         print("Resize slices in " + file_name)
 
         # Load volume and its mask
@@ -230,8 +235,15 @@ class BTCSlices():
             vslice = pad_volume[:, :, i, :]
             resized_slice = zoom(vslice, zoom=factor, order=1, prefilter=False)
             resized_slice = resized_slice.astype(vslice.dtype)
-            save_file_name = str(i) + TARGET_EXTENSION
-            np.save(os.path.join(save_dir, save_file_name), resized_slice)
+
+            # Obtain the horizontal mirror of resized slice
+            # to carry out augmentation
+            slices = [resized_slice, horizontal_mirror(resized_slice)]
+
+            # Write file into folder
+            for j in range(len(slices)):
+                save_file_name = str(i) + "_" + str(j) + TARGET_EXTENSION
+                np.save(os.path.join(save_dir, save_file_name), slices[j])
 
         return
 

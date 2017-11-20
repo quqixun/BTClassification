@@ -119,6 +119,11 @@ class BTCVolumes():
 
         '''
 
+        # The function to obtain the horizontal mirror
+        # of input volume to enlarge dataset
+        def horizontal_mirror(volume):
+            return np.fliplr(volume)
+
         case_no = name.split(".")[0]
         print("Resize brain volume of " + case_no)
 
@@ -155,6 +160,10 @@ class BTCVolumes():
         resized_volume = zoom(pad_volume, zoom=factor, order=1, prefilter=False)
         resized_volume = resized_volume.astype(volume.dtype)
 
+        # Obtain the horizontal mirror of resized volume
+        # to carry out augmentation
+        volumes = [resized_volume, horizontal_mirror(resized_volume)]
+
         # Create folder to keep resized volume
         # if the folder is not exist
         output_sub_dir = os.path.join(output_dir, case_no)
@@ -162,8 +171,10 @@ class BTCVolumes():
             os.makedirs(output_sub_dir)
 
         # Write file into folder
-        output_path = os.path.join(output_sub_dir, name)
-        np.save(output_path, resized_volume)
+        for i in range(len(volumes)):
+            output_name = case_no + "_" + str(i) + ".npy"
+            output_path = os.path.join(output_sub_dir, output_name)
+            np.save(output_path, volumes[i])
 
         return
 
