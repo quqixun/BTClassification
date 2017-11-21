@@ -2,7 +2,7 @@
 # Script for CAEs' Hyper-Parameters
 # Author: Qixun Qu
 # Create on: 2017/11/06
-# Modify on: 2017/11/17
+# Modify on: 2017/11/21
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -95,7 +95,7 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
         data_folder = SLICES_FOLDER
         data_shape = SLICE_SHAPE
         data_dims = "2D"
-        batch_size = 16
+        batch_size = 64
     else:
         raise ValueError("Cannot found data type in 'volume' or 'slice'.")
 
@@ -121,8 +121,8 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
                                  TFRECORDS_FOLDER, data_folder)
 
     # Create paths for training and validating tfrecords
-    tpath = os.path.join(tfrecords_dir, "train.tfrecord")
-    vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
+    tpath = os.path.join(tfrecords_dir, "dataset1.tfrecord")
+    vpath = os.path.join(tfrecords_dir, "dataset2.tfrecord")
 
     # Load dict from json file in which the number of
     # training and valdating set can be found
@@ -136,8 +136,8 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
     with open(json_path) as json_file:
         data_num = json.load(json_file)
 
-    train_num = data_num["train"]
-    validate_num = data_num["validate"]
+    train_num = data_num["dataset1"]
+    validate_num = data_num["dataset2"]
 
     # Settings for decodeing tfrecords
     min_after_dequeue = max([train_num, validate_num])
@@ -154,14 +154,14 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
                  "capacity": capacity,
                  "min_after_dequeue": min_after_dequeue,
                  "batch_size": batch_size,
-                 "num_epoches": [1],
-                 "learning_rates": [1e-3],
+                 "num_epoches": [15, 15, 10, 10, 10],
+                 "learning_rates": [1e-2, 5e-3, 1e-3, 5e-4, 1e-4],
                  # "learning_rate_first": 1e-3,
                  # "learning_rate_last": 1e-4,
                  "l2_loss_coeff": 0.001,
                  "activation": activation,
                  "bn_momentum": 0.99,
-                 "drop_rate": 0.5,
+                 "drop_rate": 0.7,
                  "cae_pool": "stride",
                  "sparse_type": sparse,
                  "kl_coeff": kl_coeff,
@@ -179,17 +179,18 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
                  "patch_shape": data_shape,
                  "capacity": capacity,
                  "min_after_dequeue": min_after_dequeue,
-                 "batch_size": 16,
-                 "num_epoches": [10],
-                 "learning_rates": [1e-3],
+                 "batch_size": batch_size,
+                 "num_epoches": [20, 20, 20],
+                 "learning_rates": [1e-3, 1e-4, 1e-5],
                  # "learning_rate_first": 1e-3,
                  # "learning_rate_last": 1e-4,
                  "l2_loss_coeff": 0.001,
                  "activation": "relu",  # "lrelu"
                  "alpha": None,
                  "bn_momentum": 0.99,
-                 "drop_rate": 0.0,
-                 "cae_pool": "stride"}
+                 "drop_rate": 0.5,
+                 "cae_pool": "stride",
+                 "sparse_type": sparse}
 
     # Check "mode" and return parameters
     if mode == "cae":
