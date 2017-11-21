@@ -2,7 +2,7 @@
 # Script for Creating and Loading TFRecords
 # Author: Qixun Qu
 # Create on: 2017/10/09
-# Modify on: 2017/11/09
+# Modify on: 2017/11/21
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -20,15 +20,15 @@
 
 Class BTCTFRecords
 
--1- Write training patches and validating patches with their
-    labels into tfrecord files respectively.
+-1- Write all examples with their labels into two tfrecord
+    files respectively.
     (1) Check whether all cases can be found in labels file;
     (2) Create three empty temporary filts, which are:
-        a text file to save cases' names of training set;
-        a text file to save cases' names of validating set;
+        a text file to save cases' names of dataset1;
+        a text file to save cases' names of dataset2;
         a jason file to save the number of data of
-        training set and validating set;
-    (3) Generate cases' names of training and validating set
+        dataset1 and dataset2;
+    (3) Generate cases' names of two datasets
         respectively according to the label file;
     (4) Extract relevant data to write TFRecords.
 
@@ -81,7 +81,7 @@ class BTCTFRecords():
         '''CREATE_TFRECORD
 
             Initialize variables to create tfrecoeds and carry out
-            pipline to write tfrecords for training and validating set.
+            pipline to write tfrecords for two datasets.
 
             Inputs:
             -------
@@ -107,22 +107,22 @@ class BTCTFRecords():
             os.makedirs(output_dir)
 
         # Generate paths for tfrecords
-        self.train_tfrecord = os.path.join(output_dir, TFRECORD_TRAIN)
-        self.validate_tfrecord = os.path.join(output_dir, TFRECORD_VALIDATE)
+        self.dataset1_tfrecord = os.path.join(output_dir, TFRECORD1)
+        self.dataset2_tfrecord = os.path.join(output_dir, TFRECORD2)
 
         # Read labels of all cases from label file
         self.labels = pd.read_csv(label_file)
 
         # Initialize an empty dictionary to keep amount of
-        # patches in training and validating set
+        # patches in two datasets
         self.data_num = {}
 
         # TFRecords creation pipline
         self._check_case_no(input_dir)
         self._create_temp_files(temp_dir)
-        train_set, validate_set = self._generate_cases_set()
-        self._write_tfrecord(input_dir, self.train_tfrecord, train_set, TRAIN_MODE)
-        self._write_tfrecord(input_dir, self.validate_tfrecord, validate_set, VALIDATE_MODE)
+        dataset1, dataset2 = self._generate_cases_set()
+        self._write_tfrecord(input_dir, self.dataset1_tfrecord, dataset1, TFRECORD_MODE1)
+        self._write_tfrecord(input_dir, self.dataset2_tfrecord, dataset2, TFRECORD_MODE2)
 
         # Save dictionary into json file
         with open(self.data_num_file, "w") as json_file:
@@ -178,16 +178,15 @@ class BTCTFRecords():
         if not os.path.isdir(temp_dir):
             os.makedirs(temp_dir)
 
-        # A text file to save cases' names of training set
-        self.train_set_file = os.path.join(temp_dir, TRAIN_SET_FILE)
-        create_temp_file(self.train_set_file)
+        # A text file to save cases' names of dataset 1
+        self.dataset1_file = os.path.join(temp_dir, DATASET1_FILE)
+        create_temp_file(self.dataset1_file)
 
-        # A text file to save cases' names of validating set
-        self.validate_set_file = os.path.join(temp_dir, VALIDATE_SET_FILE)
-        create_temp_file(self.validate_set_file)
+        # A text file to save cases' names of dataset 2
+        self.dataset2_file = os.path.join(temp_dir, DATASET2_FILE)
+        create_temp_file(self.dataset2_file)
 
-        # A jason file to save the number of data of
-        # training set and validating set
+        # A jason file to save the number of data of two datasets
         self.data_num_file = os.path.join(temp_dir, DATA_NUM_FILE)
         create_temp_file(self.data_num_file)
 
@@ -196,21 +195,21 @@ class BTCTFRecords():
     def _generate_cases_set(self):
         '''_GENERATE_CASES_SET
 
-            Generate cases' names for training set and validating set
+            Generate cases' names for two datasets
             according to the label file.
 
             For each grade group:
-            - Compute the number of cases to train or validate.
-              Number of cases in training set = all cases * PROPORTION
-              Number of cases in validating set = all cases - cases in training set
+            - Compute the number of cases in two datasets.
+              Number of cases in dataset1 = all cases * PROPORTION
+              Number of cases in dataset2 = all cases - cases in dataset1
               PROPORTION can be found in btc_settings.py.
-            - Randomle select cases with respect to training and validating.
+            - Randomle select cases with respect to dataset1 and dataset2.
             - Put cases' names with their grades into list.
 
             outputs:
             --------
-            - train_set: cases' names and their grades in training set
-            - validate_set: cases' names and their grades in validating set
+            - dataset1: cases' names and their grades in dataset1
+            - dataset2: cases' names and their grades in dataset2
 
         '''
 
@@ -220,41 +219,41 @@ class BTCTFRecords():
             for case in cases:
                 txt.write(case[0] + CASES_FILE_SPLIT)
 
-        # Initialize empty list for training and validating set
-        train_set, validate_set = [], []
+        # Initialize empty list for two datasets
+        dataset1, dataset2 = [], []
 
         # Generates set for each grade group
         for grade in GRADES_LIST:
             # Get all cases' names of a certain grade
             cases = self.labels[CASE_NO][self.labels[GRADE_LABEL] == grade].values.tolist()
 
-            # Compute number of cases in training set
+            # Compute number of cases in dataset1
             cases_num = len(cases)
-            train_num = int(cases_num * PROPORTION)
+            dataset1_num = int(cases_num * PROPORTION)
 
-            # Randomly get cases' names for training
+            # Randomly get cases' names for dataset1
             index = list(np.arange(cases_num))
             np.random.seed(RANDOM_SEED)
-            train_index = list(np.random.choice(cases_num, train_num, replace=False))
+            dataset1_index = list(np.random.choice(cases_num, dataset1_num, replace=False))
 
             # Other cases are regarded as validating set
-            validate_index = [i for i in index if i not in train_index]
+            dataset2_index = [i for i in index if i not in dataset1_index]
 
             # Put cases' names with grades into list
-            train_set += [[cases[i], grade] for i in train_index]
-            validate_set += [[cases[i], grade] for i in validate_index]
+            dataset1 += [[cases[i], grade] for i in dataset1_index]
+            dataset2 += [[cases[i], grade] for i in dataset2_index]
 
         # Save list into file
-        save_cases_names(self.train_set_file, train_set)
-        save_cases_names(self.validate_set_file, validate_set)
+        save_cases_names(self.dataset1_file, dataset1)
+        save_cases_names(self.dataset2_file, dataset2)
 
-        return train_set, validate_set
+        return dataset1, dataset2
 
     def _write_tfrecord(self, input_dir, tfrecord_path, cases, mode):
         '''_WRITE_TFRECORD
 
             Write data into tfrecord file.
-            For each case in training or validating set:
+            For each case in two datasets:
                 For each data in a certain case:
                     Mormalize the data
                     Write the data into tfrecord file
@@ -265,7 +264,6 @@ class BTCTFRecords():
             - tfrecord_path: the path to save tfrecord file
             - cases: a list consists of cases' names, such as:
                      [["case1", grade_of_case1], ["case2", grade_of_case2]]
-            - mode: a symbol to describe the process, "train" or "validate"
 
         '''
 
@@ -282,9 +280,9 @@ class BTCTFRecords():
                     temp[..., c] = channel / np.max(channel)
             return temp.astype(np.float32)
 
-        print("Create TFRecord to " + mode)
+        print("Create TFRecord of " + mode)
 
-        # Variable to count number in training or validating set
+        # Variable to count number in dataset1 or dataset2
         data_num = 0
 
         # Create writer
@@ -352,7 +350,7 @@ class BTCTFRecords():
 
             Outputs:
             --------
-            - data: shuffled data set for training or validating
+            - data: shuffled data batch for dataset1 or dataset2
             - labels: grade labels for data
 
         '''
@@ -417,27 +415,27 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    help_str = "Select a mode in 'patch', 'volume' or 'slice'."
-    parser.add_argument("--mode", action="store", dest="mode", help=help_str)
+    help_str = "Select a data in 'patch', 'volume' or 'slice'."
+    parser.add_argument("--data", action="store", dest="data", help=help_str)
     args = parser.parse_args()
 
     parent_dir = os.path.dirname(os.getcwd())
     label_file = os.path.join(parent_dir, DATA_FOLDER, LABEL_FILE)
 
-    if args.mode == "patch":
+    if args.data == "patch":
         input_dir = os.path.join(parent_dir, DATA_FOLDER, AUGMENT_FOLDER)
         output_dir = os.path.join(parent_dir, DATA_FOLDER, TFRECORDS_FOLDER, PATCHES_FOLDER)
         temp_dir = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER, PATCHES_FOLDER)
-    elif args.mode == "volume":
+    elif args.data == "volume":
         input_dir = os.path.join(parent_dir, DATA_FOLDER, VOLUMES_FOLDER)
         output_dir = os.path.join(parent_dir, DATA_FOLDER, TFRECORDS_FOLDER, VOLUMES_FOLDER)
         temp_dir = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER, VOLUMES_FOLDER)
-    elif args.mode == "slice":
+    elif args.data == "slice":
         input_dir = os.path.join(parent_dir, DATA_FOLDER, SLICES_FOLDER)
         output_dir = os.path.join(parent_dir, DATA_FOLDER, TFRECORDS_FOLDER, SLICES_FOLDER)
         temp_dir = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER, SLICES_FOLDER)
     else:
-        raise ValueError("Cannot find mode in 'patch', 'volume' or 'slice'.")
+        raise ValueError("Cannot find data in 'patch', 'volume' or 'slice'.")
 
-    tfr = BTCTFRecords(args.mode)
+    tfr = BTCTFRecords(args.data)
     tfr.create_tfrecord(input_dir, output_dir, temp_dir, label_file)
