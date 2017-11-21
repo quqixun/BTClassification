@@ -3,7 +3,7 @@
 # for Autoencoders
 # Author: Qixun Qu
 # Create on: 2017/11/11
-# Modify on: 2017/11/17
+# Modify on: 2017/11/21
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -32,6 +32,7 @@ Class BTCTrainCAEClassifier
 from __future__ import print_function
 
 import os
+import time
 import argparse
 import numpy as np
 import tensorflow as tf
@@ -119,15 +120,23 @@ class BTCTrainCAEClassifier(BTCTrain):
         # Lists to save loss and accuracy of each training step
         tloss_list, taccuracy_list = [], []
 
+        # Initialize the timer to count time of one epoch
+        epoch_time = time.time()
+
         try:
             while not coord.should_stop():
+                # Initialize the timer to count time of one training step
+                tra_step_time = time.time()
+
                 # Training step
                 # Feed the graph, run optimizer and get metrics
                 tx, ty = sess.run([tra_data, tra_labels])
-                tra_fd = {x: tx, y_input: ty,
-                          is_training: True,
+                tra_fd = {x: tx, y_input: ty, is_training: True,
                           learning_rate: self.learning_rates[epoch_no]}
                 tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op], feed_dict=tra_fd)
+
+                # Get the time of one training step
+                tstime = self.get_time(tra_step_time)
 
                 tra_iters += 1
                 one_tra_iters += 1
@@ -137,17 +146,23 @@ class BTCTrainCAEClassifier(BTCTrain):
                 taccuracy_list.append(taccuracy)
                 tra_writer.add_summary(tsummary, tra_iters)
                 self.train_metrics.append([tloss, taccuracy])
-                self.print_metrics("Train", epoch_no + 1, one_tra_iters, tloss, taccuracy)
+                self.print_metrics("Train", epoch_no + 1, one_tra_iters, tstime, tloss, taccuracy)
 
                 if tra_iters % self.tepoch_iters[epoch_no] == 0:
                     # Validating step
                     # Lists to save loss and accuracy of each validating step
                     vloss_list, vaccuracy_list = [], []
                     while val_iters < self.vepoch_iters[epoch_no]:
+                        # Initialize the timer to count time of one validating step
+                        val_step_time = time.time()
+
                         # Feed the graph, get metrics
                         vx, vy = sess.run([val_data, val_labels])
                         val_fd = {x: vx, y_input: vy, is_training: False}
                         vsummary, vloss, vaccuracy = sess.run([merged, loss, accuracy], feed_dict=val_fd)
+
+                        # Get the time of one validating step
+                        vstime = self.get_time(val_step_time)
 
                         val_iters += 1
                         one_val_iters += 1
@@ -157,7 +172,11 @@ class BTCTrainCAEClassifier(BTCTrain):
                         vaccuracy_list.append(vaccuracy)
                         val_writer.add_summary(vsummary, val_iters)
                         self.validate_metrics.append([vloss, vaccuracy])
-                        self.print_metrics("Validate", epoch_no + 1, one_val_iters, vloss, vaccuracy)
+                        self.print_metrics("Validate", epoch_no + 1, one_val_iters, vstime, vloss, vaccuracy)
+
+                    # Get the time of one epoch
+                    self.print_time(epoch_no + 1, self.get_time(epoch_time))
+                    epoch_time = time.time()
 
                     # Compute mean loss and mean accuracy of training steps
                     # in one epoch, and empty lists for next epoch
@@ -201,16 +220,21 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    help_str = "Select a data in 'volume' or 'slice'."
+    data_help_str = "Select a data in 'volume' or 'slice'."
     parser.add_argument("--data", action="store", default="volume",
-                        dest="data", help=help_str)
+                        dest="data", help=data_help_str)
+
+    sparse_help_str = "Select a sparse constraint in 'kl' and 'wta'."
+    parser.add_argument("--sparse", action="store", default="kl",
+                        dest="sparse", help=sparse_help_str)
+
     args = parser.parse_args()
 
     parent_dir = os.path.dirname(os.getcwd())
     save_path = os.path.join(parent_dir, "models")
     logs_path = os.path.join(parent_dir, "logs")
 
-    parameters = get_parameters("clf", args.data)
+    parameters = get_parameters("clf", args.data, args.sparse)
 
     btc = BTCTrainCAEClassifier(parameters, save_path, logs_path)
     btc.train()
