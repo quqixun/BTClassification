@@ -2,7 +2,7 @@
 # Script for Extracting Slices
 # Author: Qixun Qu
 # Create on: 2017/11/09
-# Modify on: 2017/11/17
+# Modify on: 2017/11/21
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -32,6 +32,7 @@ import os
 import shutil
 import warnings
 import numpy as np
+import pandas as pd
 from btc_settings import *
 from multiprocessing import Pool, cpu_count
 from scipy.ndimage.interpolation import zoom
@@ -49,7 +50,7 @@ def unwrap_resize_slice(arg, **kwarg):
 
 class BTCSlices():
 
-    def __init__(self, input_dir, output_dir):
+    def __init__(self, input_dir, output_dir, label_file):
         '''__INIT__
 
             Initialization of class to generate input path
@@ -60,6 +61,8 @@ class BTCSlices():
             - input_dir: string, the path of input data
             - output_dir: string, the path of directory to
                           store outputs
+            - label_file: the path of file which has labels
+                          of all cases
 
         '''
 
@@ -74,6 +77,13 @@ class BTCSlices():
         self.slice_dir = output_dir
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
+
+        # Check whether the label file is exist
+        if not os.path.isfile(label_file):
+            raise IOError("The label file is not exist.")
+
+        # Read labels of all cases from label file
+        self.labels = pd.read_csv(label_file)
 
         # Extract and resize slices
         self._resize_slice_multi()
@@ -104,16 +114,16 @@ class BTCSlices():
         '''
 
         # Files' names of input volume
-        file_names = os.listdir(self.full_dir)
+        case_names = os.listdir(self.full_dir)
 
         print("Resize and save brain slices\n")
-        paras = zip([self] * len(file_names), file_names)
+        paras = zip([self] * len(case_names), case_names)
         pool = Pool(processes=cpu_count())
         pool.map(unwrap_resize_slice, paras)
 
         return
 
-    def _resize_slice(self, file_name):
+    def _resize_slice(self, case_name):
         '''_RESIZE_SLICE
 
             Extract slice from brai volumes at where
@@ -122,19 +132,19 @@ class BTCSlices():
 
             Input:
             ------
-            - file_name: string, the name of input volume
+            - case_name: string, the name of input volume
 
         '''
 
         # The function to create folder to save slices
         # which extracted from given volume
-        def create_folder(file_name):
-            file_no = file_name.split(".")[0]
-            save_dir = os.path.join(self.slice_dir, file_no)
+        def create_folder(case_name):
+            case_no = case_name.split(".")[0]
+            save_dir = os.path.join(self.slice_dir, case_no)
             if os.path.isdir(save_dir):
                 shutil.rmtree(save_dir)
             os.makedirs(save_dir)
-            return save_dir
+            return case_no, save_dir
 
         # The function to remove edge space of a volume,
         # which is background with value zero
@@ -199,17 +209,60 @@ class BTCSlices():
             right_pad = np.zeros(vshape)
             return np.hstack((left_pad, volume, right_pad))
 
-        # The function to obtain the horizontal mirror
-        # of input slice to enlarge dataset
-        def horizontal_mirror(image):
-            return np.fliplr(image)
+        # Slightly modify intensity of given volume.
+        # The scope of modification can be set in btc_settings.py.
+        def modify_intensity(image):
+            temp = np.copy(image)
+            # Modify intensity in each channel respectively
+            for c in range(CHANNELS):
+                ctemp = np.reshape(temp[..., c], ((1, -1)))[0]
+                non_bg_index = np.where(ctemp > 0)
+                # Randomly generate the sign,
+                # if positive, increase intensity of each pixel;
+                # if negative, decrease intensity of each pixel
+                sign = np.random.randint(2, size=1)[0] * 2 - 1
 
-        print("Resize slices in " + file_name)
+                for i in non_bg_index:
+                    # Randomly generate how much, in percentage, the intrensity
+                    # of a voxel will be modified
+                    scope = np.random.randint(10, 31, size=1)[0] / 100
+                    ctemp[i] = ctemp[i] * (1 + sign * scope)
+
+                temp[..., c] = np.reshape(ctemp, temp[..., c].shape)
+
+            return temp
+
+        # The function to obtain the augmentations
+        # of input slice to enlarge dataset
+        def augmentation(image, grade):
+            slices = [image, np.fliplr(image)]
+            modins_slices = []
+
+            # Set the number of augmented slices to be generated
+            if grade == GRADE_II:
+                augment_num = 4
+            elif grade == GRADE_III:
+                augment_num = 3
+            elif grade == GRADE_IV:
+                return slices
+            else:
+                raise ValueError("Unknown grade.")
+
+            # Modify intensity of the slice selected randomly
+            for i in range(augment_num):
+                index = np.random.randint(2, size=1)[0]
+                modins_slices.append(modify_intensity(slices[index]))
+
+            slices += modins_slices
+
+            return slices
+
+        print("Resize slices in " + case_name)
 
         # Load volume and its mask
-        file_path = os.path.join(self.full_dir, file_name)
-        mask_path = os.path.join(self.mask_dir, file_name)
-        volume = remove_edgespace(np.load(file_path))
+        case_path = os.path.join(self.full_dir, case_name)
+        mask_path = os.path.join(self.mask_dir, case_name)
+        volume = remove_edgespace(np.load(case_path))
         mask = remove_edgespace(np.load(mask_path))
 
         # Obtain sub-volume that contains tumor's core
@@ -228,7 +281,13 @@ class BTCSlices():
         factor = [ns / ss for ns, ss in zip(SLICE_SHAPE, sshape)]
 
         # Create folder for output
-        save_dir = create_folder(file_name)
+        case_no, save_dir = create_folder(case_name)
+        # Get the grade of the case
+        case_grade = self.labels[GRADE_LABEL][self.labels[CASE_NO] == case_no].values[0]
+        # If the grade is unknown, no more process on this case
+        if case_grade == GRADE_UNKNOWN:
+            print("The grade of case " + case_no + " is unknown")
+            return
 
         # Resize slices in sub-volumes and save it into folder
         for i in range(vshape[2]):
@@ -236,9 +295,8 @@ class BTCSlices():
             resized_slice = zoom(vslice, zoom=factor, order=1, prefilter=False)
             resized_slice = resized_slice.astype(vslice.dtype)
 
-            # Obtain the horizontal mirror of resized slice
-            # to carry out augmentation
-            slices = [resized_slice, horizontal_mirror(resized_slice)]
+            # Obtain the augmentations of resized slice
+            slices = augmentation(resized_slice, case_grade)
 
             # Write file into folder
             for j in range(len(slices)):
@@ -253,5 +311,6 @@ if __name__ == "__main__":
     parent_dir = os.path.dirname(os.getcwd())
     input_dir = os.path.join(parent_dir, DATA_FOLDER, PREPROCESSED_FOLDER)
     output_dir = os.path.join(parent_dir, DATA_FOLDER, SLICES_FOLDER)
+    label_file = os.path.join(parent_dir, DATA_FOLDER, LABEL_FILE)
 
-    BTCSlices(input_dir, output_dir)
+    BTCSlices(input_dir, output_dir, label_file)
