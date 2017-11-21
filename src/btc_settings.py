@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/11/17
+# Modify on: 2017/11/21
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -146,14 +146,14 @@ RANDOM_SEED = 0  # 0, 1, 2, ...
 PROPORTION = 0.5
 TFRECORDS_FOLDER = "TFRecords"
 GRADES_LIST = [GRADE_II, GRADE_III, GRADE_IV]
-TRAIN_SET_FILE = "train_set.txt"
-VALIDATE_SET_FILE = "validate_set.txt"
+DATASET1_FILE = "dataset1.txt"
+DATASET2_FILE = "dataset2.txt"
 DATA_NUM_FILE = "data_num.json"
 CASES_FILE_SPLIT = "\n"
-TFRECORD_TRAIN = "train.tfrecord"
-TFRECORD_VALIDATE = "validate.tfrecord"
-TRAIN_MODE = "train"
-VALIDATE_MODE = "validate"
+TFRECORD1 = "dataset1.tfrecord"
+TFRECORD2 = "dataset2.tfrecord"
+TFRECORD_MODE1 = "dataset1"
+TFRECORD_MODE2 = "dataset2"
 
 # Decode TFRecords
 PATCH_SHAPE = [PARTIAL_SIZE] * 3 + [CHANNELS]
