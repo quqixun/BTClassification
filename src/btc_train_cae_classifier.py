@@ -3,7 +3,7 @@
 # for Autoencoders
 # Author: Qixun Qu
 # Create on: 2017/11/11
-# Modify on: 2017/11/21
+# Modify on: 2017/11/22
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -186,10 +186,14 @@ class BTCTrainCAEClassifier(BTCTrain):
                     # Compute mean loss and mean accuracy of validating steps in one epoch
                     val_mean_loss = self.print_mean_metrics("Validate", epoch_no + 1, vloss_list, vaccuracy_list)
 
+                    # Save the model with the lowest validating loss
                     if val_mean_loss < best_val_lmean_oss:
                         best_val_lmean_oss = val_mean_loss
                         # Save model after each epoch
-                        self.save_model_per_epoch(sess, saver, epoch_no + 1)
+                        self.save_model_per_epoch(sess, saver, epoch_no + 1, "best")
+
+                    # Save model after every epoch
+                    self.save_model_per_epoch(sess, saver, epoch_no + 1, "last")
 
                     one_tra_iters = 0
                     one_val_iters = 0
