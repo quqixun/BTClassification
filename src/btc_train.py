@@ -2,7 +2,7 @@
 # Script for Abstract Class for Training
 # Author: Qixun Qu
 # Create on: 2017/11/13
-# Modify on: 2017/11/20
+# Modify on: 2017/11/22
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -627,7 +627,7 @@ class BTCTrain(object):
 
         return
 
-    def save_model_per_epoch(self, sess, saver, epoch_no):
+    def save_model_per_epoch(self, sess, saver, epoch_no, mode):
         '''SAVE_MODEL_PER_EPOCH
 
             Save model into checkpoint.
@@ -637,15 +637,22 @@ class BTCTrain(object):
             - sess: the session of training
             - saver: the saver created before training
             - epoch_no: int, epoch number
+            - mode: string, "best" or "last"
 
         '''
 
+        # Create directory to save model
+        save_dir = os.path.join(self.model_path, mode)
+        if os.path.isdir(save_dir):
+            shutil.rmtree(save_dir)
+        os.makedirs(save_dir)
+
         # Save model's graph and variables of each epoch into folder
-        save_path = os.path.join(self.model_path, "model")
+        save_path = os.path.join(save_dir, "model")
         saver.save(sess, save_path, global_step=None)
 
         log_str = "[Epoch {}] ".format(epoch_no)
-        log_str += "Model was saved in: {}".format(self.model_path)
+        log_str += mode.capitalize() + " Model was saved in: " + save_dir
         self.cyan_print(log_str)
 
         return
