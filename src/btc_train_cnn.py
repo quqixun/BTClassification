@@ -2,7 +2,7 @@
 # Script for Training General CNN Models
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/11/17
+# Modify on: 2017/11/22
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -31,6 +31,7 @@ Class BTCTrainCNN
 from __future__ import print_function
 
 import os
+import time
 import argparse
 import numpy as np
 import tensorflow as tf
@@ -138,13 +139,22 @@ class BTCTrainCNN(BTCTrain):
         # Lists to save loss and accuracy of each training step
         tloss_list, taccuracy_list = [], []
 
+        # Initialize the timer to count time of one epoch
+        epoch_time = time.time()
+
         try:
             while not coord.should_stop():
+                # Initialize the timer to count time of one training step
+                tra_step_time = time.time()
+
                 # Training step
                 # Feed the graph, run optimizer and get metrics
                 tx, ty = sess.run([tra_data, tra_labels])
                 tra_fd = {x: tx, y_input: ty, is_training: True, learning_rate: self.learning_rates[epoch_no]}
                 tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op], feed_dict=tra_fd)
+
+                # Get the time of one training step
+                tstime = self.get_time(tra_step_time)
 
                 tra_iters += 1
                 one_tra_iters += 1
@@ -154,17 +164,23 @@ class BTCTrainCNN(BTCTrain):
                 taccuracy_list.append(taccuracy)
                 tra_writer.add_summary(tsummary, tra_iters)
                 self.train_metrics.append([tloss, taccuracy])
-                self.print_metrics("Train", epoch_no + 1, one_tra_iters, tloss, taccuracy)
+                self.print_metrics("Train", epoch_no + 1, one_tra_iters, tstime, tloss, taccuracy)
 
                 if tra_iters % self.tepoch_iters[epoch_no] == 0:
                     # Validating step
                     # Lists to save loss and accuracy of each validating step
                     vloss_list, vaccuracy_list = [], []
                     while val_iters < self.vepoch_iters[epoch_no]:
+                        # Initialize the timer to count time of one validating step
+                        val_step_time = time.time()
+
                         # Feed the graph, get metrics
                         vx, vy = sess.run([val_data, val_labels])
                         val_fd = {x: vx, y_input: vy, is_training: False}
                         vsummary, vloss, vaccuracy = sess.run([merged, loss, accuracy], feed_dict=val_fd)
+
+                        # Get the time of one validating step
+                        vstime = self.get_time(val_step_time)
 
                         val_iters += 1
                         one_val_iters += 1
@@ -174,7 +190,11 @@ class BTCTrainCNN(BTCTrain):
                         vaccuracy_list.append(vaccuracy)
                         val_writer.add_summary(vsummary, val_iters)
                         self.validate_metrics.append([vloss, vaccuracy])
-                        self.print_metrics("Validate", epoch_no + 1, one_val_iters, vloss, vaccuracy)
+                        self.print_metrics("Validate", epoch_no + 1, one_val_iters, vstime, vloss, vaccuracy)
+
+                    # Get the time of one epoch
+                    self.print_time(epoch_no + 1, self.get_time(epoch_time))
+                    epoch_time = time.time()
 
                     # Compute mean loss and mean accuracy of training steps
                     # in one epoch, and empty lists for next epoch
@@ -184,10 +204,14 @@ class BTCTrainCNN(BTCTrain):
                     # Compute mean loss and mean accuracy of validating steps in one epoch
                     val_mean_loss = self.print_mean_metrics("Validate", epoch_no + 1, vloss_list, vaccuracy_list)
 
+                    # Save the model with the lowest validating loss
                     if val_mean_loss < best_val_lmean_oss:
                         best_val_lmean_oss = val_mean_loss
                         # Save model after each epoch
-                        self.save_model_per_epoch(sess, saver, epoch_no + 1)
+                        self.save_model_per_epoch(sess, saver, epoch_no + 1, "best")
+
+                    # Save model after every epoch
+                    self.save_model_per_epoch(sess, saver, epoch_no + 1, "last")
 
                     one_tra_iters = 0
                     one_val_iters = 0
