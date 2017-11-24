@@ -43,3 +43,11 @@
 - **Winner-Take-All Autoencoders** [(Link)](https://arxiv.org/abs/1409.2752)
 
   Makhzani, A. and Frey, B.J., 2015. Winner-take-all autoencoders. In Advances in Neural Information Processing Systems (pp. 2791-2799).
+
+- **K-sparse autoencoders** [(Link)](https://arxiv.org/pdf/1312.5663.pdf)
+
+  Makhzani, A. and Frey, B., 2013. K-sparse autoencoders. arXiv preprint arXiv:1312.5663.
+
+- **Feed Forward and Backward Run in Deep Convolution Neural Network** [(Link)](https://arxiv.org/pdf/1711.03278.pdf)
+
+  Murugan, P., 2017. Feed Forward and Backward Run in Deep Convolution Neural Network. arXiv preprint arXiv:1711.03278.
