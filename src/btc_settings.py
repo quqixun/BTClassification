@@ -2,7 +2,7 @@
 # Script for Settings
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/11/21
+# Modify on: 2017/11/28
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -53,6 +53,7 @@ MASK_FOLDER = "mask"
 FULL_FOLDER = "full"
 TARGET_EXTENSION = ".npy"
 PREPROCESSED_FOLDER = "Preprocessed"
+NONEPREPROCESSED_FOLDER = "NonePreprocessed"
 FULL_SHAPE = [240, 240, 155, 4]
 BRAIN_SHAPE = [240, 240, 155]
 
@@ -132,9 +133,9 @@ PARTIAL_SIZE = 49
 SCOPE_MIN = 5
 SCOPE_MAX = 10
 # PARTIAL_NUM = 5
-GRADE_II_PARTIALS = 7
-GRADE_III_PARTIALS = 6
-GRADE_IV_PARTIALS = 4
+GRADE_II_PARTIALS = 4
+GRADE_III_PARTIALS = 3
+GRADE_IV_PARTIALS = 2
 
 
 '''
