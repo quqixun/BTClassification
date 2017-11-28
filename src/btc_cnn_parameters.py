@@ -2,7 +2,7 @@
 # Script for CNNs' Hyper-Parameters
 # Author: Qixun Qu
 # Create on: 2017/10/14
-# Modify on: 2017/11/17
+# Modify on: 2017/11/28
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -71,8 +71,8 @@ tfrecords_dir = os.path.join(parent_dir, DATA_FOLDER,
                              TFRECORDS_FOLDER, PATCHES_FOLDER)
 
 # Create paths for training and validating tfrecords
-tpath = os.path.join(tfrecords_dir, "train.tfrecord")
-vpath = os.path.join(tfrecords_dir, "validate.tfrecord")
+tpath = os.path.join(tfrecords_dir, "dataset1.tfrecord")
+vpath = os.path.join(tfrecords_dir, "dataset2.tfrecord")
 
 # Load dict from json file in which the number of
 # training and valdating set can be found
@@ -81,14 +81,8 @@ json_path = os.path.join(TEMP_FOLDER, TFRECORDS_FOLDER,
 with open(json_path) as json_file:
     data_num = json.load(json_file)
 
-train_num = data_num["train"]
-validate_num = data_num["validate"]
-
-# Settings for partial dataset to test
-# tpath = os.path.join(tfrecords_dir, "partial_train.tfrecord")
-# vpath = os.path.join(tfrecords_dir, "partial_validate.tfrecord")
-# train_num = 236
-# validate_num = 224
+train_num = data_num["dataset1"]
+validate_num = data_num["dataset2"]
 
 # Settings for decodeing tfrecords
 min_after_dequeue = max([train_num, validate_num])
@@ -106,15 +100,15 @@ cnn_parameters = {
     "capacity": capacity,
     "min_after_dequeue": min_after_dequeue,
     # Parameters for training
-    "batch_size": 10,
-    "num_epoches": [2],
-    "learning_rates": [1e-3],
+    "batch_size": 32,
+    "num_epoches": [10, 10, 10],
+    "learning_rates": [1e-3, 1e-4, 1e-5],
     # "learning_rate_first": 1e-3,
     # "learning_rate_last": 1e-4,
-    "l2_loss_coeff": 0.001,
+    "l2_loss_coeff": 0.0001,
     # Parameter for model's structure
-    "activation": "relu",  # "lrelu",
-    "alpha": None,  # "lrelu"
+    "activation": "lrelu",  # "lrelu",
+    "alpha": 0.2,  # "lrelu"
     "bn_momentum": 0.99,
     "drop_rate": 0.5
 }
