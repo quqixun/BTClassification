@@ -104,13 +104,13 @@ class BTCTrainCNN(BTCTrain):
 
         '''
 
-        # with tf.device("/cpu:0")
-        tra_data, tra_labels, val_data, val_labels = self.load_data()
-        x, y_input, is_training, learning_rate = self.inputs()
+        with tf.device("/cpu:0"):
+            tra_data, tra_labels, val_data, val_labels = self.load_data()
+            x, y_input, is_training, learning_rate = self.inputs()
 
-        # with tf.device("/gpu:0")
-        # Obtain logits from the model
-        y_output = self.network(x, is_training)
+        with tf.device("/gpu:0"):
+            # Obtain logits from the model
+            y_output = self.network(x, is_training)
 
         # Compute loss and accuracy and merge summary
         # The summary can be displayed by TensorBoard
