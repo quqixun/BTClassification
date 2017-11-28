@@ -2,7 +2,7 @@
 # Script for Creating Models
 # Author: Qixun Qu
 # Create on: 2017/10/12
-# Modify on: 2017/11/17
+# Modify on: 2017/11/28
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -912,11 +912,11 @@ class BTCModels():
 
         '''
 
-        code = self._conv_bn_act(x, 1, 3, 2, "conv1")
+        code = self._conv_bn_act(x, 32, 3, 2, "conv1")
         code = self._dropout(code, "en_dropout1")
-        code = self._conv_bn_act(code, 1, 3, 2, "conv2")
+        code = self._conv_bn_act(code, 128, 3, 2, "conv2")
         code = self._dropout(code, "en_dropout2")
-        code = self._conv_bn_act(code, 20, 3, 2, "conv3")
+        code = self._conv_bn_act(code, 512, 3, 2, "conv3")
 
         return code
 
@@ -1084,9 +1084,9 @@ class BTCModels():
         '''
 
         decode = self._dropout(code, "de_dropout1")
-        decode = self._deconv_bn_act(decode, 1, 3, 2, "deconv1")
+        decode = self._deconv_bn_act(decode, 128, 3, 2, "deconv1")
         decode = self._dropout(decode, "de_dropout2")
-        decode = self._deconv_bn_act(decode, 1, 3, 2, "deconv2")
+        decode = self._deconv_bn_act(decode, 32, 3, 2, "deconv2")
         decode = self._dropout(decode, "de_dropout3")
         decode = self._deconv_bn_act(decode, 4, 3, 2, "deconv3", False)
         decode = tf.nn.sigmoid(decode, "sigmoid")
@@ -1217,22 +1217,24 @@ class BTCModels():
         self.is_training = is_training
 
         # Here is a very simple case to test btc_train first
-        net = self._conv_bn_act(x, 1, 3, 1, "layer1")
-        net = self._conv_bn_act(net, 1, 3, 1, "layer2")
+        net = self._conv_bn_act(x, 32, 3, 1, "layer1")
+        net = self._conv_bn_act(net, 32, 3, 1, "layer2")
         net = self._pooling(net, 2, "max", "max_pool1")
         net = self._dropout(net, "dropout1")
-        net = self._conv_bn_act(net, 1, 3, 1, "layer3")
-        net = self._conv_bn_act(net, 1, 3, 1, "layer4")
+        net = self._conv_bn_act(net, 64, 3, 1, "layer3")
+        net = self._conv_bn_act(net, 64, 3, 1, "layer4")
         net = self._pooling(net, 2, "max", "max_pool2")
         net = self._dropout(net, "dropout2")
-        net = self._conv_bn_act(net, 1, 3, 1, "layer5")
-        net = self._conv_bn_act(net, 1, 3, 1, "layer6")
+        net = self._conv_bn_act(net, 64, 3, 1, "layer5")
+        net = self._conv_bn_act(net, 64, 3, 1, "layer6")
         net = self._pooling(net, 2, "max", "max_pool3")
-        net = self._flatten(net, "flatten")
         net = self._dropout(net, "dropout3")
-        net = self._fc_bn_act(net, 3, "fc1")
+        net = self._conv_bn_act(net, 128, 3, 1, "layer7")
+        net = self._conv_bn_act(net, 128, 3, 1, "layer8")
+        net = self._pooling(net, -1, "max", "global_maxpool")
+        net = self._flatten(net, "flatten")
         net = self._dropout(net, "dropout4")
-        net = self._fc_bn_act(net, 3, "fc2")
+        net = self._fc_bn_act(net, 1024, "fc")
         net = self._dropout(net, "dropout5")
         net = self._logits_fc(net, "logits")
 
@@ -1261,21 +1263,17 @@ class BTCModels():
         self.is_training = is_training
 
         # Here is a very simple case to test btc_train first
-        net = self._conv_bn_act(x, 1, 3, 1, "layer1")
-        net = self._conv_bn_act(net, 1, 3, 1, "layer2")
-        net = self._conv_bn_act(net, 1, 3, 1, "layer3")
+        net = self._conv_bn_act(x, 32, 3, 1, "layer1")
         net = self._pooling(net, 2, "max", "max_pool1")
         net = self._dropout(net, "dropout1")
-        net = self._conv_bn_act(net, 1, 3, 1, "layer4")
-        net = self._conv_bn_act(net, 1, 3, 1, "layer5")
-        net = self._conv_bn_act(net, 1, 3, 1, "layer6")
+        net = self._conv_bn_act(net, 64, 3, 1, "layer2")
         net = self._pooling(net, 2, "max", "max_pool2")
         net = self._dropout(net, "dropout2")
-        net = self._conv_bn_act(net, 1, 3, 1, "layer7")
-        net = self._conv_bn_act(net, 1, 3, 1, "layer8")
-        net = self._conv_bn_act(net, 1, 3, 1, "layer9")
-        net = self._pooling(net, -1, "max", "max_pool3")
+        net = self._conv_bn_act(net, 128, 3, 1, "layer3")
+        net = self._pooling(net, 2, "max", "max_pool3")
         net = self._dropout(net, "dropout3")
+        net = self._conv_bn_act(net, 256, 3, 1, "layer4")
+        net = self._dropout(net, "dropout4")
         net = self._logits_conv(net, "logits_conv")
         net = self._flatten(net, "logits_flatten")
 
@@ -1417,7 +1415,7 @@ class BTCModels():
         # Encoder section
         code = self.encoder(x)
         # Global max pooling
-        code = self._pooling(code, -1, "max", "global_maxpool")
+        code = self._pooling(code, -1, "avg", "global_maxpool")
         code = self._flatten(code, "flatten")
         code = self._dropout(code, "dropout")
         output = self._logits_fc(code, "logits")
@@ -1432,15 +1430,16 @@ if __name__ == "__main__":
                        cae_pool="stride", lifetime_rate=0.2)
 
     # Test function for cnn, full_cnn, res_cnn, dense_cnn and autoencoder
-    x_3d = tf.placeholder(tf.float32, [32, 112, 112, 88, 4])
+    x_3d = tf.placeholder(tf.float32, [32, 49, 49, 49, 4])
+    # x_3d = tf.placeholder(tf.float32, [32, 112, 112, 88, 4])
     x_2d = tf.placeholder(tf.float32, [32, 112, 112, 4])
     is_training = tf.placeholder(tf.bool, [])
 
     # models.test(x_3d, is_training)
     # net = models.cnn(x_3d, is_training)
-    # net = models.full_cnn(x_3d, is_training)
+    net = models.full_cnn(x_3d, is_training)
     # net = models.res_cnn(x_3d, is_training)
     # net = models.dense_cnn(x_3d, is_training)
     # net = models.autoencoder(x_3d, is_training)
     # net = models.autoencoder(x_3d, is_training, "wta", 10)
-    net = models.autoencoder_classier(x_3d, is_training)
+    # net = models.autoencoder_classier(x_3d, is_training)
