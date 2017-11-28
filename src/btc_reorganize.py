@@ -2,7 +2,7 @@
 # Script for Reorganizing
 # Author: Qixun Qu
 # Create on: 2017/09/12
-# Modify on: 2017/10/26
+# Modify on: 2017/11/28
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -124,6 +124,11 @@ class BTCReorganize():
             for fd in tqdm(from_dirs):
                 sub_to_path = os.path.join(to_path, fd)
                 sub_from_path = os.path.join(from_path, fd)
+
+                # Skip one iteration if it is not a folder
+                if not os.path.isdir(sub_from_path):
+                    continue
+
                 source_files = os.listdir(sub_from_path)
 
                 if not os.path.isdir(sub_to_path):
@@ -168,7 +173,8 @@ class BTCReorganize():
 
 if __name__ == "__main__":
 
-    input_dir = "/home/qixun/data/BraTS2017"
+    home_dir = os.getenv("HOME")
+    input_dir = os.path.join(home_dir, "data", "BraTS2017")
     output_dir = os.path.join(os.path.dirname(os.getcwd()), DATA_FOLDER)
 
     BTCReorganize(input_dir, output_dir)
