@@ -2,7 +2,7 @@
 # Script for Abstract Class for Training
 # Author: Qixun Qu
 # Create on: 2017/11/13
-# Modify on: 2017/11/22
+# Modify on: 2017/11/28
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -389,9 +389,9 @@ class BTCTrain(object):
         def softmax_loss(y_in, y_out):
             # Convert labels to onehot array first, such as:
             # [0, 1, 2] ==> [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-            y_in_onehot = tf.one_hot(indices=y_in, depth=self.classes_num)
-            return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_in_onehot,
-                                                                          logits=y_out))
+            # y_in_onehot = tf.one_hot(indices=y_in, depth=self.classes_num)
+            return tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_in,
+                                                                                 logits=y_out))
 
         with tf.name_scope("loss"):
             loss = softmax_loss(y_in, y_out)
@@ -566,10 +566,10 @@ class BTCTrain(object):
 
         log_str = "[Epoch {}] ".format(epoch_no)
         log_str += (stage + " Step {}: ").format(iters)
-        log_str += "Loss: {0:.10f}".format(loss)
+        log_str += "Loss: {0:.6f}".format(loss)
 
         if accuracy is not None:
-            log_str += ", Accuracy: {0:.10f}".format(accuracy)
+            log_str += ", Accuracy: {0:.6f}".format(accuracy)
 
         log_str += ", Time Cost: " + rtime
 
@@ -597,11 +597,11 @@ class BTCTrain(object):
 
         log_str = "[Epoch {}] ".format(epoch_no)
         log_str += stage + " Stage: "
-        log_str += "Mean Loss: {0:.10f}".format(loss_mean)
+        log_str += "Mean Loss: {0:.6f}".format(loss_mean)
 
         if accuracy_list is not None:
             accuracy_mean = np.mean(accuracy_list)
-            log_str += ", Mean Accuracy: {0:.10f}".format(accuracy_mean)
+            log_str += ", Mean Accuracy: {0:.6f}".format(accuracy_mean)
 
         self.yellow_print(log_str)
 
