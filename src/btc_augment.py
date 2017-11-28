@@ -2,7 +2,7 @@
 # Script for Data Augmentation
 # Author: Qixun Qu
 # Create on: 2017/10/06
-# Modify on: 2017/10/26
+# Modify on: 2017/11/28
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -99,13 +99,11 @@ class BTCAugment():
 
         # Check whether the input folder is exist
         if not os.path.isdir(input_dir):
-            print("Input directory is not exist.")
-            raise
+            raise IOError("Input directory is not exist.")
 
         # Check whether the label file is exist
         if not os.path.isfile(label_file):
-            print("The label file is not exist.")
-            raise
+            raise IOError("The label file is not exist.")
 
         # Create folder to save outputs
         if not os.path.isdir(output_dir):
@@ -140,8 +138,7 @@ class BTCAugment():
 
         # If the list is not empty, quit program
         if len(not_found_cases) != 0:
-            print("Cannot find case in label file.")
-            raise
+            raise IOError("Cannot find case in label file.")
 
         return
 
@@ -170,7 +167,7 @@ class BTCAugment():
         case_num = len(self.case_no)
         case_paths = [os.path.join(input_dir, cn) for cn in self.case_no]
 
-        print("Data augmentation for tumor patches\n")
+        print("\nData augmentation for tumor patches\n")
         paras = zip([self] * case_num,
                     self.case_no,
                     case_paths,
@@ -313,7 +310,7 @@ class BTCAugment():
         if case_grade == GRADE_UNKNOWN:
             print("The grade of case " + case_no + " is unknown")
             return
-        # Set the number of partial partial patches to be generated
+        # Set the number of partial patches to be generated
         elif case_grade == GRADE_II:
             partial_num = GRADE_II_PARTIALS
         elif case_grade == GRADE_III:

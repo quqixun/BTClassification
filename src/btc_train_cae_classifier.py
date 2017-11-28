@@ -133,7 +133,9 @@ class BTCTrainCAEClassifier(BTCTrain):
                 tx, ty = sess.run([tra_data, tra_labels])
                 tra_fd = {x: tx, y_input: ty, is_training: True,
                           learning_rate: self.learning_rates[epoch_no]}
-                tsummary, tloss, taccuracy, _ = sess.run([merged, loss, accuracy, train_op], feed_dict=tra_fd)
+                tsummary, tloss, taccuracy, _, yo = sess.run([merged, loss, accuracy, train_op, y_output], feed_dict=tra_fd)
+                # print(ty)
+                # print(yo)
 
                 # Get the time of one training step
                 tstime = self.get_time(tra_step_time)

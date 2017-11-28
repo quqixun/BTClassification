@@ -2,7 +2,7 @@
 # Script for Extracting Slices
 # Author: Qixun Qu
 # Create on: 2017/11/09
-# Modify on: 2017/11/21
+# Modify on: 2017/11/28
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -116,7 +116,7 @@ class BTCSlices():
         # Files' names of input volume
         case_names = os.listdir(self.full_dir)
 
-        print("Resize and save brain slices\n")
+        print("\nResize and save brain slices\n")
         paras = zip([self] * len(case_names), case_names)
         pool = Pool(processes=cpu_count())
         pool.map(unwrap_resize_slice, paras)

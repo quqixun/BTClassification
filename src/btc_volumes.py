@@ -2,7 +2,7 @@
 # Script for Resizing Brain Volumes
 # Author: Qixun Qu
 # Create on: 2017/10/29
-# Modify on: 2017/10/29
+# Modify on: 2017/11/28
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -19,6 +19,10 @@
 '''
 
 Class BTCVolumes
+
+Resize brain volumes into same shape,
+and do augmentation by obtaining the
+horrizontal mirror of the original volume.
 
 '''
 
@@ -94,7 +98,7 @@ class BTCVolumes():
         # Generate paths for all preprocssed volumes
         input_paths = [os.path.join(input_dir, name) for name in self.names]
 
-        print("Resize brain volumes into same shape\n")
+        print("\nResize brain volumes into same shape\n")
         paras = zip([self] * len(self.names),
                     input_paths,
                     [output_dir] * len(self.names),

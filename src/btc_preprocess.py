@@ -2,7 +2,7 @@
 # Script for Preprocessing
 # Author: Qixun Qu
 # Create on: 2017/09/10
-# Modify on: 2017/10/26
+# Modify on: 2017/11/28
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -93,7 +93,7 @@ def unwrap_merge_to_one_volume(arg, **kwarg):
 
 class BTCPreprocess():
 
-    def __init__(self, input_dir, output_dir, temp_dir="temp"):
+    def __init__(self, input_dir, output_dir, temp_dir="temp", preprocess=True):
         '''__INIT__
 
             Initialization of class BTCPreprocess, and finish
@@ -487,7 +487,7 @@ class BTCPreprocess():
 
         '''
 
-        print("Stage 3: Merge Flair, T1, T1c and T2 into One Volume")
+        print("Stage 3: Merge flair, t1, t1Gd and t2 into One Volume")
         volume_no_len = len(self.volume_no)
         paras = zip([self] * volume_no_len,
                     [input_dir] * volume_no_len,
@@ -501,7 +501,7 @@ class BTCPreprocess():
     def _merge_to_one_volume(self, input_dir, temp_dir, vno):
         '''_MERGE_TO_ONE_VOLUME
 
-            Merge normalized Flair, T1, T1c and T2 volumes of one patient
+            Merge normalized flair, t1, t1Gd and t2 volumes of one patient
             to one volume. Remove surrounding backgrounds, and save output
             into output folder as the result of preprocessing.
 
@@ -655,4 +655,4 @@ if __name__ == "__main__":
     input_dir = os.path.join(parent_dir, DATA_FOLDER, ORIGINAL_FOLDER)
     output_dir = os.path.join(parent_dir, DATA_FOLDER, PREPROCESSED_FOLDER)
     temp_dir = os.path.join(TEMP_FOLDER, PREPROCESSED_FOLDER)
-    BTCPreprocess(input_dir, output_dir, temp_dir)
+    BTCPreprocess(input_dir, output_dir, temp_dir, preprocess=True)

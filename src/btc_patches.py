@@ -2,7 +2,7 @@
 # Script for Extracting Tumor Patches
 # Author: Qixun Qu
 # Create on: 2017/09/18
-# Modify on: 2017/10/26
+# Modify on: 2017/11/28
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -219,7 +219,7 @@ class BTCPatches():
         # Create empty text file to keep all pathes' shape
         open(self.shape_file, "a").close()
 
-        print("Extract tumor patches from full volume\n")
+        print("\nStep 1: Extract tumor patches from full volume\n")
         paras = zip([self] * len(case_nos),
                     mask_paths,
                     full_paths,
@@ -466,7 +466,7 @@ class BTCPatches():
         temp_tumor_paths = [os.path.join(self.temp_tumor, tfn) for tfn in temp_file_names]
         patch_names = [tfn.split(".")[0] for tfn in temp_file_names]
 
-        print("Resize tumor patches to ", new_shape, "\n")
+        print("\nStep 2: Resize tumor patches to ", new_shape, "\n")
         paras = zip([self] * len(patch_names),
                     temp_mask_paths,
                     temp_tumor_paths,
@@ -557,7 +557,7 @@ if __name__ == "__main__":
 
     parent_dir = os.path.dirname(os.getcwd())
 
-    input_dir = os.path.join(parent_dir, DATA_FOLDER, PREPROCESSED_FOLDER)
+    input_dir = os.path.join(parent_dir, DATA_FOLDER, NONEPREPROCESSED_FOLDER)
     output_dir = os.path.join(parent_dir, DATA_FOLDER, PATCHES_FOLDER)
     temp_dir = os.path.join(TEMP_FOLDER, PATCHES_FOLDER)
 
