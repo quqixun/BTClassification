@@ -56,6 +56,7 @@ from __future__ import print_function
 
 import os
 import shutil
+import argparse
 import warnings
 import numpy as np
 from btc_settings import *
@@ -84,7 +85,7 @@ def unwrap_resize_tumor(arg, **kwarg):
 
 class BTCPatches():
 
-    def __init__(self, input_dir, output_dir, temp_dir="temp"):
+    def __init__(self, input_dir, output_dir, temp_dir="temp", is_morph=1):
         '''__INIT__
 
             Initialization of class BTCPatches, and finish
@@ -126,6 +127,9 @@ class BTCPatches():
 
         # Create a file name to record each tumor patch's size
         self.shape_file = os.path.join(temp_dir, SHAPE_FILE)
+
+        self.is_morph = bool(int(is_morph))
+        print(self.is_morph)
 
         # Patches generation pipline
         self._check_volumes_amount()
@@ -384,6 +388,10 @@ class BTCPatches():
         # --- NOTE ---
         # "eroded" should always be the last item
         for morp in MORPHOLOGY:
+
+            if (not self.is_morph) and (morp == "dilated" or morp == "eroded"):
+                continue
+
             if morp == "dilated":  # Dilatation
                 core_mask = snm.binary_dilation(original_core_mask,
                                                 structure=kernel,
@@ -555,10 +563,17 @@ class BTCPatches():
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser()
+
+    help_str = "Whether use morphology '1' or '0'."
+    parser.add_argument("--morph", action="store", default=1,
+                        dest="morph", help=help_str)
+    args = parser.parse_args()
+
     parent_dir = os.path.dirname(os.getcwd())
 
-    input_dir = os.path.join(parent_dir, DATA_FOLDER, NONEPREPROCESSED_FOLDER)
+    input_dir = os.path.join(parent_dir, DATA_FOLDER, PREPROCESSED_FOLDER)
     output_dir = os.path.join(parent_dir, DATA_FOLDER, PATCHES_FOLDER)
     temp_dir = os.path.join(TEMP_FOLDER, PATCHES_FOLDER)
 
-    BTCPatches(input_dir, output_dir, temp_dir)
+    BTCPatches(input_dir, output_dir, temp_dir, args.morph)
