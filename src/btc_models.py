@@ -1225,17 +1225,68 @@ class BTCModels():
         net = self._conv_bn_act(net, 64, 3, 1, "layer4")
         net = self._pooling(net, 2, "max", "max_pool2")
         net = self._dropout(net, "dropout2")
-        net = self._conv_bn_act(net, 64, 3, 1, "layer5")
-        net = self._conv_bn_act(net, 64, 3, 1, "layer6")
+        net = self._conv_bn_act(net, 128, 3, 1, "layer5")
+        net = self._conv_bn_act(net, 128, 3, 1, "layer6")
         net = self._pooling(net, 2, "max", "max_pool3")
         net = self._dropout(net, "dropout3")
-        net = self._conv_bn_act(net, 128, 3, 1, "layer7")
-        net = self._conv_bn_act(net, 128, 3, 1, "layer8")
+        net = self._conv_bn_act(net, 256, 3, 1, "layer7")
+        net = self._conv_bn_act(net, 256, 3, 1, "layer8")
         net = self._pooling(net, -1, "max", "global_maxpool")
         net = self._flatten(net, "flatten")
         net = self._dropout(net, "dropout4")
-        net = self._fc_bn_act(net, 1024, "fc")
+        net = self._fc_bn_act(net, 256, "fc1")
         net = self._dropout(net, "dropout5")
+        net = self._fc_bn_act(net, 512, "fc2")
+        net = self._dropout(net, "dropout6")
+        net = self._logits_fc(net, "logits")
+
+        return net
+
+    def _cnn_branch(self, x, branch):
+        net = self._conv_bn_act(x, 32, 5, 1, branch + "_layer1")
+        net = self._pooling(net, 2, "max", branch + "maxpool1")
+        net = self._conv_bn_act(net, 64, 5, 1, branch + "_layer2")
+        net = self._pooling(net, 2, "max", branch + "maxpool2")
+        net = self._conv_bn_act(net, 128, 5, 1, branch + "_layer3")
+        net = self._pooling(net, 2, "max", branch + "maxpool3")
+        net = self._conv_bn_act(net, 256, 5, 1, branch + "_layer4")
+
+        # net = self._conv_bn_act(x, 16, 5, 1, branch + "_preconv")
+        # net = self._res_block(net, [16, 32, 32], 2, branch + "_res1")
+        # net = self._res_block(net, [32, 64, 64], 2, branch + "_res2")
+        # net = self._res_block(net, [64, 128, 128], 2, branch + "_res3")
+
+        net = self._pooling(net, -1, "max", branch + "_global_maxpool")
+        net = self._flatten(net, "flatten")
+
+        return net
+
+    def multi_cnn(self, x, is_training):
+        self._check_input(x)
+        self.is_training = is_training
+
+        dims = x.get_shape().as_list()[:-1] + [1]
+        input0 = tf.reshape(x[..., 0], dims)
+        input1 = tf.reshape(x[..., 1], dims)
+        input2 = tf.reshape(x[..., 2], dims)
+        input3 = tf.reshape(x[..., 3], dims)
+
+        net0 = self._cnn_branch(input0, "branch0")
+        net1 = self._cnn_branch(input1, "branch1")
+        net2 = self._cnn_branch(input2, "branch2")
+        net3 = self._cnn_branch(input3, "branch3")
+
+        # nets = [net0]
+
+        net = tf.concat([net0, net1, net2, net3], 1, "concate")
+        # net = tf.concat([net0, net1, net2, net3], 4, "concate")
+        # net = self._res_block(net0, [256, 512, 512], 1, "res")
+        # net = self._pooling(net, -1, "max", "global_maxpool")
+        # net = self._flatten(net, "flatten")
+
+        # net = self._dropout(net, "dropout1")
+        net = self._fc_bn_act(net, 1024, "fc")
+        net = self._dropout(net, "dropout2")
         net = self._logits_fc(net, "logits")
 
         return net
@@ -1437,9 +1488,10 @@ if __name__ == "__main__":
 
     # models.test(x_3d, is_training)
     # net = models.cnn(x_3d, is_training)
-    net = models.full_cnn(x_3d, is_training)
+    # net = models.full_cnn(x_3d, is_training)
     # net = models.res_cnn(x_3d, is_training)
     # net = models.dense_cnn(x_3d, is_training)
     # net = models.autoencoder(x_3d, is_training)
     # net = models.autoencoder(x_3d, is_training, "wta", 10)
     # net = models.autoencoder_classier(x_3d, is_training)
+    net = models.multi_cnn(x_3d, is_training)
