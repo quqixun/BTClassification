@@ -86,6 +86,8 @@ class BTCTrainCNN(BTCTrain):
         # Set models by given variable
         if net == CNN:
             network = self.models.cnn
+        elif net == MULTI_CNN:
+            network = self.models.multi_cnn
         elif net == FULL_CNN:
             network = self.models.full_cnn
         elif net == RES_CNN:
@@ -251,7 +253,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    help_str = "Select a model in 'cnn', 'full_cnn', 'res_cnn' or 'dense_cnn'."
+    help_str = "Select a model in 'cnn', 'multi_cnn', 'full_cnn', 'res_cnn' or 'dense_cnn'."
     parser.add_argument("--model", action="store", default="cnn",
                         dest="model", help=help_str)
     args = parser.parse_args()
