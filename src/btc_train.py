@@ -90,8 +90,10 @@ class BTCTrain(object):
         # Training settings
         self.batch_size = paras["batch_size"]
         self.num_epoches = np.sum(paras["num_epoches"])
-        self.learning_rates = self._set_learning_rates(
-            paras["num_epoches"], paras["learning_rates"])
+        # self.learning_rates = self._set_learning_rates(
+        #     paras["num_epoches"], paras["learning_rates"])
+        self.learning_rates = self._set_learning_rates_decay(
+            paras["num_epoches"], paras["learning_rate_first"], paras["learning_rate_last"])
         self.l2_loss_coeff = paras["l2_loss_coeff"]
 
         # Settings for constructing models
@@ -230,7 +232,7 @@ class BTCTrain(object):
 
         return learning_rate_per_epoch
 
-    def _set_learning_rates_decay(self, first_rate, last_rate):
+    def _set_learning_rates_decay(self, num_epoches, first_rate, last_rate):
         '''_GET_LEARNING_RATES_DECAY
 
             Compute learning rate for each epoch according to
@@ -247,13 +249,16 @@ class BTCTrain(object):
 
         '''
 
+        if type(num_epoches) is list:
+            num_epoches = np.sum(num_epoches)
+
         learning_rates = [first_rate]
 
-        if self.num_epoches == 1:
+        if num_epoches == 1:
             return learning_rates
 
-        decay_step = (first_rate - last_rate) / (self.num_epoches - 1)
-        for i in range(1, self.num_epoches - 1):
+        decay_step = (first_rate - last_rate) / (num_epoches - 1)
+        for i in range(1, num_epoches - 1):
             learning_rates.append(first_rate - decay_step * i)
         learning_rates.append(last_rate)
 
@@ -389,9 +394,9 @@ class BTCTrain(object):
         def softmax_loss(y_in, y_out):
             # Convert labels to onehot array first, such as:
             # [0, 1, 2] ==> [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-            # y_in_onehot = tf.one_hot(indices=y_in, depth=self.classes_num)
-            return tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_in,
-                                                                                 logits=y_out))
+            y_in_onehot = tf.one_hot(indices=y_in, depth=self.classes_num)
+            return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_in_onehot,
+                                                                          logits=y_out))
 
         with tf.name_scope("loss"):
             loss = softmax_loss(y_in, y_out)
