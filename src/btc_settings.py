@@ -130,12 +130,12 @@ GRADE_II = 0
 GRADE_UNKNOWN = -1
 PARTIAL_SIZE = 49
 
-SCOPE_MIN = 5
-SCOPE_MAX = 10
+SCOPE_MIN = 15
+SCOPE_MAX = 30
 # PARTIAL_NUM = 5
-GRADE_II_PARTIALS = 4
-GRADE_III_PARTIALS = 3
-GRADE_IV_PARTIALS = 2
+GRADE_II_PARTIALS = 2
+GRADE_III_PARTIALS = 2
+GRADE_IV_PARTIALS = 1
 
 
 '''
@@ -144,7 +144,7 @@ Settings for Class of BTCTFRecords
 
 # Create TFRecords
 RANDOM_SEED = 0  # 0, 1, 2, ...
-PROPORTION = 0.5
+PROPORTION = 0.7
 TFRECORDS_FOLDER = "TFRecords"
 GRADES_LIST = [GRADE_II, GRADE_III, GRADE_IV]
 DATASET1_FILE = "dataset1.txt"
@@ -158,6 +158,7 @@ TFRECORD_MODE2 = "dataset2"
 
 # Decode TFRecords
 PATCH_SHAPE = [PARTIAL_SIZE] * 3 + [CHANNELS]
+PATCH_ONECHANNEL_SHAPE = [PARTIAL_SIZE] * 3 + [1]
 NUM_THREADS = 4
 
 
@@ -179,6 +180,7 @@ Settings of Models' Names
 '''
 
 CNN = "cnn"
+MULTI_CNN = "multi_cnn"
 FULL_CNN = "full_cnn"
 RES_CNN = "res_cnn"
 DENSE_CNN = "dense_cnn"
