@@ -286,6 +286,10 @@ class BTCTFRecords():
         # Create writer
         writer = tf.python_io.TFRecordWriter(tfrecord_path)
 
+        grade2_num = 0
+        grade3_num = 0
+        grade4_num = 0
+
         # For each case in list
         for case in tqdm(cases):
             # Generate paths for all data in one case
@@ -301,6 +305,10 @@ class BTCTFRecords():
                 # Read, normalize and convert data to binary
                 data = np.load(dp)
                 data = normalize(data)
+
+                # Use one channel of data
+                # data = data[..., 0]
+                # print(data.shape)
 
                 if data is None:
                     continue
@@ -318,8 +326,17 @@ class BTCTFRecords():
                 # Count
                 data_num += 1
 
+                if case[1] == GRADE_II:
+                    grade2_num += 1
+                elif case[1] == GRADE_III:
+                    grade3_num += 1
+                elif case[1] == GRADE_IV:
+                    grade4_num += 1
+
         # Close writer
         writer.close()
+
+        print("Grade 2: {0}, Grade 3: {1}, Grade 4: {2}".format(grade2_num, grade3_num, grade4_num))
 
         # Save number of data into dictionary
         # {mode1: xxxx, mode2: xxxx}
