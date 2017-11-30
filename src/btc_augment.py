@@ -341,20 +341,20 @@ class BTCAugment():
                 # 1 for vertical mirror
                 # 2 for axisymmetric mirror
                 mirror_type = np.random.randint(0, 3, 1)
-                gbm_tumor = True
+                gd4_tumor = True
             else:
                 mirror_type = -1
-                gbm_tumor = False
+                gd4_tumor = False
 
             # Generate mirrors and put them into list
             volume_mirrors = []
-            if (mirror_type == 0) or (not gbm_tumor):
+            if (mirror_type == 0) or (not gd4_tumor):
                 volume_mirrors.append(horizontal_mirror(volume))
 
-            if (mirror_type == 1) or (not gbm_tumor):
+            if (mirror_type == 1) or (not gd4_tumor):
                 volume_mirrors.append(vertical_mirror(volume))
 
-            if (mirror_type == 2) or (not gbm_tumor):
+            if (mirror_type == 2) or (not gd4_tumor):
                 volume_mirrors.append(axisymmetric_mirror(volume))
 
             # Modity all volumes' intensity, but the original one,
@@ -371,7 +371,7 @@ class BTCAugment():
             for vm in volume_augmented:
                 # Randomly select several partial patches from 15 patches
                 all_partial_num = len(partial_begins)
-                ridx = np.random.randint(0, all_partial_num, partial_num)
+                ridx = np.random.choice(range(all_partial_num), partial_num, replace=False)
 
                 # Get these patches indices
                 rbegins = [partial_begins[i] for i in ridx]
