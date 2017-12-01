@@ -2,7 +2,7 @@
 # Script for Data Augmentation
 # Author: Qixun Qu
 # Create on: 2017/10/06
-# Modify on: 2017/11/28
+# Modify on: 2017/12/01
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -319,8 +319,7 @@ class BTCAugment():
             partial_num = GRADE_IV_PARTIALS
         # If the grade is invalid, quit the program
         else:
-            print("The grade of case " + case_no + " is invalid")
-            raise
+            raise ValueError("The grade of case " + case_no + " is invalid")
 
         # Obtain patches' names of a case, at most three patches,
         # which are original, dilated and eroded tumor patches
@@ -335,27 +334,29 @@ class BTCAugment():
             # If the grade of a case is IV (GBM), only one mirror can be made
             # randomly from three types of mirror. Otherwise, all mirrors will
             # be created
-            if case_grade == GRADE_IV:
-                # Randomly select a mirror
-                # 0 for horizontal mirror
-                # 1 for vertical mirror
-                # 2 for axisymmetric mirror
-                mirror_type = np.random.randint(0, 3, 1)
-                gd4_tumor = True
-            else:
-                mirror_type = -1
-                gd4_tumor = False
+            mirror_types = None
+            # Randomly select a mirror
+            # 0 for horizontal mirror
+            # 1 for vertical mirror
+            # 2 for axisymmetric mirror
+            if case_grade == GRADE_II:
+                mirror_types = [0, 1, 2]
+            elif case_grade == GRADE_III:
+                mirror_types = list(np.random.randint(0, 3, 2))
+            else:  # case_grade == GRADE_IV
+                mirror_types = [np.random.randint(0, 3, 1)]
 
             # Generate mirrors and put them into list
             volume_mirrors = []
-            if (mirror_type == 0) or (not gd4_tumor):
-                volume_mirrors.append(horizontal_mirror(volume))
+            for mirror_type in mirror_types:
+                if mirror_type == 0:
+                    volume_mirrors.append(horizontal_mirror(volume))
 
-            if (mirror_type == 1) or (not gd4_tumor):
-                volume_mirrors.append(vertical_mirror(volume))
+                if mirror_type == 1:
+                    volume_mirrors.append(vertical_mirror(volume))
 
-            if (mirror_type == 2) or (not gd4_tumor):
-                volume_mirrors.append(axisymmetric_mirror(volume))
+                if mirror_type == 2:
+                    volume_mirrors.append(axisymmetric_mirror(volume))
 
             # Modity all volumes' intensity, but the original one,
             # modified mirrors are put into list
