@@ -100,15 +100,15 @@ cnn_parameters = {
     "capacity": capacity,
     "min_after_dequeue": min_after_dequeue,
     # Parameters for training
-    "batch_size": 16,
-    "num_epoches": [40, 30, 20, 10],  # [40, 30, 20, 10],
+    "batch_size": 32,
+    "num_epoches": 100,  # [40, 30, 20, 10],
     "learning_rates": [1e-3, 1e-4, 1e-5, 1e-6],
     "learning_rate_first": 1e-4,
     "learning_rate_last": 1e-6,
-    "l2_loss_coeff": 0.0001,
+    "l2_loss_coeff": 0.001,
     # Parameter for model's structure
-    "activation": "relu",  # "lrelu",
-    "alpha": None,  # "lrelu"
-    "bn_momentum": 0.9,
-    "drop_rate": 0.7
+    "activation": "lrelu",  # "lrelu",
+    "alpha": 0.333,  # "lrelu"
+    "bn_momentum": 0.99,
+    "drop_rate": 0.8
 }

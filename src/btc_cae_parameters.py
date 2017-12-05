@@ -101,9 +101,9 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
 
     # Check value of "sparse"
     if sparse == "kl":
-        activation = "sigmoid"
+        activation = "relu"
         kl_coeff = 0.001
-        sparse_level = 0.05
+        sparse_level = 0.02
         winner_nums = None
         lifetime_rate = None
     elif sparse == "wta":
@@ -154,15 +154,16 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
                  "capacity": capacity,
                  "min_after_dequeue": min_after_dequeue,
                  "batch_size": batch_size,
-                 "num_epoches": [15, 15, 10, 10, 10],
+                 "num_epoches": 100,
                  "learning_rates": [1e-3, 5e-4, 1e-4, 5e-5, 1e-5],
-                 # "learning_rate_first": 1e-3,
-                 # "learning_rate_last": 1e-4,
-                 "l2_loss_coeff": 0.001,
+                 "learning_rate_first": 1e-3,
+                 "learning_rate_last": 1e-5,
+                 "l2_loss_coeff": 0.0001,
                  "activation": activation,
-                 "bn_momentum": 0.99,
+                 "alpha": None,
+                 "bn_momentum": 0.95,
                  "drop_rate": 0.5,
-                 "cae_pool": "stride",
+                 "cae_pool": "pool",
                  "sparse_type": sparse,
                  "kl_coeff": kl_coeff,
                  "sparse_level": sparse_level,
@@ -179,17 +180,17 @@ def get_parameters(mode="cae", data="volume", sparse="kl"):
                  "patch_shape": data_shape,
                  "capacity": capacity,
                  "min_after_dequeue": min_after_dequeue,
-                 "batch_size": batch_size,
-                 "num_epoches": [30, 30, 20, 20, 20],
+                 "batch_size": 128,
+                 "num_epoches": 100,  # [30, 30, 20, 20, 20],
                  "learning_rates": [1e-3, 5e-4, 1e-4, 5e-5, 1e-5],
-                 # "learning_rate_first": 1e-3,
-                 # "learning_rate_last": 1e-4,
+                 "learning_rate_first": 1e-3,
+                 "learning_rate_last": 1e-5,
                  "l2_loss_coeff": 0.0,
                  "activation": "relu",  # "lrelu"
                  "alpha": None,
-                 "bn_momentum": 0.99,
-                 "drop_rate": 0.5,
-                 "cae_pool": "stride",
+                 "bn_momentum": 0.95,
+                 "drop_rate": 0,
+                 "cae_pool": "pool",
                  "sparse_type": sparse}
 
     # Check "mode" and return parameters
