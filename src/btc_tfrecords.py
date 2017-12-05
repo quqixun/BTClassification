@@ -271,11 +271,14 @@ class BTCTFRecords():
             for c in range(CHANNELS):
                 channel = data[..., c]
                 if self.data_mode == "patch":
-                    temp[..., c] = (channel - np.mean(channel)) / np.std(channel)
+                    # temp[..., c] = (channel - np.mean(channel)) / np.std(channel)
+                    if np.max(channel) == 0:
+                        return None
+                    temp[..., c] = channel / np.max(channel) - 0.5
                 else:  # self.data_mode is "volume" or "slice"
                     if np.max(channel) == 0:
                         return None
-                    temp[..., c] = channel / np.max(channel)
+                    temp[..., c] = channel / np.max(channel) * 2 - 1
             return temp.astype(np.float32)
 
         print("Create TFRecord of " + mode)
