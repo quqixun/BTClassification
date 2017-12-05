@@ -2,7 +2,7 @@
 # Script for Extracting Slices
 # Author: Qixun Qu
 # Create on: 2017/11/09
-# Modify on: 2017/11/28
+# Modify on: 2017/12/04
 
 #     ,,,         ,,,
 #   ;"   ';     ;'   ",
@@ -180,12 +180,14 @@ class BTCSlices():
                     for c in range(CHANNELS):
                         # Check brain's area in each channel
                         non_bg_area = len(np.where(volume[:, :, i, c] > 0)[0])
-                        # If brain's area is too small, the slice will be
-                        # be taken into consideration
+                        # If brain's area is too small, the slice will
+                        # not be taken into consideration
                         if non_bg_area / slice_area < PROP_NON_BG:
                             large_object = False
                     if large_object:
                         core_slice_idxs.append(i)
+
+            # print(len(core_slice_idxs))
 
             if len(core_slice_idxs) > 0:
                 # Extract sub-volumes
@@ -296,7 +298,10 @@ class BTCSlices():
             resized_slice = resized_slice.astype(vslice.dtype)
 
             # Obtain the augmentations of resized slice
-            slices = augmentation(resized_slice, case_grade)
+            # slices = augmentation(resized_slice, case_grade)'
+            slices = [resized_slice]
+            if case_grade != GRADE_IV:
+                slices += [np.fliplr(resized_slice)]
 
             # Write file into folder
             for j in range(len(slices)):
