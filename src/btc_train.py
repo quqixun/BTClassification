@@ -427,6 +427,9 @@ class BTCTrain(object):
         loss = self._get_l2_loss() * self.l2_loss_coeff
         loss += tf.div(tf.reduce_mean(tf.square(y_out - y_in)), 2)
 
+        # Add loss into summary
+        tf.summary.scalar("rloss", loss)
+
         return loss
 
     def get_sparsity_loss(self, y_in, y_out, code):

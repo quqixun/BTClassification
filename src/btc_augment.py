@@ -360,9 +360,10 @@ class BTCAugment():
 
             # Modity all volumes' intensity, but the original one,
             # modified mirrors are put into list
-            volume_augmented = [volume]
-            for vm in volume_mirrors:
-                volume_augmented.append(modify_intensity(vm))
+            # volume_augmented = [volume]
+            # for vm in volume_mirrors:
+            #    volume_augmented.append(modify_intensity(vm))
+            volume_augmented = [volume] + volume_mirrors
 
             # Extract partial patches and save them into output folder
             # Code for patches

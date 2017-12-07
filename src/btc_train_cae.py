@@ -73,21 +73,23 @@ class BTCTrainCAE(BTCTrain):
 
         '''
 
-        # with tf.device("/cpu:0")
-        tra_data, tra_labels, val_data, val_labels = self.load_data()
-        x, y_input, is_training, learning_rate = self.inputs()
+        with tf.device("/cpu:0"):
+            tra_data, tra_labels, val_data, val_labels = self.load_data()
+            x, y_input, is_training, learning_rate = self.inputs()
 
-        # with tf.device("/gpu:0")
-        # Obtain logits from the model
-        code, y_output = self.network(x, is_training,
-                                      self.sparse_type, self.k)
+        with tf.device("/gpu:0"):
+            # Obtain logits from the model
+            # code, y_output = self.network(x, is_training,
+            #                               self.sparse_type, self.k)
+            y_output = self.network(x, is_training, self.sparse_type, self.k)
 
         # Compute loss and merge summary
         # The summary can be displayed by TensorBoard
-        if self.sparse_type == "kl":
-            loss = self.get_sparsity_loss(x, y_output, code)
-        elif self.sparse_type == "wta":
-            loss = self.get_mean_square_loss(x, y_output)
+        # if self.sparse_type == "kl":
+        #     loss = self.get_sparsity_loss(x, y_output, code)
+        # elif self.sparse_type == "wta":
+        #     loss = self.get_mean_square_loss(x, y_output)
+        loss = self.get_mean_square_loss(x, y_output)
         merged = tf.summary.merge_all()
 
         train_op = self.create_optimizer(learning_rate, loss)

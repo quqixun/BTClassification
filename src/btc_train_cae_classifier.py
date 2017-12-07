@@ -63,7 +63,7 @@ class BTCTrainCAEClassifier(BTCTrain):
         self.net_name = self.set_net_name("cae")
         # The name of classifier
         self.clfier = self.net_name + "_clf"
-        self.coder_path = os.path.join(save_path, self.net_name, "model")
+        self.coder_path = os.path.join(save_path, self.net_name, "last", "model")
 
         self.model_path = self.set_dir_path(save_path, self.clfier)
         self.logs_path = self.set_dir_path(logs_path, self.clfier)
@@ -79,13 +79,13 @@ class BTCTrainCAEClassifier(BTCTrain):
 
         '''
 
-        # with tf.device("/cpu:0")
-        tra_data, tra_labels, val_data, val_labels = self.load_data()
-        x, y_input, is_training, learning_rate = self.inputs()
+        with tf.device("/cpu:0"):
+            tra_data, tra_labels, val_data, val_labels = self.load_data()
+            x, y_input, is_training, learning_rate = self.inputs()
 
-        # with tf.device("/gpu:0")
-        # Obtain logits from the model
-        y_output = self.network(x, is_training)
+        with tf.device("/gpu:0"):
+            # Obtain logits from the model
+            y_output = self.network(x, is_training)
 
         variables = tf.trainable_variables()
         coder_vars = [v for v in variables if "conv" in v.name]

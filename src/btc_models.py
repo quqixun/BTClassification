@@ -36,12 +36,13 @@ from __future__ import print_function
 import tensorflow as tf
 from operator import mul
 from functools import reduce
+from tensorflow.python.keras.layers import UpSampling2D
 from tensorflow.contrib.layers import xavier_initializer
 
 
 class BTCModels():
 
-    def __init__(self, classes, act="relu", alpha=None,
+    def __init__(self, classes=3, act="relu", alpha=None,
                  momentum=0.99, drop_rate=0.5, dims="3d",
                  cae_pool=None, lifetime_rate=None):
         '''__INIT__
@@ -912,13 +913,79 @@ class BTCModels():
 
         '''
 
-        code = self._conv_bn_act(x, 32, 3, 2, "conv1")
-        code = self._dropout(code, "en_dropout1")
-        code = self._conv_bn_act(code, 128, 3, 2, "conv2")
-        code = self._dropout(code, "en_dropout2")
-        code = self._conv_bn_act(code, 512, 3, 2, "conv3")
+        code = self._conv_bn_act(x, 32, 5, 1, "conv1")
+        code = self._conv_bn_act(code, 32, 5, 1, "conv2")
+        code = self._conv_bn_act(code, 64, 5, 2, "conv3")
+        # code = self._dropout(code, "en_dropout1")
+        code = self._conv_bn_act(code, 64, 5, 1, "conv4")
+        code = self._conv_bn_act(code, 64, 5, 1, "conv5")
+        code = self._conv_bn_act(code, 128, 5, 2, "conv6")
+        # code = self._dropout(code, "en_dropout2")
+        code = self._conv_bn_act(code, 128, 5, 1, "conv7")
+        code = self._conv_bn_act(code, 128, 5, 1, "conv8")
+        code = self._conv_bn_act(code, 256, 5, 2, "conv9")
 
         return code
+
+    def _encoder_decoder(self, x):
+        preconv = self._conv_bn_act(x, 32, 7, 1, "preconv")
+
+        # 112
+        code1 = self._conv_bn_act(preconv, 64, 3, 1, "code1")
+        code2_na = self._conv_bn_act(code1, 64, 3, 1, "code2_na", False)
+        code2 = self._activate(code2_na, "code2")
+
+        # 56
+        maxp1 = self._pooling(code2, 2, "max", "maxp1")
+        code3 = self._conv_bn_act(maxp1, 128, 3, 1, "code3")
+        code4_na = self._conv_bn_act(code3, 128, 3, 1, "code4_na", False)
+        code4 = self._activate(code4_na, "code4")
+
+        # 28
+        maxp2 = self._pooling(code4, 2, "max", "maxp2")
+        code5 = self._conv_bn_act(maxp2, 256, 3, 1, "code5")
+        code6_na = self._conv_bn_act(code5, 256, 3, 1, "code6_na", False)
+        code6 = self._activate(code6_na, "code6")
+
+        # 14
+        maxp3 = self._pooling(code6, 2, "max", "maxp3")
+        code7 = self._conv_bn_act(maxp3, 512, 3, 1, "code7")
+        code8_na = self._conv_bn_act(code7, 512, 3, 1, "code8_na", False)
+        code8 = self._activate(code8_na, "code8")
+
+        # 7
+        maxp4 = self._pooling(code8, 2, "max", "maxp4")
+        code9 = self._conv_bn_act(maxp4, 1024, 3, 1, "code9")
+        code10 = self._conv_bn_act(code9, 1024, 3, 1, "code10")
+
+        # 14
+        upsp1 = UpSampling2D(size=(2, 2))(code10)
+        code11_na = self._conv_bn_act(upsp1, 512, 3, 1, "code11_na", False)
+        code11 = self._activate(tf.add(code11_na, code8_na), "code11")
+        code12 = self._conv_bn_act(code11, 512, 3, 1, "code12")
+
+        # 28
+        upsp2 = UpSampling2D(size=(2, 2))(code12)
+        code13_na = self._conv_bn_act(upsp2, 256, 3, 1, "code13_na", False)
+        code13 = self._activate(tf.add(code13_na, code6_na), "code13")
+        code14 = self._conv_bn_act(code13, 256, 3, 1, "code14")
+
+        # 56
+        upsp3 = UpSampling2D(size=(2, 2))(code14)
+        code15_na = self._conv_bn_act(upsp3, 128, 3, 1, "code15_na", False)
+        code15 = self._activate(tf.add(code15_na, code4_na), "code15")
+        code16 = self._conv_bn_act(code15, 128, 3, 1, "code16")
+
+        # 112
+        upsp4 = UpSampling2D(size=(2, 2))(code16)
+        code17_na = self._conv_bn_act(upsp4, 64, 3, 1, "code17_na", False)
+        code17 = self._activate(tf.add(code17_na, code2_na), "code17")
+        code18 = self._conv_bn_act(code17, 64, 3, 1, "code18")
+
+        decode = self._conv_bn_act(code18, 4, 1, 1, "decode", False)
+        decode = tf.nn.tanh(decode, "tanh")
+
+        return decode
 
     def _encoder_pool(self, x):
         '''_ENCODER_POOL
@@ -938,14 +1005,26 @@ class BTCModels():
 
         '''
 
-        code = self._conv_bn_act(x, 1, 3, 1, "conv1")
+        code = self._conv_bn_act(x, 32, 7, 1, "conv1")
+        code = self._conv_bn_act(code, 32, 7, 1, "conv2")
+        code = self._conv_bn_act(code, 32, 7, 1, "conv3")
         code = self._pooling(code, 2, "max", "max_pool1")
-        code = self._dropout(code, "en_dropout1")
-        code = self._conv_bn_act(code, 1, 3, 1, "conv2")
+        # code = self._dropout(code, "en_dropout1")
+        code = self._conv_bn_act(code, 64, 5, 1, "conv4")
+        code = self._conv_bn_act(code, 64, 5, 1, "conv5")
+        code = self._conv_bn_act(code, 64, 5, 1, "conv6")
         code = self._pooling(code, 2, "max", "max_pool2")
-        code = self._dropout(code, "en_dropout2")
-        code = self._conv_bn_act(code, 1, 3, 1, "conv3")
+        # code = self._dropout(code, "en_dropout2")
+        code = self._conv_bn_act(code, 128, 3, 1, "conv7")
+        code = self._conv_bn_act(code, 128, 3, 1, "conv8")
+        code = self._conv_bn_act(code, 128, 3, 1, "conv9")
         code = self._pooling(code, 2, "max", "max_pool3")
+        code = self._conv_bn_act(code, 256, 3, 1, "conv10")
+        code = self._conv_bn_act(code, 256, 3, 1, "conv11")
+        code = self._conv_bn_act(code, 256, 3, 1, "conv12")
+        code = self._pooling(code, 2, "max", "max_pool4")
+        code = self._conv_bn_act(code, 512, 3, 1, "conv13")
+        code = self._conv_bn_act(code, 1024, 3, 1, "conv14")
 
         return code
 
@@ -1083,13 +1162,14 @@ class BTCModels():
 
         '''
 
-        decode = self._dropout(code, "de_dropout1")
-        decode = self._deconv_bn_act(decode, 128, 3, 2, "deconv1")
-        decode = self._dropout(decode, "de_dropout2")
-        decode = self._deconv_bn_act(decode, 32, 3, 2, "deconv2")
-        decode = self._dropout(decode, "de_dropout3")
-        decode = self._deconv_bn_act(decode, 4, 3, 2, "deconv3", False)
-        decode = tf.nn.sigmoid(decode, "sigmoid")
+        # decode = self._dropout(code, "de_dropout1")
+        decode = self._deconv_bn_act(code, 512, 3, 2, "deconv1")
+        # decode = self._dropout(decode, "de_dropout2")
+        decode = self._deconv_bn_act(decode, 256, 3, 2, "deconv2")
+        decode = self._deconv_bn_act(decode, 128, 3, 2, "deconv3")
+        # decode = self._dropout(decode, "de_dropout3")
+        decode = self._deconv_bn_act(decode, 4, 3, 2, "deconv4", False)
+        decode = tf.nn.tanh(decode, "tanh")
 
         return decode
 
@@ -1243,18 +1323,36 @@ class BTCModels():
         return net
 
     def _cnn_branch(self, x, branch):
-        net = self._conv_bn_act(x, 32, 5, 1, branch + "_layer1")
+        net = self._conv_bn_act(x, 16, 3, 1, branch + "_layer1")
+        net = self._conv_bn_act(net, 16, 3, 1, branch + "_layer2")
+        # net = self._conv_bn_act(net, 16, 3, 1, branch + "_layer3")
         net = self._pooling(net, 2, "max", branch + "maxpool1")
-        net = self._conv_bn_act(net, 64, 5, 1, branch + "_layer2")
+        net = self._conv_bn_act(net, 32, 3, 1, branch + "_layer4")
+        # net = self._conv_bn_act(net, 32, 3, 1, branch + "_layer5")
+        net = self._conv_bn_act(net, 32, 3, 1, branch + "_layer6")
         net = self._pooling(net, 2, "max", branch + "maxpool2")
-        net = self._conv_bn_act(net, 128, 5, 1, branch + "_layer3")
+        net = self._conv_bn_act(net, 64, 3, 1, branch + "_layer7")
+        net = self._conv_bn_act(net, 64, 3, 1, branch + "_layer8")
+        net = self._conv_bn_act(net, 64, 3, 1, branch + "_layer9")
         net = self._pooling(net, 2, "max", branch + "maxpool3")
-        net = self._conv_bn_act(net, 256, 5, 1, branch + "_layer4")
+        net = self._conv_bn_act(net, 128, 3, 1, branch + "_layer10")
+        net = self._conv_bn_act(net, 128, 3, 1, branch + "_layer11")
+        net = self._conv_bn_act(net, 128, 3, 1, branch + "_layer12")
 
-        # net = self._conv_bn_act(x, 16, 5, 1, branch + "_preconv")
-        # net = self._res_block(net, [16, 32, 32], 2, branch + "_res1")
-        # net = self._res_block(net, [32, 64, 64], 2, branch + "_res2")
-        # net = self._res_block(net, [64, 128, 128], 2, branch + "_res3")
+        # net = self._pooling(net, -1, "max", branch + "_global_maxpool")
+        # net = self._flatten(net, "flatten")
+
+        return net
+
+    def _res_branch(self, x, branch):
+        net = self._conv_bn_act(x, 16, 5, 1, branch + "_preconv")
+        net = self._res_block(net, [16, 16, 16], 1, branch + "_res1")
+        net = self._res_block(net, [16, 32, 32], 2, branch + "_res2")
+        net = self._res_block(net, [32, 32, 32], 1, branch + "_res3")
+        net = self._res_block(net, [32, 64, 64], 2, branch + "_res4")
+        net = self._res_block(net, [64, 64, 64], 1, branch + "_res5")
+        net = self._res_block(net, [64, 128, 128], 2, branch + "_res6")
+        net = self._res_block(net, [128, 256, 256], 1, branch + "_res7")
 
         net = self._pooling(net, -1, "max", branch + "_global_maxpool")
         net = self._flatten(net, "flatten")
@@ -1271,22 +1369,32 @@ class BTCModels():
         input2 = tf.reshape(x[..., 2], dims)
         input3 = tf.reshape(x[..., 3], dims)
 
-        net0 = self._cnn_branch(input0, "branch0")
-        net1 = self._cnn_branch(input1, "branch1")
-        net2 = self._cnn_branch(input2, "branch2")
-        net3 = self._cnn_branch(input3, "branch3")
+        # net0 = self._cnn_branch(input0, "branch0")
+        # net1 = self._cnn_branch(input1, "branch1")
+        # net2 = self._cnn_branch(input2, "branch2")
+        # net3 = self._cnn_branch(input3, "branch3")
+
+        net0 = self._res_branch(input0, "branch0")
+        net1 = self._res_branch(input1, "branch1")
+        net2 = self._res_branch(input2, "branch2")
+        net3 = self._res_branch(input3, "branch3")
 
         # nets = [net0]
 
         net = tf.concat([net0, net1, net2, net3], 1, "concate")
         # net = tf.concat([net0, net1, net2, net3], 4, "concate")
-        # net = self._res_block(net0, [256, 512, 512], 1, "res")
+        # net = self._dropout(net, "dropout1")
+        # net = self._conv_bn_act(net, 256, 3, 1, "layer1")
+        # net = self._conv_bn_act(net, 256, 3, 1, "layer2")
+
         # net = self._pooling(net, -1, "max", "global_maxpool")
         # net = self._flatten(net, "flatten")
 
-        # net = self._dropout(net, "dropout1")
-        net = self._fc_bn_act(net, 1024, "fc")
-        net = self._dropout(net, "dropout2")
+        net = self._dropout(net, "dropout1")
+        # net = self._fc_bn_act(net, 1024, "fc1")
+        # net = self._dropout(net, "dropout2")
+        # net = self._fc_bn_act(net, 1024, "fc2")
+        # net = self._dropout(net, "dropout3")
         net = self._logits_fc(net, "logits")
 
         return net
@@ -1352,12 +1460,19 @@ class BTCModels():
         self.is_training = is_training
 
         # Here is a very simple case to test btc_train first
-        net = self._conv_bn_act(x, 1, 5, 1, "preconv")
-        net = self._res_block(net, [1, 1, 1], 2, "res1")
-        net = self._res_block(net, [1, 1, 1], 2, "res2")
-        net = self._res_block(net, [1, 1, 1], 2, "res3")
-        net = self._res_block(net, [1, 1, 1], 2, "res4")
-        net = self._pooling(net, -1, "max", "global_maxpool")
+        net = self._conv_bn_act(x, 16, 5, 1, "preconv")
+        net = self._res_block(net, [16, 16, 16], 1, "res1")
+        net = self._res_block(net, [16, 16, 16], 1, "res2")
+        net = self._res_block(net, [16, 32, 32], 2, "res3")
+        net = self._res_block(net, [32, 32, 32], 1, "res4")
+        net = self._res_block(net, [32, 32, 32], 1, "res5")
+        net = self._res_block(net, [32, 64, 64], 2, "res6")
+        net = self._res_block(net, [64, 64, 64], 1, "res7")
+        net = self._res_block(net, [64, 64, 64], 1, "res8")
+        net = self._res_block(net, [128, 128, 128], 2, "res9")
+        net = self._res_block(net, [128, 128, 128], 1, "res10")
+        net = self._res_block(net, [128, 256, 256], 1, "res11")
+        net = self._pooling(net, -1, "avg", "global_avgpool")
         net = self._flatten(net, "flatten")
         net = self._logits_fc(net, "logits")
 
@@ -1427,18 +1542,20 @@ class BTCModels():
         self.is_training = is_training
 
         # Encoder section
-        code = self.encoder(x)
+        # code = self.encoder(x)
 
         # Winner-Take-All constraint
-        if sparse_type == "wta":
-            code = self._wta_constraint(code, k)
+        # if sparse_type == "wta":
+        #     code = self._wta_constraint(code, k)
 
         # Decoder section
-        decode = self._decoder(code)
+        # decode = self._decoder(code)
+
+        decode = self._encoder_decoder(x)
 
         self._check_output(x, decode)
 
-        return code, decode
+        return decode
 
     def autoencoder_classier(self, x, is_training):
         '''CAE_CLASSIER_STRIDE
@@ -1466,10 +1583,18 @@ class BTCModels():
         # Encoder section
         code = self.encoder(x)
         # Global max pooling
-        code = self._pooling(code, -1, "avg", "global_maxpool")
+        # code_avg = self._pooling(code, -1, "avg", "global_avgpool")
+        # code_max = self._pooling(code, -1, "max", "global_maxpool")
+        # code = tf.concat([code_avg, code_max], 1, "concat")
         code = self._flatten(code, "flatten")
-        code = self._dropout(code, "dropout")
-        output = self._logits_fc(code, "logits")
+        code = self._activate(code, "act")
+        code = self._batch_norm(code, "bn")
+        code = self._dropout(code, "dropout1")
+        feat = self._fc_bn_act(code, 128, "fc1")
+        feat = self._dropout(feat, "dropout2")
+        # feat = self._fc_bn_act(code, 64, "fc2")
+        # feat = self._dropout(feat, "dropout3")
+        output = self._logits_fc(feat, "logits")
 
         return output
 
