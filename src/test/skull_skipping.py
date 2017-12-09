@@ -1,50 +1,106 @@
 import os
 import shutil
 import subprocess
-from multiprocessing import Pool
+import pandas as pd
+from multiprocessing import Pool, cpu_count
 
-
-# recon-all -subjid 0 -i 1.nii.gz -autorecon1 -sd /home/qixun/Desktop/new
 
 def unwrap_skull_stripping(arg, **kwarg):
     return skull_stripping(*arg, **kwarg)
 
 
-def skull_stripping(case_name, subcase_name, subcase_path, case_dir, target_dir):
+def skull_stripping(case_name, subcase_name, subcase_path, target_dir):
+    subcase_dir = os.path.join(target_dir, subcase_name)
+    if os.path.isdir(subcase_dir):
+        shutil.rmtree(subcase_dir)
 
     print "Skull-stripping on: ", case_name, subcase_name
-    command1 = ["recon-all", "-subjid", subcase_name, "-i", subcase_path, "-autorecon1", "-sd", target_dir]
-    cnull = open(os.devnull, 'w')
-    subprocess.call(command1, stdout=cnull, stderr=subprocess.STDOUT)
+    try:
+        command1 = ["recon-all", "-subjid", subcase_name, "-i", subcase_path, "-autorecon1", "-sd", target_dir]
+        cnull = open(os.devnull, 'w')
+        subprocess.call(command1, stdout=cnull, stderr=subprocess.STDOUT)
+    except:
+        print "  Skull-skipping Failed: %s" % case_name, subcase_name
+        shutil.rmtree(subcase_dir)
+        return
 
-    mgz_path = os.path.join(target_dir, "mri", "brainmask.mgz")
-    nii_path = os.path.join(target_dir, subcase_name + ".nii.gz")
-    command2 = ["mri_convert", mgz_path, nii_path]
-    subprocess.call(command2, stdout=cnull, stderr=subprocess.STDOUT)
+    print "Convert to nii.gz of: ", case_name, subcase_name
+    try:
+        mgz_path = os.path.join(target_dir, subcase_name, "mri", "brainmask.mgz")
+        nii_path = os.path.join(target_dir, subcase_name + ".nii.gz")
+        command2 = ["mri_convert", mgz_path, nii_path]
+        subprocess.call(command2, stdout=cnull, stderr=subprocess.STDOUT)
+    except:
+        print "  Failed to Convert %s" % case_name, subcase_name
+        shutil.rmtree(subcase_dir)
+        return
+
+    shutil.rmtree(subcase_dir)
     return
 
 
+def query(l, t, nt=[]):
+    indices = []
+    for i in range(len(l)):
+        tnum = 0
+        for it in t:
+            if it in l[i].lower():
+                tnum += 1
+
+        ntnum = 0
+        for n in nt:
+            if n not in l[i].lower():
+                ntnum += 1
+
+        if tnum == len(t) and ntnum == len(nt):
+            indices.append(int(i))
+
+    scan_type = "_".join(t)
+    print scan_type, ":", len(indices)
+
+    return indices
+
+
+total = pd.read_csv("total.csv")
+des = total["info"].values.tolist()
+subjectids = total["subject"].values.tolist()
+scanids = total["scans"].values.tolist()
+
+t1ax = query(des, ["t1", "ax"], ["flair", "spgr"])
+t2ax = query(des, ["t2", "ax"], ["flair", "spgr"])
+flairax = query(des, ["flair", "ax"], ["t1", "t2", "spgr"])
+
+
 parent_dir = os.path.dirname(os.getcwd())
-noskull_dir = os.path.join(parent_dir, "noskull")
+noskull_dir = os.path.join(parent_dir, "noskull_ax")
 if not os.path.isdir(noskull_dir):
     os.makedirs(noskull_dir)
 
-data_dir = os.path.join(parent_dir, "new_data")
+all_subjid = []
+all_scanid = []
+all_data_path = []
+all_subj_dir = []
+for indices, scan_type in zip([t1ax, t2ax, flairax], ["t1", "t2", "flair"]):
+    scan_type_dir = os.path.join(noskull_dir, scan_type)
+    if not os.path.isdir(scan_type_dir):
+        os.makedirs(scan_type_dir)
 
-for case in os.listdir(data_dir):
-    case_dir = os.path.join(data_dir, case)
-    case_noskull_dir = os.path.join(noskull_dir, case)
-    if os.path.isdir(case_noskull_dir):
-        shutil.rmtree(case_noskull_dir)
-    os.makedirs(case_noskull_dir)
+    for index in indices:
+        subjid = str(int(subjectids[index]))
+        scanid = str(scanids[index])
+        data_path = os.path.join(parent_dir, "new_data", subjid, "new", scanid + ".nii.gz")
+        if not os.path.isfile(data_path):
+            continue
 
-    subcases = os.listdir(case_dir)
-    case_names = [case] * len(subcases)
-    subcase_names = [subcase.split(".")[0] for subcase in subcases]
-    subcase_paths = [os.path.join(case_dir, subcase) for subcase in subcases]
-    case_dirs = [case_dir] * len(subcases)
-    case_noskull_dirs = [case_noskull_dir] * len(subcases)
+        subj_dir = os.path.join(scan_type_dir, subjid)
+        if not os.path.isdir(subj_dir):
+            os.makedirs(subj_dir)
 
-    paras = zip(case_names, subcase_names, subcase_paths, case_dirs, case_noskull_dirs)
-    pool = Pool(processes=2)
-    pool.map(unwrap_skull_stripping, paras)
+        all_subjid.append(subjid)
+        all_scanid.append(scanid)
+        all_data_path.append(data_path)
+        all_subj_dir.append(subj_dir)
+
+paras = zip(all_subjid, all_scanid, all_data_path, all_subj_dir)
+pool = Pool(processes=cpu_count())
+pool.map(unwrap_skull_stripping, paras)
