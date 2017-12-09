@@ -2,6 +2,7 @@ import os
 import shutil
 import zipfile
 import subprocess
+from multiprocessing import Pool, cpu_count
 
 import dicom
 import dcmstack
@@ -53,6 +54,103 @@ def plot_middle_one(data):
     return
 
 
+def unwrap_unzip2nifti(arg, **kwarg):
+    return unzip2nifti(*arg, **kwarg)
+
+
+def unzip2nifti(zf, ef, cn):
+    if os.path.isdir(ef):
+        shutil.rmtree(ef)
+    os.makedirs(ef)
+
+    print "Preprocessing on %s" % zf
+    # print "\nUnzipping files in: %s" % zf
+    try:
+        with zipfile.ZipFile(zf, "r") as zip_ref:
+            zip_ref.extractall(ef)
+    except:
+        print "  Cannot unzip: %s" % zf
+        return
+
+    case_dir = os.path.join(ef, os.listdir(ef)[0])
+    new_case_dir = os.path.join(ef, "new")
+    if os.path.isdir(new_case_dir):
+        shutil.rmtree(new_case_dir)
+    os.makedirs(new_case_dir)
+
+    for subcase in os.listdir(case_dir):
+        # print "\n  Preprocessing on %s" % cn, subcase
+        run_info = ""
+        case_no = cn
+        subcase_no = subcase
+        deco_dir = os.path.join(ef, "decompress")
+        if os.path.isdir(deco_dir):
+            shutil.rmtree(deco_dir)
+        os.makedirs(deco_dir)
+
+        input_dir = os.path.join(case_dir, subcase)
+        input_dcms = [os.path.join(input_dir, dcm_file) for dcm_file in os.listdir(input_dir)]
+        deco_dcms = [os.path.join(deco_dir, dcm_file) for dcm_file in os.listdir(input_dir)]
+
+        # print "    Decompress DICOM files of case %s ..." % subcase
+        undecomp = 0
+        for i in range(len(input_dcms)):
+            try:
+                command = ["gdcmconv", "-w", input_dcms[i], deco_dcms[i]]
+                subprocess.call(command)
+            except:
+                undecomp += 1
+                continue
+        # print "      %d slices undecompressed" % undecomp
+        run_info += "%dud" % undecomp
+
+        # print "    Stack into Nifti of case %s" % subcase
+        unstack = 0
+        my_stack = dcmstack.DicomStack()
+        for src_path in deco_dcms:
+            try:
+                src_dcm = dicom.read_file(src_path)
+                my_stack.add_dcm(src_dcm)
+            except:
+                unstack += 1
+                continue
+        # print "      %d slices unstacked" % unstack
+        run_info += " %dus" % unstack
+
+        # print "    Extract info from DICOM of %s" % subcase
+        try:
+            # case_des.append(src_dcm.SeriesDescription)
+            case_des = src_dcm.SeriesDescription
+        except:
+            # print "      No description of %s" % subcase
+            run_info += " nodes"
+
+        # print "    Save into Nifti file of %s" % subcase
+        try:
+            nii = my_stack.to_nifti()
+            original_file_path = os.path.join(new_case_dir, subcase + ".nii.gz")
+            nii.to_filename(original_file_path)
+        except:
+            # print "      Cannot save into Nifti"
+            run_info += " unsaved"
+
+        # run_infos.append(run_info)
+        shutil.rmtree(deco_dir)
+
+        # print "    Save info into csv of %s" % subcase
+        try:
+            case_csv_file = os.path.join(new_case_dir, subcase + ".csv")
+            case_info_df = pd.DataFrame(data={"subject": [case_no], "scans": [subcase_no], "info": [case_des], "log": [run_info]})
+            case_info_df.to_csv(case_csv_file, columns=["subject", "scans", "info", "log"], index=False)
+        except:
+            # print "      Cannot write info into csv"
+            continue
+
+    shutil.rmtree(case_dir)
+
+    return
+
+
 parent_dir = os.path.dirname(os.getcwd())
 # data_dir = os.path.join(parent_dir, "data")
 data_dir = "/home/user1/transfer/datasets/BT/Asgeir UCSF/Zipped DICOM"
@@ -64,94 +162,128 @@ zipfiles = [os.path.join(data_dir, zf) for zf in os.listdir(data_dir)]
 exafiles = [os.path.join(new_data_dir, zf.split(".")[0]) for zf in os.listdir(data_dir)]
 case_names = [zf.split(".")[0] for zf in os.listdir(data_dir)]
 
-csv_file = os.path.join(new_data_dir, "info.csv")
+# csv_file = os.path.join(new_data_dir, "info.csv")
+
+paras = zip(zipfiles, exafiles, case_names)
+pool = Pool(processes=cpu_count())
+pool.map(unwrap_unzip2nifti, paras)
+
+# for zf, ef, cn in zip(zipfiles, exafiles, case_names):
+
+    # if os.path.isdir(ef):
+    #     shutil.rmtree(ef)
+    # os.makedirs(ef)
+
+    # print "\nUnzipping files in: %s" % zf
+    # try:
+    #     with zipfile.ZipFile(zf, "r") as zip_ref:
+    #         zip_ref.extractall(ef)
+    # except:
+    #     print "  Cannot unzip: %s" % zf
+    #     continue
+
+    # case_dir = os.path.join(ef, os.listdir(ef)[0])
+    # new_case_dir = os.path.join(ef, "new")
+    # if os.path.isdir(new_case_dir):
+    #     shutil.rmtree(new_case_dir)
+    # os.makedirs(new_case_dir)
+
+    # for subcase in os.listdir(case_dir):
+    #     print "\n  Preprocessing on %s" %, case, subcase
+    #     run_info = ""
+    #     case_no.append(cn)
+    #     subcase_no.append(subcase)
+    #     deco_dir = os.path.join(ef, "decompress")
+    #     if os.path.isdir(deco_dir):
+    #         shutil.rmtree(deco_dir)
+    #     os.makedirs(deco_dir)
+
+    #     input_dir = os.path.join(case_dir, subcase)
+    #     input_dcms = [os.path.join(input_dir, dcm_file) for dcm_file in os.listdir(input_dir)]
+    #     deco_dcms = [os.path.join(deco_dir, dcm_file) for dcm_file in os.listdir(input_dir)]
+
+    #     print "    Decompress DICOM files of case %s ..." % subcase
+    #     undecomp = 0
+    #     for i in range(len(input_dcms)):
+    #         try:
+    #             command = ["gdcmconv", "-w", input_dcms[i], deco_dcms[i]]
+    #             subprocess.call(command)
+    #         except:
+    #             undecomp += 1
+    #             continue
+    #     print "      %d slices undecompressed" % undecomp
+    #     run_info += "%dud" % undecomp
+
+    #     print "    Stack into Nifti of case %s" % subcase
+    #     unstack = 0
+    #     my_stack = dcmstack.DicomStack()
+    #     for src_path in deco_dcms:
+    #         try:
+    #             src_dcm = dicom.read_file(src_path)
+    #             my_stack.add_dcm(src_dcm)
+    #         except:
+    #             unstack += 1
+    #             continue
+    #     print "      %d slices unstacked" % unstack
+    #     run_info += " %dus" % unstack
+
+    #     print "    Extract info from DICOM of %s" % subcase
+    #     try:
+    #         case_des.append(src_dcm.SeriesDescription)
+    #     except:
+    #         print "      No description of %s" % subcase
+    #         run_info += " nodes"
+
+    #     print "    Save into Nifti file of %s" % subcase
+    #     try:
+    #         nii = my_stack.to_nifti()
+    #         original_file_path = os.path.join(new_case_dir, subcase + ".nii.gz")
+    #         nii.to_filename(original_file_path)
+    #     except:
+    #         print "      Cannot save into Nifti"
+    #         run_info += " unsaved"
+
+    #     run_infos.append(run_info)
+    #     shutil.rmtree(deco_dir)
+
+    #     print "    Save info into csv of %s" % subcase
+    #     try:
+    #         case_csv_file = os.path.join(new_case_dir, subcase + ".csv")
+    #         case_info_df = pd.DataFrame(data={"subject": [case_no[-1]], "scans": [subcase_no[-1]], "info": [case_des[-1]], "log": [run_infos[-1]]})
+    #         case_info_df.to_csv(case_csv_file, columns=["subject", "scans", "info", "log"], index=False)
+    #     except:
+    #         print "      Cannot write info into csv"
+    #         continue
+
+# info_df = pd.DataFrame(data={"subject": case_no, "scans": subcase_no, "info": case_des, "log": run_infos})
+# info_df.to_csv(csv_file, columns=["subject", "scans", "info", "log"], index=False)
+# print("\n")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # index = 0
 # FRAC_DEFAULT= 0.2
 # zoom_order = 1
 # new_shape = [110, 110, 110]
 
-case_no = []
-subcase_no = []
-case_des = []
-run_infos = []
 
-for zf, ef, cn in tqdm(zip(zipfiles, exafiles, case_names)):
 
-    if os.path.isdir(ef):
-        shutil.rmtree(ef)
-    os.makedirs(ef)
-
-    # print "Unzipping files in: %s" % zf
-    with zipfile.ZipFile(zf, "r") as zip_ref:
-        zip_ref.extractall(ef)
-
-    case_dir = os.path.join(ef, os.listdir(ef)[0])
-    new_case_dir = os.path.join(ef, "new")
-    if os.path.isdir(new_case_dir):
-        shutil.rmtree(new_case_dir)
-    os.makedirs(new_case_dir)
-
-    for subcase in tqdm(os.listdir(case_dir)):
-        run_info = ""
-        case_no.append(cn)
-        subcase_no.append(subcase)
-        deco_dir = os.path.join(ef, "decompress")
-        if os.path.isdir(deco_dir):
-            shutil.rmtree(deco_dir)
-        os.makedirs(deco_dir)
-
-        input_dir = os.path.join(case_dir, subcase)
-        input_dcms = [os.path.join(input_dir, dcm_file) for dcm_file in os.listdir(input_dir)]
-        deco_dcms = [os.path.join(deco_dir, dcm_file) for dcm_file in os.listdir(input_dir)]
-
-        # print "Decompress DICOM files of case %s ..." % subcase
-        undecomp = 0
-        for i in tqdm(range(len(input_dcms))):
-            try:
-                command = ["gdcmconv", "-w", input_dcms[i], deco_dcms[i]]
-                subprocess.call(command)
-            except:
-                undecomp += 1
-                continue
-        run_info += "%dud" % undecomp
-
-        unstack = 0
-        my_stack = dcmstack.DicomStack()
-        for src_path in deco_dcms:
-            try:
-                src_dcm = dicom.read_file(src_path)
-                my_stack.add_dcm(src_dcm)
-            except:
-                unstack += 1
-                continue
-        run_info += " %dus" % unstack
-
-        try:
-            case_des.append(src_dcm.SeriesDescription)
-        except:
-            run_info += " nodes"
-
-        try:
-            nii = my_stack.to_nifti()
-            original_file_path = os.path.join(new_case_dir, subcase + ".nii.gz")
-            nii.to_filename(original_file_path)
-        except:
-            run_info += " unsaved"
-
-        run_infos.append(run_info)
-        shutil.rmtree(deco_dir)
-
-        try:
-            case_csv_file = os.path.join(new_case_dir, subcase + ".csv")
-            case_info_df = pd.DataFrame(data={"subject": [case_no[-1]], "scans": [subcase_no[-1]], "info": [case_des[-1]], "log": [run_infos[-1]]})
-            case_info_df.to_csv(case_csv_file, columns=["subject", "scans", "info", "log"], index=False)
-        except:
-            continue
-
-info_df = pd.DataFrame(data={"subject": case_no, "scans": subcase_no, "info": case_des, "log": run_infos})
-info_df.to_csv(csv_file, columns=["subject", "scans", "info", "log"], index=False)
-print("\n")
 
     # noskull_file_path = os.path.join(new_case_dir, subcase + "_noskull.nii.gz")
     
