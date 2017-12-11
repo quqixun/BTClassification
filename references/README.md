@@ -51,3 +51,7 @@
 - **Feed Forward and Backward Run in Deep Convolution Neural Network** [(Link)](https://arxiv.org/pdf/1711.03278.pdf)
 
   Murugan, P., 2017. Feed Forward and Backward Run in Deep Convolution Neural Network. arXiv preprint arXiv:1711.03278.
+
+- **ANTs/ANTsR Brain Templates** [(LINK)](https://figshare.com/articles/ANTs_ANTsR_Brain_Templates/915436)
+
+  Avants, Brian; Tustison, Nick (2014): ANTs/ANTsR Brain Templates. figshare. https://doi.org/10.6084/m9.figshare.915436.v1
