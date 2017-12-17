@@ -27,8 +27,10 @@ def skull_stripping(nii_path, output_dir, scan_name, templates):
 
 
 parent_dir = os.path.dirname(os.getcwd())
-data_dir = os.path.join(parent_dir, "data", "Original", "LGG")
-new_data_dir = os.path.join(parent_dir, "data", "NoSkull", "LGG")
+# data_dir = os.path.join(parent_dir, "data", "Original", "LGG")
+# new_data_dir = os.path.join(parent_dir, "data", "NoSkull", "LGG")
+data_dir = os.path.join(parent_dir, "data", "Original", "TCGA", "TCGA-GBM")
+new_data_dir = os.path.join(parent_dir, "data", "NoSkull", "TCGA", "TCGA-GBM")
 if not os.path.isdir(new_data_dir):
     os.makedirs(new_data_dir)
 
@@ -44,10 +46,10 @@ for subject in os.listdir(data_dir):
             os.makedirs(new_subject_dir)
         for scan in os.listdir(subject_dir):
             scan_name = scan.split(".")[0]
-            if "T1" in scan or "T2" in scan:
-                nii_paths.append(os.path.join(subject_dir, scan))
-                output_dirs.append(os.path.join(new_subject_dir))
-                scan_names.append(scan_name)
+            # if "T1" in scan or "T2" in scan:
+            nii_paths.append(os.path.join(subject_dir, scan))
+            output_dirs.append(os.path.join(new_subject_dir))
+            scan_names.append(scan_name)
 
 templates_dir = os.path.join(parent_dir, "data", "Template")
 templates = [os.path.join(templates_dir, "T_template0.nii.gz"),
