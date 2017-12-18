@@ -1,9 +1,7 @@
 import os
 import zipfile
 import subprocess
-
-from tqdm import *
-import pandas as pd
+from multiprocessing import Pool, cpu_count
 
 
 def create_dir(dir_path):
@@ -41,30 +39,31 @@ Unzip file into folder
 Decompress DICOM files
 '''
 
-subjects = []
-scans = []
-undecomps = []
 
-for d in tqdm(os.listdir(unzipped_dir)):
+def unwarp_decompress(arg, **kwarg):
+    return decompress(*arg, **kwarg)
+
+
+def decompress(input_path, output_path):
+    try:
+        command = ["gdcmconv", "-w", input_path, output_path]
+        subprocess.call(command)
+    except:
+        pass
+
+
+input_dcms, output_dcms = [], []
+for d in os.listdir(unzipped_dir):
     sub_d = os.path.join(unzipped_dir, d)
     subsub_d = os.path.join(sub_d, os.listdir(sub_d)[0])
     for scan in os.listdir(subsub_d):
         input_scan_dir = os.path.join(subsub_d, scan)
         output_scan_dir = os.path.join(decompressed_dir, d, scan)
         create_dir(output_scan_dir)
-        undecomp = 0
         for dcm in os.listdir(input_scan_dir):
-            input_dcm = os.path.join(input_scan_dir, dcm)
-            output_dcm = os.path.join(output_scan_dir, dcm)
-            try:
-                command = ["gdcmconv", "-w", input_dcm, output_dcm]
-                subprocess.call(command)
-            except:
-                undecomp += 1
-                continue
-        subjects.append(d)
-        scans.append(scan)
-        undecomps.append(undecomp)
+            input_dcms.append(os.path.join(input_scan_dir, dcm))
+            output_dcms.append(os.path.join(output_scan_dir, dcm))
 
-df = pd.DataFrame(data={"subject": subjects, "scans": scan, "log": undecomps})
-df.to_csv("decompress_logs.csv", index=False)
+paras = zip(input_dcms, output_dcms)
+pool = Pool(processes=cpu_count())
+pool.map(unwarp_decompress, paras)
