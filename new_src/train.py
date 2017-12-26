@@ -1,277 +1,245 @@
+import os
+import shutil
 import numpy as np
+from tqdm import *
+from models import *
+import pandas as pd
+import nibabel as nib
 import tensorflow as tf
-import tensorlayer as tl
-import matplotlib.pyplot as plt
+from random import seed, shuffle
+
+from keras.layers import *
+from keras.callbacks import CSVLogger
+from keras.optimizers import SGD, Adam, Adagrad
+from sklearn.model_selection import StratifiedKFold
+from keras.utils import to_categorical
+from keras.preprocessing.image import ImageDataGenerator
+from keras.callbacks import (ModelCheckpoint,
+                             LearningRateScheduler,
+                             ReduceLROnPlateau,
+                             TensorBoard)
 
 
-NUM_EPOCHS = 100
-TRAIN_BATCH_SIZE = 30
-VALID_BATCH_SIZE = 10
-LEARNING_RATE = 0.001
+SEED = 77
+TRAIN_PROP = 0.8
+TEST_PROP = 0.2
+VOLUME_SIZE = [112, 112, 112, 1]
 
-CLASS_NUM = 2
-CHANNEL_NUM = 4
-
-COR_VOLUME_SHAPE = [155, 240, 4]
-SAG_VOLUME_SHAPE = [155, 240, 4]
-AX_VOLUME_SHAPE = [240, 240, 4]
-
-TRAIN_LABEL_SHAPE = [TRAIN_BATCH_SIZE, CLASS_NUM]
-VALID_LABEL_SHAPE = [VALID_BATCH_SIZE, CLASS_NUM]
+BATCH_SIZE = 8
+EPOCHS_NUM = 50
+SPLITS_NUM = 4
 
 
-def decode_record(filename_queue):
-    reader = tf.TFRecordReader()
-    _, serialized_example = reader.read(filename_queue)
-    features = tf.parse_single_example(
-        serialized_example,
-        features={
-            "label": tf.FixedLenFeature([], tf.int64),
-            "cor": tf.FixedLenFeature([], tf.string),
-            "sag": tf.FixedLenFeature([], tf.string),
-            "ax": tf.FixedLenFeature([], tf.string),
-        })
-
-    cor = tf.decode_raw(features["cor"], tf.float32)
-    sag = tf.decode_raw(features["sag"], tf.float32)
-    ax = tf.decode_raw(features["ax"], tf.float32)
-
-    cor = tf.reshape(cor, COR_VOLUME_SHAPE)
-    sag = tf.reshape(sag, SAG_VOLUME_SHAPE)
-    ax = tf.reshape(ax, AX_VOLUME_SHAPE)
-
-    label = tf.cast(features['label'], tf.int64)
-
-    return cor, sag, ax, label
+def get_data_path(dir_path, volume_type, label):
+    subjects = os.listdir(dir_path)
+    seed(SEED)
+    shuffle(subjects)
+    subjects_paths = []
+    for subject in subjects:
+        subject_dir = os.path.join(dir_path, subject)
+        for scan_name in os.listdir(subject_dir):
+            if volume_type in scan_name:
+                subjects_paths.append([os.path.join(subject_dir, scan_name), label])
+    return subjects_paths
 
 
-def inputs(path, batch_size, num_epochs,
-           capacity=500, mad=300):
-    if not num_epochs:
-        num_epochs = None
+def get_dataset(subjects):
+    subj_num = len(subjects)
+    train_idx = round(subj_num * TRAIN_PROP)
 
-    with tf.name_scope('input'):
-        filename_queue = tf.train.string_input_producer([path], num_epochs=num_epochs)
-        cor, sag, ax, label = decode_record(filename_queue)
+    train_set = subjects[:train_idx]
+    test_set = subjects[train_idx:]
 
-        cors, sags, axs, labels = tf.train.shuffle_batch([cor, sag, ax, label],
-                                                         batch_size=batch_size,
-                                                         num_threads=4,
-                                                         capacity=capacity,
-                                                         min_after_dequeue=mad)
-
-    return cors, sags, axs, labels
+    return train_set, test_set
 
 
-def conv_weight(shape):
-    sd = 1 / np.sqrt(np.prod(shape[0:3]) * CLASS_NUM)
-    return tf.truncated_normal_initializer(stddev=sd)
+def save_to_csv(subjects, csv_path):
+    subj_paths = [subj[0] for subj in subjects]
+    subj_labels = [subj[1] for subj in subjects]
 
-
-def dense_weight(n_units):
-    sd = 1 / np.sqrt(n_units * CLASS_NUM)
-    return tf.truncated_normal_initializer(stddev=sd)
-
-
-def conv2d(x, shape, act=tf.nn.relu, name=None):
-    return tl.layers.Conv2dLayer(x,
-                                 act=act,
-                                 shape=shape,
-                                 strides=[1, 1, 1, 1],
-                                 padding='SAME',
-                                 W_init=conv_weight(shape),
-                                 b_init=None,
-                                 name=name)
-
-
-def dense(x, n_units, act=tf.nn.relu, name=None):
-    return tl.layers.DenseLayer(x,
-                                n_units=n_units,
-                                act=act,
-                                W_init=dense_weight(n_units),
-                                b_init=None,
-                                name=name)
-
-
-def batch_norm(x, is_train=True, name=None):
-    return tl.layers.BatchNormLayer(x,
-                                    decay=0.9,
-                                    epsilon=1e-5,
-                                    act=tf.identity,
-                                    is_train=is_train,
-                                    name=name)
-
-
-def max_pool(x, name=None):
-    return tl.layers.PoolLayer(x,
-                               ksize=[1, 2, 2, 1],
-                               strides=[1, 2, 2, 1],
-                               padding='VALID',
-                               pool=tf.nn.max_pool,
-                               name=name)
-
-
-def drop_out(x, keep=0.5, is_train=False, name=None):
-    return tf.layers.DropoutLayer(x,
-                                  keep=keep,
-                                  is_train=is_train,
-                                  name=name)
-
-
-def branch(x, is_train, name):
-    x = tl.layers.InputLayer(x, name + "_input")
-    b = conv2d(x, [7, 7, 4, 32], name=name + "_conv1")
-    b = max_pool(b, name + "_mp1")
-    # b = batch_norm(b, is_train, name + "_bn1")
-    b = conv2d(b, [7, 7, 32, 32], name=name + "_conv2")
-    b = max_pool(b, name + "_mp2")
-    # b = batch_norm(b, is_train, name + "_bn2")
-    b = conv2d(b, [5, 5, 32, 64], name=name + "_conv3")
-    b = max_pool(b, name + "_mp3")
-    # b = batch_norm(b, is_train, name + "_bn3")
-    b = conv2d(b, [5, 5, 64, 64], name=name + "_conv4")
-    b = max_pool(b, name + "_mp4")
-    # b = batch_norm(b, is_train, name + "_bn4")
-    b = conv2d(b, [3, 3, 64, 128], name=name + "_conv5")
-    # b = max_pool(b, name + "_mp5")
-    # b = batch_norm(b, is_train, name + "_bn5")
-    # b = conv2d(b, [3, 3, 128, 128], name=name + "_conv6")
-    psize = b.outputs.get_shape().as_list()[1:-1]
-    b = tl.layers.MeanPool2d(b, psize, psize, name=name + "_gap")
-    # b = tl.layers.MaxPool2d(b, psize, psize, name=name + "_gmp")
-    b = tl.layers.FlattenLayer(b, name + "_flt")
-    return b
-
-
-def build_network(x_cor, x_sag, x_ax, is_train, reuse):
-    with tf.variable_scope("model", reuse=reuse):
-        tl.layers.set_name_reuse(reuse)
-        cor_b = branch(x_cor, is_train, "cor")
-        sag_b = branch(x_sag, is_train, "sag")
-        ax_b = branch(x_ax, is_train, "ax")
-
-        c = tl.layers.ConcatLayer([cor_b, sag_b, ax_b], name="concat")
-        # c = batch_norm(c, is_train, "bn1")
-        c = dense(c, 256, name="fc1")
-        # c = dense(c, 256, name="fc2")
-        # c = batch_norm(c, is_train, "bn2")
-        c = dense(c, 2, act=tf.identity, name="output")
-
-        return c
-
-
-def get_loss(y_in, y_out):
-    y_in = tf.one_hot(y_in, 2, axis=-1)
-    loss = tf.reduce_mean(
-        tf.nn.softmax_cross_entropy_with_logits(labels=y_in,
-                                                logits=y_out))
-    return loss
-
-
-def get_accuracy(y_in, y_out):
-    y_arg = tf.argmax(y_out, 1)
-    correct_prediction = tf.equal(y_arg, y_in)
-    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-    return accuracy
-
-
-def train_model(train_set_path, valid_set_path, save_model_path):
-    x_cor = tf.placeholder(tf.float32, [None] + COR_VOLUME_SHAPE)
-    x_sag = tf.placeholder(tf.float32, [None] + SAG_VOLUME_SHAPE)
-    x_ax = tf.placeholder(tf.float32, [None] + AX_VOLUME_SHAPE)
-    y = tf.placeholder(tf.int64, [None, 1])
-
-    tnet = build_network(x_cor, x_sag, x_ax, True, False)
-    vnet = build_network(x_cor, x_sag, x_ax, False, True)
-
-    tout = tnet.outputs
-    vout = vnet.outputs
-
-    train_loss = get_loss(y, tout)
-    valid_loss = get_loss(y, vout)
-
-    train_accuracy = get_accuracy(y, tout)
-    valid_accuracy = get_accuracy(y, vout)
-
-    train_step = tf.train.AdamOptimizer(LEARNING_RATE).minimize(train_loss)
-
-    tcors, tsags, taxs, tlabels = inputs(path=train_set_path,
-                                         batch_size=TRAIN_BATCH_SIZE,
-                                         num_epochs=NUM_EPOCHS)
-
-    vcors, vsags, vaxs, vlabels = inputs(path=valid_set_path,
-                                         batch_size=VALID_BATCH_SIZE,
-                                         num_epochs=NUM_EPOCHS)
-
-    init = tf.group(tf.global_variables_initializer(),
-                    tf.local_variables_initializer())
-
-    sess = tf.InteractiveSession()
-    sess.run(init)
-
-    coord = tf.train.Coordinator()
-    thread = tf.train.start_queue_runners(sess=sess, coord=coord)
-
-    try:
-        train_steps, valid_steps, epoch_nos = 0, 0, 1
-        while not coord.should_stop():
-            train_steps += 1
-            tcor, tsag, tax, tlabel = sess.run([tcors, tsags, taxs, tlabels])
-
-            # tcor0 = tcor[0, :, :, 2]
-            # tsag0 = tsag[0, :, :, 2]
-            # tax0 = tax[0, :, :, 2]
-            # plt.figure()
-            # plt.subplot(1, 3, 1)
-            # plt.imshow(tcor0, cmap="gray")
-            # plt.subplot(1, 3, 2)
-            # plt.imshow(tsag0, cmap="gray")
-            # plt.subplot(1, 3, 3)
-            # plt.imshow(tax0, cmap="gray")
-            # plt.show()
-
-            tlabel = np.reshape(tlabel, [-1, 1])
-            fd_train = {x_cor: tcor, x_sag: tsag, x_ax: tax, y: tlabel}
-
-            to, tacc, tloss, _ = sess.run([tout, train_accuracy, train_loss, train_step], feed_dict=fd_train)
-            # print(to.shape)
-            # print(to)
-            print("Epoch {0} Train Step {1}:".format(epoch_nos, train_steps),
-                  "accuracy {0:.6f}".format(tacc),
-                  "loss {0:.6f}".format(tloss))
-
-            if train_steps % 9 == 0:
-                for _ in range(9):
-                    valid_steps += 1
-                    vcor, vsag, vax, vlabel = sess.run([vcors, vsags, vaxs, vlabels])
-                    vlabel = np.reshape(vlabel, [-1, 1])
-                    fd_valid = {x_cor: vcor, x_sag: vsag, x_ax: vax, y: vlabel}
-
-                    vo, vacc, vloss = sess.run([vout, valid_accuracy, valid_loss], feed_dict=fd_valid)
-                    # print(vo.shape)
-                    # print(vo)
-                    print("Epoch {0} Valid Step {1}:".format(epoch_nos, valid_steps),
-                          "accuracy {0:.6f}".format(vacc),
-                          "loss {0:.6f}".format(vloss))
-                train_steps, valid_steps = 0, 0
-                epoch_nos += 1
-                print()
-            # if epoch_no > NUM_EPOCHS:
-            #     break
-    except tf.errors.OutOfRangeError:
-        print("Training has stopped.")
-    finally:
-        coord.request_stop()
-
-    tl.files.save_npz(tnet.all_params, save_model_path)
-    coord.join(thread)
-    sess.close()
+    df = pd.DataFrame(data={"subject": subj_paths, "label": subj_labels})
+    df = df[["subject", "label"]]
+    df.to_csv(csv_path, index=False)
 
     return
 
 
-if __name__ == '__main__':
-    train_set_path = "/home/user4/Desktop/btc/data/TFRecords/MultiViews/train.tfrecord"
-    valid_set_path = "/home/user4/Desktop/btc/data/TFRecords/MultiViews/valid.tfrecord"
-    save_model_path = "model.npz"
-    train_model(train_set_path, valid_set_path, save_model_path)
+def load_data(info):
+    x, y = [], []
+    print("Loading data ...")
+    for subject in tqdm(info):
+        volume_path, label = subject[0], subject[1]
+        volume = nib.load(volume_path).get_data()
+        volume = np.rot90(volume, 3)
+        volume_obj = volume[volume > 0]
+        volume = (volume - np.mean(volume_obj)) / np.std(volume_obj)
+        # volume = volume / np.max(volume_obj) - 0.5
+        volume = np.reshape(volume, VOLUME_SIZE)
+        x.append(volume.astype(np.float32))
+        y.append(label)
+
+    x = np.array(x)
+    y = np.array(y).reshape((-1, 1))
+
+    return x, y
+
+
+def create_dir(path):
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+    os.makedirs(path)
+    return
+
+
+def lr_schedule(epoch):
+
+    lrs = [1e-4] * 20 + [5e-5] * 20 + [1e-5] * 30 + [5e-6] * 30
+    lr = lrs[epoch]
+    print("Learning rate: ", lr)
+
+    return lr
+
+
+def train(trainset_info, model_type, models_dir,
+          logs_dir, optimizer, model_name, augment=False):
+
+    x, y = load_data(trainset_info)
+    kfold = StratifiedKFold(n_splits=SPLITS_NUM, shuffle=True)
+    kfold_no = 0
+
+    for tidx, vidx in kfold.split(x, y):
+        print("KFold: ", kfold_no)
+
+        x_train, y_train = [], []
+        for idx in tidx:
+            x_train.append(x[idx])
+            y_train.append(y[idx])
+
+            if y[idx] == 0:
+                aug_volume = np.fliplr(x[idx])
+                x_train.append(aug_volume.astype(np.float32))
+                y_train.append(y[idx])
+
+        x_train = np.array(x_train)
+        y_train = np.array(y_train)
+        y_train = to_categorical(y_train, num_classes=2)
+        x_valid = x[vidx]
+        y_valid = to_categorical(y[vidx], num_classes=2)
+
+        if model_type == "vggish":
+            model = vggish()
+        elif model_type == "pyramid":
+            model = pyramid()
+
+        if optimizer == "adam":
+            opt = Adam(lr=lr_schedule(0))
+        elif optimizer == "adagrade":
+            opt = Adagrad(lr=lr_schedule(0))
+        elif optimizer == "sgd":
+            opt = SGD(lr=lr_schedule(0))
+        model.compile(loss="categorical_crossentropy",
+                      optimizer=opt,
+                      metrics=["accuracy"])
+
+        model.summary()
+        # model_name = model_type + "_" + optimizer
+        print(model_name)
+
+        model_dir = os.path.join(models_dir, model_name, "kfold" + str(kfold_no))
+        create_dir(model_dir)
+
+        log_dir = os.path.join(logs_dir, model_name, "kfold" + str(kfold_no))
+        create_dir(log_dir)
+
+        best_model_path = os.path.join(model_dir, "best.h5")
+        last_model_path = os.path.join(model_dir, "last.h5")
+        logs_path = os.path.join(model_dir, "learning_curv.csv")
+        csv_logger = CSVLogger(logs_path, append=True, separator=';')
+
+        checkpoint = ModelCheckpoint(filepath=best_model_path,
+                                     monitor="val_loss",
+                                     verbose=1,
+                                     save_best_only=True)
+        lr_scheduler = LearningRateScheduler(lr_schedule)
+        # lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
+        #                                cooldown=0,
+        #                                patience=5,
+        #                                min_lr=1e-6)
+        tb = TensorBoard(log_dir=log_dir, batch_size=BATCH_SIZE)
+        callbacks = [checkpoint, lr_scheduler, csv_logger, tb]
+
+        class_weight = {0: 1., 1: 1.}
+        if not augment:
+            print('Not using data augmentation.')
+            model.fit(x_train, y_train,
+                      batch_size=BATCH_SIZE,
+                      epochs=EPOCHS_NUM,
+                      validation_data=(x_valid, y_valid),
+                      shuffle=True,
+                      callbacks=callbacks,
+                      class_weight=class_weight)
+        else:
+            datagen = ImageDataGenerator(
+                featurewise_center=False,
+                samplewise_center=False,
+                featurewise_std_normalization=False,
+                samplewise_std_normalization=False,
+                zca_whitening=False,
+                rotation_range=20,
+                width_shift_range=0.2,
+                height_shift_range=0.2,
+                zoom_range=0.1,
+                horizontal_flip=True,
+                vertical_flip=False)
+
+            datagen.fit(x_train, augment=True, rounds=10)
+            model.fit_generator(
+                datagen.flow(x_train, y_train, batch_size=BATCH_SIZE, shuffle=True),
+                steps_per_epoch=len(x_train) / BATCH_SIZE, callbacks=callbacks,
+                validation_data=(x_valid, y_valid),
+                epochs=EPOCHS_NUM, verbose=1, workers=4)
+
+        model.save(last_model_path)
+        kfold_no += 1
+        # break
+
+    return
+
+
+if __name__ == "__main__":
+
+    # volume_type = "flair"
+    volume_type = "t1ce"
+    # volume_type = "t2"
+
+    # model_type = "vggish"
+    model_type = "pyramid"
+
+    # opt_type = "sgd"
+    opt_type = "adam"
+    # opt_type = "adagrade"
+
+    model_name = "_".join([volume_type, model_type, opt_type])
+
+    parent_dir = os.path.dirname(os.getcwd())
+    data_dir = os.path.join(parent_dir, "data", "Original", "BraTS")
+    hgg_dir = os.path.join(data_dir, "HGGTrimmed")
+    lgg_dir = os.path.join(data_dir, "LGGTrimmed")
+
+    hgg_subjects = get_data_path(hgg_dir, volume_type, 1)
+    lgg_subjects = get_data_path(lgg_dir, volume_type, 0)
+
+    hgg_train, hgg_test = get_dataset(hgg_subjects)
+    lgg_train, lgg_test = get_dataset(lgg_subjects)
+
+    trainset_info = hgg_train + lgg_train
+    testset_info = hgg_test + lgg_test
+
+    save_to_csv(trainset_info, "train.csv")
+    save_to_csv(testset_info, "test.csv")
+
+    models_dir = os.path.join(parent_dir, "models")
+    logs_dir = os.path.join(parent_dir, "logs")
+
+    train(trainset_info, model_type, models_dir,
+          logs_dir, opt_type, model_name, False)
