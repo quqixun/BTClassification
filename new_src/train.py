@@ -1,5 +1,6 @@
 import os
 import shutil
+import argparse
 import numpy as np
 from tqdm import *
 from models import *
@@ -20,10 +21,10 @@ from keras.callbacks import (ModelCheckpoint,
                              TensorBoard)
 
 
-SEED = 77
+SEED = 7
 TRAIN_PROP = 0.8
 TEST_PROP = 0.2
-VOLUME_SIZE = [112, 112, 112, 1]
+VOLUME_SIZE = [112, 112, 96, 1]
 
 BATCH_SIZE = 8
 EPOCHS_NUM = 50
@@ -64,9 +65,9 @@ def save_to_csv(subjects, csv_path):
     return
 
 
-def load_data(info):
+def load_data(info, mode):
     x, y = [], []
-    print("Loading data ...")
+    print("Loading {} data ...".format(mode))
     for subject in tqdm(info):
         volume_path, label = subject[0], subject[1]
         volume = nib.load(volume_path).get_data()
@@ -93,23 +94,26 @@ def create_dir(path):
 
 def lr_schedule(epoch):
 
-    lrs = [1e-4] * 20 + [5e-5] * 20 + [1e-5] * 30 + [5e-6] * 30
+    lrs = [5e-4] * 15 + [1e-4] * 15 + [5e-5] * 10 + [5e-5] * 30
     lr = lrs[epoch]
+    print("\n------------------------------------------------")
     print("Learning rate: ", lr)
 
     return lr
 
 
-def train(trainset_info, model_type, models_dir,
+def train(trainset_info, testset_info, model_type, models_dir,
           logs_dir, optimizer, model_name, augment=False):
 
-    x, y = load_data(trainset_info)
+    x_test, y_test = load_data(testset_info, "testset")
+    y_test = to_categorical(y_test, num_classes=2)
+
+    x, y = load_data(trainset_info, "trainset")
     kfold = StratifiedKFold(n_splits=SPLITS_NUM, shuffle=True)
     kfold_no = 0
+    cvlosses, cvaccs = [], []
 
     for tidx, vidx in kfold.split(x, y):
-        print("KFold: ", kfold_no)
-
         x_train, y_train = [], []
         for idx in tidx:
             x_train.append(x[idx])
@@ -141,19 +145,25 @@ def train(trainset_info, model_type, models_dir,
                       optimizer=opt,
                       metrics=["accuracy"])
 
-        model.summary()
+        # model.summary()
+
         # model_name = model_type + "_" + optimizer
-        print(model_name)
+        print("Model: ", model_name)
+        print("KFold: ", kfold_no, "\n")
 
-        model_dir = os.path.join(models_dir, model_name, "kfold" + str(kfold_no))
+        model_dir = os.path.join(models_dir, model_name)
         create_dir(model_dir)
+        kmodel_dir = os.path.join(model_dir, "kfold" + str(kfold_no))
+        create_dir(kmodel_dir)
 
-        log_dir = os.path.join(logs_dir, model_name, "kfold" + str(kfold_no))
+        log_dir = os.path.join(logs_dir, model_name)
         create_dir(log_dir)
+        klog_dir = os.path.join(log_dir, "kfold" + str(kfold_no))
+        create_dir(klog_dir)
 
-        best_model_path = os.path.join(model_dir, "best.h5")
-        last_model_path = os.path.join(model_dir, "last.h5")
-        logs_path = os.path.join(model_dir, "learning_curv.csv")
+        best_model_path = os.path.join(kmodel_dir, "best.h5")
+        last_model_path = os.path.join(kmodel_dir, "last.h5")
+        logs_path = os.path.join(kmodel_dir, "learning_curv.csv")
         csv_logger = CSVLogger(logs_path, append=True, separator=';')
 
         checkpoint = ModelCheckpoint(filepath=best_model_path,
@@ -165,12 +175,11 @@ def train(trainset_info, model_type, models_dir,
         #                                cooldown=0,
         #                                patience=5,
         #                                min_lr=1e-6)
-        tb = TensorBoard(log_dir=log_dir, batch_size=BATCH_SIZE)
+        tb = TensorBoard(log_dir=klog_dir, batch_size=BATCH_SIZE)
         callbacks = [checkpoint, lr_scheduler, csv_logger, tb]
 
         class_weight = {0: 1., 1: 1.}
         if not augment:
-            print('Not using data augmentation.')
             model.fit(x_train, y_train,
                       batch_size=BATCH_SIZE,
                       epochs=EPOCHS_NUM,
@@ -200,24 +209,55 @@ def train(trainset_info, model_type, models_dir,
                 epochs=EPOCHS_NUM, verbose=1, workers=4)
 
         model.save(last_model_path)
+        score = model.evaluate(x_test, y_test, batch_size=BATCH_SIZE, verbose=0)
+        cvlosses.append(score[0])
+        cvaccs.append(score[1])
         kfold_no += 1
         # break
+
+    test_loss = "\nLoss of testset: {0:.3f} (+/- {1:.3f})".format(np.mean(cvlosses), np.std(cvlosses))
+    test_acc = "Accuracy of testset: {0:.3f}% (+/- {1:.3f}%)\n".format(np.mean(cvaccs), np.std(cvaccs))
+    test_log = test_loss + "\n" + test_acc
+    test_logs_path = os.path.join(model_dir, "test_log.txt")
+    print(test_log)
+    with open(test_logs_path, "w") as file:
+        file.write(test_log)
 
     return
 
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser()
+
+    volume_help_str = "Select a volume type in 'flair', 't1ce', or 't2'."
+    parser.add_argument("--volume", action="store", default="t1ce",
+                        dest="volume", help=volume_help_str)
+
+    model_help_str = "Select a model type in 'pyramid', or 'vggish'."
+    parser.add_argument("--model", action="store", default="pyramid",
+                        dest="model", help=model_help_str)
+
+    opt_help_str = "Select a optimizer type in 'adam', 'sgd', or 'adagrade'."
+    parser.add_argument("--opt", action="store", default="adam",
+                        dest="opt", help=opt_help_str)
+
+    args = parser.parse_args()
+
     # volume_type = "flair"
-    volume_type = "t1ce"
+    # volume_type = "t1ce"
     # volume_type = "t2"
 
     # model_type = "vggish"
-    model_type = "pyramid"
+    # model_type = "pyramid"
 
     # opt_type = "sgd"
-    opt_type = "adam"
+    # opt_type = "adam"
     # opt_type = "adagrade"
+
+    volume_type = args.volume
+    model_type = args.model
+    opt_type = args.opt
 
     model_name = "_".join([volume_type, model_type, opt_type])
 
@@ -241,5 +281,6 @@ if __name__ == "__main__":
     models_dir = os.path.join(parent_dir, "models")
     logs_dir = os.path.join(parent_dir, "logs")
 
-    train(trainset_info, model_type, models_dir,
+    train(trainset_info, testset_info,
+          model_type, models_dir,
           logs_dir, opt_type, model_name, False)
