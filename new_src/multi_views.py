@@ -44,11 +44,19 @@ def extract_views(data_dir, views_dir, mode, norm=False, trim=False, trimmed_dir
         volumes = []
         if len(volume_paths) == len(SCAN_TYPES):
             for path in volume_paths:
-                volume = np.rot90(nib.load(path).get_data(), 3)
-                if norm:
-                    if "seg" not in path:
-                        volume = volume / np.max(volume)
-                volumes.append(volume)
+                if "seg" in path:
+                    mask = np.rot90(nib.load(path).get_data(), 3)
+            for path in volume_paths:
+                if "seg" not in path:
+                    volume = np.rot90(nib.load(path).get_data(), 3)
+                    non_mask_idx = np.where(mask == 0)
+                    segged = np.copy(volume)
+                    segged[non_mask_idx] = segged[non_mask_idx] * 0.5
+                    if norm:
+                        segged = segged / np.max(segged)
+                        # volume_obj = volume[volume > np.min(volume)]
+                        # volume = (volume - np.mean(volume_obj)) / np.std(volume_obj)
+                    volumes.append(segged)
         else:
             print(subject + " does not have 4 types volumes.")
             continue
@@ -78,17 +86,19 @@ def extract_views(data_dir, views_dir, mode, norm=False, trim=False, trimmed_dir
 
         counter = 0
         for pos in all_pos:
-            cor_volume = np.zeros([155, 240, 4])
-            sag_volume = np.zeros([155, 240, 4])
-            ax_volume = np.zeros([240, 240, 4])
+            if trim:
+                cor_volume = np.zeros(TRIMMED_SIZE + [4])
+                sag_volume = np.zeros(TRIMMED_SIZE + [4])
+                ax_volume = np.zeros(TRIMMED_SIZE + [4])
+            else:
+                cor_volume = np.zeros([155, 240, 4])
+                sag_volume = np.zeros([155, 240, 4])
+                ax_volume = np.zeros([240, 240, 4])
+
             for i in range(len(SCAN_TYPES[:-1])):
                 cor = np.rot90(volumes[i][pos[0], :, :], 1)
                 sag = np.rot90(volumes[i][:, pos[1], :], 1)
                 ax = volumes[i][:, :, pos[2]]
-
-                cor_volume[..., i] = cor
-                sag_volume[..., i] = sag
-                ax_volume[..., i] = ax
 
                 save_dir = os.path.join(views_dir, subject, SCAN_TYPES[i])
                 create_dir(save_dir)
@@ -110,12 +120,21 @@ def extract_views(data_dir, views_dir, mode, norm=False, trim=False, trimmed_dir
                         np.save(save_path, v)
                         scipy.misc.imsave(png_path, v)
 
+                if trim:
+                    cor_volume[..., i] = trimmed_views[0]
+                    sag_volume[..., i] = trimmed_views[1]
+                    ax_volume[..., i] = trimmed_views[2]
+                else:
+                    cor_volume[..., i] = cor
+                    sag_volume[..., i] = sag
+                    ax_volume[..., i] = ax
+
             views_volume = [cor_volume, sag_volume, ax_volume]
             subject2dir = os.path.join(volume_dir, subject, str(counter))
             create_dir(subject2dir)
             for vv, t in zip(views_volume, VIEW_TYPES):
                 save_path = os.path.join(subject2dir, t + ".npy")
-                np.save(save_path, vv.astype(np.int16))
+                np.save(save_path, vv.astype(np.float32))
 
             counter += 1
 
@@ -157,7 +176,7 @@ lgg_vol_dir = "/home/user4/Desktop/btc/data/Original/BraTS/LGGViewsVolume"
 create_dir(hgg_vol_dir)
 create_dir(lgg_vol_dir)
 
-extract_views(data_dir=hgg_dir, views_dir=new_hgg_dir, mode="hgg", norm=False,
+extract_views(data_dir=hgg_dir, views_dir=new_hgg_dir, mode="hgg", norm=True,
               trim=True, trimmed_dir=trim_hgg_dir, volume_dir=hgg_vol_dir)
-extract_views(data_dir=lgg_dir, views_dir=new_lgg_dir, mode="lgg", norm=False,
+extract_views(data_dir=lgg_dir, views_dir=new_lgg_dir, mode="lgg", norm=True,
               trim=True, trimmed_dir=trim_lgg_dir, volume_dir=lgg_vol_dir)
