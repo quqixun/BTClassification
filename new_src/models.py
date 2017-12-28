@@ -106,52 +106,57 @@ def pyramid():
     bn_momentum = 0.9
     initializer = "glorot_uniform"
 
-    # 112 * 112 * 96
     inputs = Input(shape=INPUT_SHAPE)
-    zp = ZeroPadding3D(1)(inputs)
-    preconv = Convolution3D(64, 3, strides=(2, 2, 2),
+    # 112 * 112 * 96 * 1
+
+    zp = ZeroPadding3D(2)(inputs)
+    preconv = Convolution3D(32, 5, strides=(2, 2, 2),
                             kernel_initializer=initializer,
                             kernel_regularizer=l2(l2_coeff),
                             activation="relu")(zp)
     # preconv = MaxPooling3D((2, 2, 2), strides=(2, 2, 2))(preconv)
     preconv = BatchNormalization(momentum=bn_momentum)(preconv)
+    # 56 * 56 * 48 * 32
 
-    # 56 * 56 * 48
     zp = ZeroPadding3D(1)(preconv)
-    conv1 = Convolution3D(128, 3,
+    conv1 = Convolution3D(64, 3,
                           kernel_initializer=initializer,
                           kernel_regularizer=l2(l2_coeff),
                           activation="relu")(zp)
+    # 56 * 56 * 48 * 64
     mp1 = MaxPooling3D((2, 2, 2), strides=(2, 2, 2))(conv1)
     mp1 = BatchNormalization(momentum=bn_momentum)(mp1)
+    # 28 * 28 * 24 * 64
 
-    # 28 * 28 * 24
     zp = ZeroPadding3D(1)(mp1)
     conv2 = Convolution3D(128, 3,
                           kernel_initializer=initializer,
                           kernel_regularizer=l2(l2_coeff),
                           activation="relu")(zp)
+    # 28 * 28 * 24 * 128
     mp2 = MaxPooling3D((2, 2, 2), strides=(2, 2, 2))(conv2)
     mp2 = BatchNormalization(momentum=bn_momentum)(mp2)
+    # 14 * 14 * 12 * 128
 
-    # 14 * 14 * 12
     zp = ZeroPadding3D(1)(mp2)
     conv3 = Convolution3D(256, 3,
                           kernel_initializer=initializer,
                           kernel_regularizer=l2(l2_coeff),
                           activation="relu")(zp)
+    # 14 * 14 * 12 * 128
     mp3 = MaxPooling3D((2, 2, 2), strides=(2, 2, 2))(conv3)
     mp3 = BatchNormalization(momentum=bn_momentum)(mp3)
+    # 7 * 7 * 6 * 128
 
-    # 7 * 7 * 6
     zp = ZeroPadding3D(1)(mp3)
     conv4 = Convolution3D(256, 3,
                           kernel_initializer=initializer,
                           kernel_regularizer=l2(l2_coeff),
                           activation="relu")(zp)
+    # 7 * 7 * 6 * 128
     up1 = UpSampling3D((2, 2, 2))(conv4)
+    # 14 * 14 * 12 * 128
 
-    # 14 * 14 * 12
     sum1 = Add()([conv3, up1])
     sum1 = BatchNormalization(momentum=bn_momentum)(sum1)
     zp = ZeroPadding3D(1)(sum1)
@@ -159,26 +164,29 @@ def pyramid():
                           kernel_initializer=initializer,
                           kernel_regularizer=l2(l2_coeff),
                           activation="relu")(zp)
+    # 14 * 14 * 12 * 128
     up2 = UpSampling3D((2, 2, 2))(conv5)
+    # 28 * 28 * 24 * 128
 
-    # 28 * 28 * 24
     sum2 = Add()([conv2, up2])
     sum2 = BatchNormalization(momentum=bn_momentum)(sum2)
     zp = ZeroPadding3D(1)(sum2)
-    conv6 = Convolution3D(128, 3,
+    conv6 = Convolution3D(64, 3,
                           kernel_initializer=initializer,
                           kernel_regularizer=l2(l2_coeff),
                           activation="relu")(zp)
+    # 28 * 28 * 24 * 64
     up3 = UpSampling3D((2, 2, 2))(conv6)
+    # 56 * 56 * 48 * 64
 
-    # 56 * 56 * 48
     sum3 = Add()([conv1, up3])
     sum3 = BatchNormalization(momentum=bn_momentum)(sum3)
     zp = ZeroPadding3D(1)(sum3)
-    conv7 = Convolution3D(64, 3,
+    conv7 = Convolution3D(32, 3,
                           kernel_initializer=initializer,
                           kernel_regularizer=l2(l2_coeff),
                           activation="relu")(zp)
+    # 56 * 56 * 48 * 32
 
     max_conv1 = Flatten()(MaxPooling3D((56, 56, 48))(conv1))
     max_conv2 = Flatten()(MaxPooling3D((28, 28, 24))(conv2))
