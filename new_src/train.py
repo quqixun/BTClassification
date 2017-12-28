@@ -21,7 +21,7 @@ from keras.callbacks import (ModelCheckpoint,
                              TensorBoard)
 
 
-SEED = 7
+# SEED = 77
 TRAIN_PROP = 0.8
 TEST_PROP = 0.2
 VOLUME_SIZE = [112, 112, 96, 1]
@@ -31,7 +31,7 @@ EPOCHS_NUM = 50
 SPLITS_NUM = 4
 
 
-def get_data_path(dir_path, volume_type, label):
+def get_data_path(dir_path, volume_type, label, SEED):
     subjects = os.listdir(dir_path)
     seed(SEED)
     shuffle(subjects)
@@ -94,7 +94,16 @@ def create_dir(path):
 
 def lr_schedule(epoch):
 
-    lrs = [5e-4] * 15 + [1e-4] * 15 + [5e-5] * 10 + [5e-5] * 30
+    def dylr(start, end):
+        lrs = [start]
+        diff = (start - end) / (EPOCHS_NUM - 1)
+        for i in range(1, EPOCHS_NUM - 1):
+            lrs.append(start - i * diff)
+        lrs.append(end)
+        return lrs
+
+    # lrs = [1e-3] * 10 + [5e-4] * 10 + [1e-4] * 10 + [5e-5] * 10 + [1e-5] * 0
+    lrs = dylr(1e-4, 1e-6)
     lr = lrs[epoch]
     print("\n------------------------------------------------")
     print("Learning rate: ", lr)
@@ -141,23 +150,21 @@ def train(trainset_info, testset_info, model_type, models_dir,
             opt = Adagrad(lr=lr_schedule(0))
         elif optimizer == "sgd":
             opt = SGD(lr=lr_schedule(0))
+
         model.compile(loss="categorical_crossentropy",
                       optimizer=opt,
                       metrics=["accuracy"])
-
-        # model.summary()
+        model.summary()
 
         # model_name = model_type + "_" + optimizer
         print("Model: ", model_name)
         print("KFold: ", kfold_no, "\n")
 
         model_dir = os.path.join(models_dir, model_name)
-        create_dir(model_dir)
         kmodel_dir = os.path.join(model_dir, "kfold" + str(kfold_no))
         create_dir(kmodel_dir)
 
         log_dir = os.path.join(logs_dir, model_name)
-        create_dir(log_dir)
         klog_dir = os.path.join(log_dir, "kfold" + str(kfold_no))
         create_dir(klog_dir)
 
@@ -242,6 +249,10 @@ if __name__ == "__main__":
     parser.add_argument("--opt", action="store", default="adam",
                         dest="opt", help=opt_help_str)
 
+    seed_help_str = "Set a seed."
+    parser.add_argument("--seed", action="store", default="0",
+                        dest="seed", help=seed_help_str)
+
     args = parser.parse_args()
 
     # volume_type = "flair"
@@ -258,16 +269,17 @@ if __name__ == "__main__":
     volume_type = args.volume
     model_type = args.model
     opt_type = args.opt
+    SEED = args.seed
 
-    model_name = "_".join([volume_type, model_type, opt_type])
+    model_name = "_".join([volume_type, model_type, opt_type, SEED])
 
     parent_dir = os.path.dirname(os.getcwd())
     data_dir = os.path.join(parent_dir, "data", "Original", "BraTS")
     hgg_dir = os.path.join(data_dir, "HGGTrimmed")
     lgg_dir = os.path.join(data_dir, "LGGTrimmed")
 
-    hgg_subjects = get_data_path(hgg_dir, volume_type, 1)
-    lgg_subjects = get_data_path(lgg_dir, volume_type, 0)
+    hgg_subjects = get_data_path(hgg_dir, volume_type, 1, int(SEED))
+    lgg_subjects = get_data_path(lgg_dir, volume_type, 0, int(SEED))
 
     hgg_train, hgg_test = get_dataset(hgg_subjects)
     lgg_train, lgg_test = get_dataset(lgg_subjects)
