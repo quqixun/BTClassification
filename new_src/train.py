@@ -6,18 +6,18 @@ from tqdm import *
 from models import *
 import pandas as pd
 import nibabel as nib
-import tensorflow as tf
 from random import seed, shuffle
 
 from keras.layers import *
 from keras.callbacks import CSVLogger
 from keras.optimizers import SGD, Adam, Adagrad
 from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import log_loss, recall_score, precision_score
 from keras.utils import to_categorical
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import (ModelCheckpoint,
                              LearningRateScheduler,
-                             ReduceLROnPlateau,
+                             # ReduceLROnPlateau,
                              TensorBoard)
 
 
@@ -27,7 +27,7 @@ TEST_PROP = 0.2
 VOLUME_SIZE = [112, 112, 96, 1]
 
 BATCH_SIZE = 8
-EPOCHS_NUM = 50
+EPOCHS_NUM = 60
 SPLITS_NUM = 4
 
 
@@ -109,6 +109,14 @@ def lr_schedule(epoch):
     print("Learning rate: ", lr)
 
     return lr
+
+
+def load_model(model_type):
+    if model_type == "vggish":
+        model = vggish()
+    elif model_type == "pyramid":
+        model = pyramid()
+    return model
 
 
 def train(trainset_info, testset_info, model_type, models_dir,
@@ -233,9 +241,80 @@ def train(trainset_info, testset_info, model_type, models_dir,
     return
 
 
+def test(SEED, testset_info, model_type, models_dir, model_name, test_logs_dir):
+    x_test, y_test = load_data(testset_info, "testset")
+    y_test_category = to_categorical(y_test, num_classes=2)
+
+    hgg_idx = np.where(y_test == 1)[0]
+    lgg_idx = np.where(y_test == 0)[0]
+
+    model_dir = os.path.join(models_dir, model_name)
+    kfold_dirs = [os.path.join(model_dir, k) for k in os.listdir(model_dir)]
+
+    predictions = []
+    for kfold_dir in kfold_dirs:
+        if not os.path.isdir(kfold_dir):
+            continue
+
+        model_path = os.path.join(kfold_dir, "last.h5")
+
+        if model_type == "vggish":
+            model = vggish()
+        elif model_type == "pyramid":
+            model = pyramid()
+
+        model.load_weights(model_path)
+        prediction = model.predict(x_test)
+        predictions.append(prediction)
+
+    mean_prediction = np.zeros(y_test_category.shape)
+    for prediction in predictions:
+        mean_prediction += prediction
+    mean_prediction = mean_prediction / 4
+
+    arg_prediction = np.reshape(np.argmax(mean_prediction, axis=1).astype(np.int), (-1, 1))
+
+    total_accuracy = (y_test == arg_prediction).all(axis=1).mean()
+    hgg_accuracy = (y_test[hgg_idx] == arg_prediction[hgg_idx]).all(axis=1).mean()
+    lgg_accuracy = (y_test[lgg_idx] == arg_prediction[lgg_idx]).all(axis=1).mean()
+
+    total_loss = log_loss(y_test_category, mean_prediction, normalize=True)
+    hgg_loss = log_loss(y_test_category[hgg_idx], mean_prediction[hgg_idx], normalize=True)
+    lgg_loss = log_loss(y_test_category[lgg_idx], mean_prediction[lgg_idx], normalize=True)
+
+    hgg_precision = precision_score(y_test, arg_prediction, pos_label=1)
+    hgg_recall = recall_score(y_test, arg_prediction, pos_label=1)
+
+    lgg_precision = precision_score(y_test, arg_prediction, pos_label=0)
+    lgg_recall = recall_score(y_test, arg_prediction, pos_label=0)
+
+    df = pd.DataFrame(data={"seed": SEED,
+                            "acc": total_accuracy,
+                            "hgg_acc": hgg_accuracy,
+                            "lgg_acc": lgg_accuracy,
+                            "loss": total_loss,
+                            "hgg_loss": hgg_loss,
+                            "lgg_loss": lgg_loss,
+                            "hgg_precision": hgg_precision,
+                            "lgg_precision": lgg_precision,
+                            "hgg_recall": hgg_recall,
+                            "lgg_recall": lgg_recall}, index=[0])
+    df = df[["seed", "acc", "hgg_acc", "lgg_acc",
+             "loss", "hgg_loss", "lgg_loss",
+             "hgg_precision", "hgg_recall",
+             "lgg_precision", "lgg_recall"]]
+
+    df_path = os.path.join(test_logs_dir, model_name + ".csv")
+    df.to_csv(df_path, index=False)
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
+
+    mode_help_str = "Select a mode type in 'train', or 'test'."
+    parser.add_argument("--mode", action="store", default="train",
+                        dest="mode", help=mode_help_str)
 
     volume_help_str = "Select a volume type in 'flair', 't1ce', or 't2'."
     parser.add_argument("--volume", action="store", default="t1ce",
@@ -266,6 +345,7 @@ if __name__ == "__main__":
     # opt_type = "adam"
     # opt_type = "adagrade"
 
+    mode = args.mode
     volume_type = args.volume
     model_type = args.model
     opt_type = args.opt
@@ -287,12 +367,16 @@ if __name__ == "__main__":
     trainset_info = hgg_train + lgg_train
     testset_info = hgg_test + lgg_test
 
-    save_to_csv(trainset_info, "train.csv")
-    save_to_csv(testset_info, "test.csv")
+    # save_to_csv(trainset_info, "train.csv")
+    # save_to_csv(testset_info, "test.csv")
 
     models_dir = os.path.join(parent_dir, "models")
     logs_dir = os.path.join(parent_dir, "logs")
+    test_logs_dir = os.path.join(parent_dir, "test_logs")
 
-    train(trainset_info, testset_info,
-          model_type, models_dir,
-          logs_dir, opt_type, model_name, False)
+    if mode == "train":
+        train(trainset_info, testset_info,
+              model_type, models_dir,
+              logs_dir, opt_type, model_name, False)
+    else:
+        test(SEED, testset_info, model_type, models_dir, model_name, test_logs_dir)
