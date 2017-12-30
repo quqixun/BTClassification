@@ -12,7 +12,9 @@ from keras.layers import *
 from keras.callbacks import CSVLogger
 from keras.optimizers import SGD, Adam, Adagrad
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import log_loss, recall_score, precision_score
+from sklearn.metrics import (log_loss, recall_score,
+                             precision_score, roc_auc_score,
+                             roc_curve)
 from keras.utils import to_categorical
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import (ModelCheckpoint,
@@ -288,6 +290,9 @@ def test(SEED, testset_info, model_type, models_dir, model_name, test_logs_dir):
     lgg_precision = precision_score(y_test, arg_prediction, pos_label=0)
     lgg_recall = recall_score(y_test, arg_prediction, pos_label=0)
 
+    roc_auc = roc_auc_score(y_test, mean_prediction[:, 1])
+    roc_line = roc_curve(y_test, mean_prediction[:, 1], pos_label=1)
+
     df = pd.DataFrame(data={"seed": SEED,
                             "acc": total_accuracy,
                             "hgg_acc": hgg_accuracy,
@@ -298,14 +303,22 @@ def test(SEED, testset_info, model_type, models_dir, model_name, test_logs_dir):
                             "hgg_precision": hgg_precision,
                             "lgg_precision": lgg_precision,
                             "hgg_recall": hgg_recall,
-                            "lgg_recall": lgg_recall}, index=[0])
+                            "lgg_recall": lgg_recall,
+                            "roc_auc": roc_auc}, index=[0])
     df = df[["seed", "acc", "hgg_acc", "lgg_acc",
              "loss", "hgg_loss", "lgg_loss",
              "hgg_precision", "hgg_recall",
-             "lgg_precision", "lgg_recall"]]
+             "lgg_precision", "lgg_recall",
+             "roc_auc"]]
 
-    df_path = os.path.join(test_logs_dir, model_name + ".csv")
+    subject_log_dir = os.path.join(test_logs_dir, model_name)
+    create_dir(subject_log_dir)
+
+    df_path = os.path.join(subject_log_dir, "metrics.csv")
     df.to_csv(df_path, index=False)
+
+    np.save(os.path.join(subject_log_dir, "roc_curve.npy"), roc_line)
+    return
 
 
 if __name__ == "__main__":
