@@ -33,6 +33,16 @@ def save_nii(data, path):
     return
 
 
+def sphere(shape, radius, position):
+    semisizes = (radius,) * 3
+    grid = [slice(-x0, dim - x0) for x0, dim in zip(position, shape)]
+    position = np.ogrid[grid]
+    arr = np.zeros(shape, dtype=float)
+    for x_i, semisize in zip(position, semisizes):
+        arr += (np.abs(x_i / semisize) ** 2)
+    return arr <= 1.0
+
+
 # --------------------------------------------- #
 # Tumor Segemtation Step 1: Compute Difference #
 # --------------------------------------------- #
@@ -83,7 +93,7 @@ def difference(in_subj_dir, out_subj_dir, cb_mask_path, bins_num=256):
     diff = flair - t1ce
     diff = np.multiply(diff, cb_mask)
     diff = rescale_intensity(diff, bins_num)
-    diff = equalize_hist(diff, bins_num)
+    # diff = equalize_hist(diff, bins_num)
 
     save_nii(diff, os.path.join(out_subj_dir, "diff.nii.gz"))
     return
@@ -162,36 +172,25 @@ def extract_features(volume):
     x_idx, y_idx, z_idx = np.where(volume > 0)
     features = []
     for x, y, z in zip(x_idx, y_idx, z_idx):
-        features.append([volume[x, y, z] * np.sqrt(3), x, y, z])
-    return np.array(features).astype(int)
+        features.append([volume[x, y, z], x, y, z])
+    return np.array(features)
 
 
 def kmeans_cluster(volume, label_out_path, n_clusters):
     features = extract_features(volume)
-    # feat = features[:, 0].reshape((-1, 1))
-    # print(features.shape)
-    # print(min(feat), max(feat))
     kmeans_model = KMeans(n_clusters=n_clusters, init="k-means++",
                           precompute_distances=True, verbose=0,
                           random_state=7, n_jobs=1,
-                          max_iter=1000, tol=1e-6).fit(features)
+                          max_iter=300, tol=1e-4).fit(features)
 
     label_volume = np.zeros(volume.shape)
     for l, f in zip(kmeans_model.labels_, features):
-        label_volume[f[1], f[2], f[3]] = l + 1
+        label_volume[int(f[1]), int(f[2]), int(f[3])] = l + 1
 
     return label_volume
 
 
 def segment(volume, labels, n_clusters):
-    # mask = (volume > 0) * 1
-    # mask = binary_fill_holes(mask)
-    structure = generate_binary_structure(3, 1)
-    # structure1 = sphere([3, 3, 3], 1, [1, 1, 1])
-    # structure2 = sphere([5, 5, 5], 3, [2, 2, 2])
-    # mask = binary_opening(mask, structure).astype(np.uint8)
-    # volume = np.multiply(volume, mask)
-
     mean_intensities = []
     for i in range(1, n_clusters + 1):
         mean_intensities.append(np.mean(volume[np.where(labels == i)]))
@@ -200,13 +199,12 @@ def segment(volume, labels, n_clusters):
     seg = np.zeros(volume.shape)
     seg[np.where(labels == target_label)] = 1
 
+    structure = generate_binary_structure(3, 1)
     seg = binary_fill_holes(seg)
     seg = binary_opening(seg, structure)
-    # seg = binary_closing(seg, structure2)
     seg = binary_dilation(seg, structure)
     seg = binary_fill_holes(seg)
     seg = binary_opening(seg, structure)
-    # seg = binary_erosion(seg, structure).astype(np.uint8)
 
     return seg.astype(np.uint8)
 
@@ -260,24 +258,26 @@ def tumor_segment(in_subj_dir, out_subj_dir):
 
     in_path = os.path.join(in_subj_dir, "diff.nii.gz")
     # thresh_out_path = os.path.join(out_subj_dir, "thresh.nii.gz")
-    # label_out_path = os.path.join(out_subj_dir, "label.nii.gz")
-    seg_out_path = os.path.join(out_subj_dir, "seg_mask.nii.gz")
-    cube_out_path = os.path.join(out_subj_dir, "cube_mask.nii.gz")
+    label_out_path = os.path.join(out_subj_dir, "label.nii.gz")
+    # seg_out_path = os.path.join(out_subj_dir, "seg_mask.nii.gz")
+    # cube_out_path = os.path.join(out_subj_dir, "cube_mask.nii.gz")
 
     volume = load_nii(in_path)
-    volume, mask = thresholding(volume, 220)
-    structure = generate_binary_structure(3, 3)
-    mask = binary_opening(mask, structure).astype(np.uint8)
-    volume = np.multiply(volume, mask)
 
-    seg_mask, cube_mask1, cube_mask2 = postprocess(volume)
-    save_nii(seg_mask, seg_out_path)
-    # save_nii(cube_mask1, cube1_out_path)
-    save_nii(cube_mask2, cube_out_path)
+    # Method 1
+    # volume, mask = thresholding(volume, 220)
+    # structure = generate_binary_structure(3, 3)
+    # mask = binary_opening(mask, structure).astype(np.uint8)
+    # volume = np.multiply(volume, mask)
 
-    # n_clusters = 3
-    # labels = kmeans_cluster(volume, label_out_path, n_clusters)
-    # save_nii(labels, label_out_path)
+    # seg_mask, cube_mask1, cube_mask2 = postprocess(volume)
+    # save_nii(seg_mask, seg_out_path)
+    # save_nii(cube_mask2, cube_out_path)
+
+    # Method 2
+    n_clusters = 5
+    labels = kmeans_cluster(volume, label_out_path, n_clusters)
+    save_nii(labels, label_out_path)
 
     # seg = segment(volume, labels, n_clusters)
     # save_nii(seg, seg_out_path)
@@ -285,29 +285,9 @@ def tumor_segment(in_subj_dir, out_subj_dir):
     return
 
 
-def sphere(shape, radius, position):
-    # assume shape and position are both a 3-tuple of int or float
-    # the units are pixels / voxels (px for short)
-    # radius is a int or float in px
-    semisizes = (radius,) * 3
-
-    # genereate the grid for the support points
-    # centered at the position indicated by position
-    grid = [slice(-x0, dim - x0) for x0, dim in zip(position, shape)]
-    position = np.ogrid[grid]
-    # calculate the distance of all points from `position` center
-    # scaled by the radius
-    arr = np.zeros(shape, dtype=float)
-    for x_i, semisize in zip(position, semisizes):
-        arr += (np.abs(x_i / semisize) ** 2)
-    # the inner part of the sphere will have distance below 1
-    return arr <= 1.0
-
-
 #
 #
 #
-
 
 def unwarp_mark_tumor(arg, **kwarg):
     return mark_tumor(*arg, **kwarg)
@@ -334,37 +314,6 @@ def mark_tumor(in_subj_dir, seg_subj_dir):
 # Current working directory
 cwd = os.getcwd()
 
-# b_mask_path = os.path.join(cwd, "Template", "MNI152_T1_1mm_brain_mask.nii.gz")
-cb_mask_path = os.path.join(cwd, "Template", "MNI-maxprob-thr0-1mm.nii.gz")
-# edge_mask_path = os.path.join(cwd, "Template", "MNI-maxprob-thr50-1mm.nii.gz")
-
-# cb_mask = load_nii(cb_mask_path)
-# cb_mask[np.where(cb_mask != 2)] = 1
-# cb_mask[np.where(cb_mask == 2)] = 0
-
-# structure1 = np.ones((3, 3, 3))
-# structure2 = sphere([3, 3, 3], 1, [1, 1, 1])
-
-# b_mask = binary_fill_holes(load_nii(b_mask_path)).astype(np.uint8)
-# b_mask[:, :, 0] = np.zeros([182, 218])
-# edge_mask = load_nii(edge_mask_path)
-# edge_mask[np.where(edge_mask > 0)] = 1
-
-# mask = np.multiply(edge_mask + b_mask, cb_mask)
-# mask[np.where(mask == 2)] = 0
-# mask = binary_opening(mask, structure1)
-# mask = 1 - binary_fill_holes(binary_closing(mask, structure1))
-# save_nii(mask.astype(np.uint8), "edge_mask.nii.gz")
-
-# eroded_mask = binary_erosion(mask, structure2).astype(np.uint8)
-# edge_mask = np.multiply(np.multiply(eroded_mask, edge_mask), cb_mask) + cb_mask
-# edge_mask[np.where(edge_mask != 1)] = 0
-# edge_mask = 1 - edge_mask.astype(bool) * 1
-# eroded_edge = mask - eroded_mask
-# new_edge_mask = edge_mask - eroded_mask
-# save_nii(edge_mask, "new_edge_mask.nii.gz")
-# cb_mask_path = "new_edge_mask.nii.gz"
-
 
 # -------------------------------------------- #
 # Implementation of Step 1: Compute Difference #
@@ -382,7 +331,7 @@ input_subj_dirs = [os.path.join(cdiff_input_dir, subj) for subj in subjects]
 output_subj_dirs = [os.path.join(cdiff_output_dir, subj) for subj in subjects]
 
 bins_num = 256
-
+cb_mask_path = os.path.join(cwd, "Template", "MNI-maxprob-thr0-1mm.nii.gz")
 
 # Test
 # difference(input_subj_dirs[0], output_subj_dirs[0], cb_mask_path, bins_num)
@@ -415,7 +364,9 @@ segment_output_dir = os.path.join(cwd, "TumorSegment")
 output_subj_dirs = [os.path.join(segment_output_dir, subj) for subj in subjects]
 
 # Test
-# tumor_segment(input_subj_dirs[0], output_subj_dirs[0])
+test_input_dir = os.path.join(cdiff_output_dir, "30001")
+test_output_dir = os.path.join(segment_output_dir, "30001")
+# tumor_segment(test_input_dir, test_output_dir)
 
 # Multi-processing
 paras = zip(input_subj_dirs, output_subj_dirs)
@@ -437,4 +388,4 @@ seg_subj_dirs = [os.path.join(segment_output_dir, subj) for subj in subjects]
 # Multi-processing
 paras = zip(input_subj_dirs, seg_subj_dirs)
 pool = Pool(processes=cpu_count())
-pool.map(unwarp_mark_tumor, paras)
+# pool.map(unwarp_mark_tumor, paras)
