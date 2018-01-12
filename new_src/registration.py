@@ -6,10 +6,6 @@ import matplotlib.pyplot as plt
 from multiprocessing import Pool, cpu_count
 
 
-TEMPLATE_PATH = "Template/MNI152_T1_1mm.nii.gz"
-# TEMPLATE_PATH = "MNI152_T1_1mm_brain.nii.gz"
-
-
 def plt_middle(volume, slice_no=None):
     if not slice_no:
         slice_no = volume.shape[-1] // 2
@@ -70,13 +66,16 @@ def main(input_data_dir, output_data_dir, subject):
     return
 
 
+TEMPLATE_PATH = "Template/MNI152_T1_1mm.nii.gz"
+# TEMPLATE_PATH = "MNI152_T1_1mm_brain.nii.gz"
+
 cwd = os.getcwd()
 input_data_dir = os.path.join(cwd, "FlairT1ce")
 output_data_dir = os.path.join(cwd, "FlairT1ceReg")
 subjects = os.listdir(input_data_dir)
 
 # Test
-# main(input_data_dir, output_data_dir, subjects[0])
+# main(input_data_dir, output_data_dir, "70164")
 
 # Multi-processing
 paras = zip([input_data_dir] * len(subjects),

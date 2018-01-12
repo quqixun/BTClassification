@@ -4,6 +4,7 @@ import os
 import numpy as np
 from tqdm import *
 import nibabel as nib
+import skfuzzy as fuzzy
 from pyobb.obb import OBB
 from math import factorial
 import matplotlib.pyplot as plt
@@ -47,6 +48,21 @@ def sphere(shape, radius, position):
 # Tumor Segemtation Step 1: Compute Difference #
 # --------------------------------------------- #
 
+
+def normalize_brain_template(brain_template_path, bt_norm_path):
+    bt_temp = load_nii(brain_template_path)
+    new_bt_temp = np.copy(bt_temp).astype(np.float32)
+    none_zero_bt = bt_temp[np.where(bt_temp > 0)]
+    min_value = np.min(none_zero_bt)
+    max_value = np.max(none_zero_bt)
+
+    none_zero_bt = (none_zero_bt - min_value) / (max_value - min_value)
+    new_bt_temp[np.where(bt_temp > 0)] = np.power(none_zero_bt, 2)
+    save_nii(new_bt_temp, bt_norm_path)
+
+    return
+
+
 def rescale_intensity(volume, bins_num):
     volume[np.where(volume < 0)] = 0
     none_bg_volume = volume[np.where(volume > 0)]
@@ -76,7 +92,7 @@ def unwarp_difference(arg, **kwarg):
     return difference(*arg, **kwarg)
 
 
-def difference(in_subj_dir, out_subj_dir, cb_mask_path, bins_num=256):
+def difference(in_subj_dir, out_subj_dir, cb_mask_path, bn_norm_path, bins_num=256):
     print("Compute Difference of: ", in_subj_dir)
     create_dir(out_subj_dir)
 
@@ -92,8 +108,12 @@ def difference(in_subj_dir, out_subj_dir, cb_mask_path, bins_num=256):
 
     diff = flair - t1ce
     diff = np.multiply(diff, cb_mask)
+
+    bn_norm = load_nii(bn_norm_path)
+    diff = np.multiply(diff, bn_norm)
+
     diff = rescale_intensity(diff, bins_num)
-    # diff = equalize_hist(diff, bins_num)
+    diff = equalize_hist(diff, bins_num)
 
     save_nii(diff, os.path.join(out_subj_dir, "diff.nii.gz"))
     return
@@ -190,6 +210,11 @@ def kmeans_cluster(volume, label_out_path, n_clusters):
     return label_volume
 
 
+def fuzzy_cmeans_cluster(volume, label_out_path, n_clusters):
+    features = extract_features(volume)
+    return
+
+
 def segment(volume, labels, n_clusters):
     mean_intensities = []
     for i in range(1, n_clusters + 1):
@@ -257,27 +282,28 @@ def tumor_segment(in_subj_dir, out_subj_dir):
     create_dir(out_subj_dir)
 
     in_path = os.path.join(in_subj_dir, "diff.nii.gz")
-    # thresh_out_path = os.path.join(out_subj_dir, "thresh.nii.gz")
+    thresh_out_path = os.path.join(out_subj_dir, "thresh.nii.gz")
     label_out_path = os.path.join(out_subj_dir, "label.nii.gz")
-    # seg_out_path = os.path.join(out_subj_dir, "seg_mask.nii.gz")
-    # cube_out_path = os.path.join(out_subj_dir, "cube_mask.nii.gz")
+    seg_out_path = os.path.join(out_subj_dir, "seg_mask.nii.gz")
+    cube_out_path = os.path.join(out_subj_dir, "cube_mask.nii.gz")
 
     volume = load_nii(in_path)
 
     # Method 1
-    # volume, mask = thresholding(volume, 220)
-    # structure = generate_binary_structure(3, 3)
-    # mask = binary_opening(mask, structure).astype(np.uint8)
-    # volume = np.multiply(volume, mask)
+    volume, mask = thresholding(volume, 220)
+    save_nii(volume, thresh_out_path)
+    structure = generate_binary_structure(3, 3)
+    mask = binary_opening(mask, structure).astype(np.uint8)
+    volume = np.multiply(volume, mask)
 
-    # seg_mask, cube_mask1, cube_mask2 = postprocess(volume)
-    # save_nii(seg_mask, seg_out_path)
-    # save_nii(cube_mask2, cube_out_path)
+    seg_mask, cube_mask1, cube_mask2 = postprocess(volume)
+    save_nii(seg_mask, seg_out_path)
+    save_nii(cube_mask2, cube_out_path)
 
     # Method 2
-    n_clusters = 5
-    labels = kmeans_cluster(volume, label_out_path, n_clusters)
-    save_nii(labels, label_out_path)
+    # n_clusters = 5
+    # labels = kmeans_cluster(volume, label_out_path, n_clusters)
+    # save_nii(labels, label_out_path)
 
     # seg = segment(volume, labels, n_clusters)
     # save_nii(seg, seg_out_path)
@@ -332,13 +358,18 @@ output_subj_dirs = [os.path.join(cdiff_output_dir, subj) for subj in subjects]
 
 bins_num = 256
 cb_mask_path = os.path.join(cwd, "Template", "MNI-maxprob-thr0-1mm.nii.gz")
+brain_template_path = os.path.join(cwd, "Template", "MNI152_T1_1mm_brain.nii.gz")
+bt_norm_path = os.path.join(cwd, "Template", "MNI152_T1_1mm_brain_norm.nii.gz")
+normalize_brain_template(brain_template_path, bt_norm_path)
 
 # Test
-# difference(input_subj_dirs[0], output_subj_dirs[0], cb_mask_path, bins_num)
+# difference(input_subj_dirs[0], output_subj_dirs[0], cb_mask_path, bt_norm_path, bins_num)
 
 # Multi-processing
 paras = zip(input_subj_dirs, output_subj_dirs,
-            [cb_mask_path] * subj_num, [bins_num] * subj_num)
+            [cb_mask_path] * subj_num,
+            [bt_norm_path] * subj_num,
+            [bins_num] * subj_num)
 pool = Pool(processes=cpu_count())
 # pool.map(unwarp_difference, paras)
 
@@ -388,4 +419,4 @@ seg_subj_dirs = [os.path.join(segment_output_dir, subj) for subj in subjects]
 # Multi-processing
 paras = zip(input_subj_dirs, seg_subj_dirs)
 pool = Pool(processes=cpu_count())
-# pool.map(unwarp_mark_tumor, paras)
+pool.map(unwarp_mark_tumor, paras)

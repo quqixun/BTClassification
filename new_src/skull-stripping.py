@@ -199,6 +199,7 @@ def mask_fusion(input_subj_dir, output_subj_dir,
 # Input Directory
 cwd = os.getcwd()
 input_dir = os.path.join(cwd, "FlairT1ceReg")
+mask_dir = os.path.join(cwd, "FlairT1ceMask")
 templates_dir = os.path.join(cwd, "Template")
 
 # Obtain all subjects' ID
@@ -207,6 +208,7 @@ subj_num = len(subjects)
 
 # Generate the paths of input directory
 input_subj_dirs = [os.path.join(input_dir, subj) for subj in subjects]
+
 
 # --------------------------------------------- #
 # Implementation of Method 1 - Apply Brain Mask #
@@ -218,7 +220,7 @@ print("\nImplementation of Method 1 - Apply Brain Mask\n")
 mask_path = os.path.join(templates_dir, "MNI152_T1_1mm_brain_mask.nii.gz")
 
 # Generate the paths of output directory
-temp_output_dir = os.path.join(cwd, "FlairT1ceTempMask")
+temp_output_dir = os.path.join(mask_dir, "FlairT1ceTempMask")
 temp_output_subj_dirs = [os.path.join(temp_output_dir, subj) for subj in subjects]
 
 # Test
@@ -229,6 +231,7 @@ paras = zip(input_subj_dirs, temp_output_subj_dirs, [mask_path] * subj_num)
 pool = Pool(processes=cpu_count())
 # pool.map(unwarp_strip_skull_mask, paras)
 
+
 # -------------------------------------- #
 # Implementation of Method 2 - Apply BET #
 # -------------------------------------- #
@@ -236,7 +239,7 @@ pool = Pool(processes=cpu_count())
 print("\nImplementation of Method 2 - Apply BET\n")
 
 # Generate the paths of output directory
-bet_output_dir = os.path.join(cwd, "FlairT1ceBetMask")
+bet_output_dir = os.path.join(mask_dir, "FlairT1ceBetMask")
 bet_output_subj_dirs = [os.path.join(bet_output_dir, subj) for subj in subjects]
 
 # Test
@@ -246,6 +249,7 @@ bet_output_subj_dirs = [os.path.join(bet_output_dir, subj) for subj in subjects]
 paras = zip(input_subj_dirs, bet_output_subj_dirs)
 pool = Pool(processes=cpu_count())
 # pool.map(unwarp_strip_skull_bet, paras)
+
 
 # --------------------------------------- #
 # Implementation of Method 3 - Apply ANTs #
@@ -259,7 +263,7 @@ templates = [os.path.join(templates_dir, "MNI152_T1_1mm.nii.gz"),
              os.path.join(templates_dir, "MNI152_T1_1mm_first_brain_mask.nii.gz")]
 
 # Generate the paths of output directory
-ants_output_dir = os.path.join(cwd, "FlairT1ceTempMask")
+ants_output_dir = os.path.join(mask_dir, "FlairT1ceTempMask")
 ants_output_subj_dirs = [os.path.join(ants_output_dir, subj) for subj in subjects]
 
 # Test
@@ -270,6 +274,7 @@ paras = zip(input_subj_dirs, ants_output_subj_dirs, [templates] * subj_num)
 pool = Pool(processes=cpu_count())
 # pool.map(unwarp_strip_skull_ants, paras)
 
+
 # ----------------------------- #
 # Implementation of Mask Fusion #
 # ----------------------------- #
@@ -277,9 +282,9 @@ pool = Pool(processes=cpu_count())
 print("\nImplementation of Mask Fusion to Extract Brain\n")
 
 # Generate the paths of input masks
-temp_mask_paths = [os.path.join(cwd, "FlairT1ceTempMask", subj, "mask.nii.gz") for subj in subjects]
-bet_mask_paths = [os.path.join(cwd, "FlairT1ceBetMask", subj, "bet_mask.nii.gz") for subj in subjects]
-ants_mask_paths = [os.path.join(cwd, "FlairT1ceAntsMask", subj, "ants_mask.nii.gz") for subj in subjects]
+temp_mask_paths = [os.path.join(mask_dir, "FlairT1ceTempMask", subj, "mask.nii.gz") for subj in subjects]
+bet_mask_paths = [os.path.join(mask_dir, "FlairT1ceBetMask", subj, "bet_mask.nii.gz") for subj in subjects]
+ants_mask_paths = [os.path.join(mask_dir, "FlairT1ceAntsMask", subj, "ants_mask.nii.gz") for subj in subjects]
 
 # Generate the paths of output directory
 output_dir = os.path.join(cwd, "FlairT1ceBrain")

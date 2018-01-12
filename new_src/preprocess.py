@@ -5,6 +5,7 @@ import numpy as np
 import nibabel as nib
 from scipy.signal import medfilt
 from multiprocessing import Pool, cpu_count
+from scipy.ndimage.morphology import (binary_erosion, generate_binary_structure)
 from nipype.interfaces.ants.segmentation import N4BiasFieldCorrection
 
 
@@ -92,7 +93,7 @@ def equalize_hist(volume, bins_num=256):
     cdf = hist.cumsum()
     cdf = (bins_num - 1) * cdf / cdf[-1]
 
-    obj_volume = np.interp(obj_volume, bins[:-1], cdf)
+    obj_volume = np.round(np.interp(obj_volume, bins[:-1], cdf)).astype(obj_volume.dtype)
     volume[np.where(volume > 0)] = obj_volume
     return volume
 
@@ -167,9 +168,9 @@ subj_num = len(subjects)
 input_subj_dirs = [os.path.join(prep_input_dir, subj) for subj in subjects]
 output_subj_dirs = [os.path.join(prep_output_dir, subj) for subj in subjects]
 
-kernel_size = 3
+kernel_size = 5
 percentils = [0.5, 99.5]
-bins_num = 256
+bins_num = 1024
 
 # Test
 # preprocess(input_subj_dirs[0], output_subj_dirs[0],
@@ -177,6 +178,8 @@ bins_num = 256
 
 # Multi-processing
 paras = zip(input_subj_dirs, output_subj_dirs,
-            [kernel_size] * subj_num, [percentils] * subj_num, [bins_num] * subj_num)
+            [kernel_size] * subj_num,
+            [percentils] * subj_num,
+            [bins_num] * subj_num)
 pool = Pool(processes=cpu_count())
 pool.map(unwarp_preprocess, paras)
