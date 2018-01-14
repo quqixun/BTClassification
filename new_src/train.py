@@ -14,7 +14,7 @@ from keras.optimizers import SGD, Adam, Adagrad
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import (log_loss, recall_score,
                              precision_score, roc_auc_score,
-                             roc_curve)
+                             roc_curve, confusion_matrix)
 from keras.utils import to_categorical
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import (ModelCheckpoint,
@@ -23,13 +23,12 @@ from keras.callbacks import (ModelCheckpoint,
                              TensorBoard)
 
 
-# SEED = 77
 TRAIN_PROP = 0.8
 TEST_PROP = 0.2
 VOLUME_SIZE = [112, 112, 96, 1]
 
 BATCH_SIZE = 8
-EPOCHS_NUM = 60
+EPOCHS_NUM = 30
 SPLITS_NUM = 4
 
 
@@ -98,13 +97,12 @@ def lr_schedule(epoch):
 
     def dylr(start, end):
         lrs = [start]
-        diff = (start - end) / (EPOCHS_NUM - 1)
-        for i in range(1, EPOCHS_NUM - 1):
+        diff = (start - end) / (60 - 1)
+        for i in range(1, 60 - 1):
             lrs.append(start - i * diff)
         lrs.append(end)
         return lrs
 
-    # lrs = [1e-3] * 10 + [5e-4] * 10 + [1e-4] * 10 + [5e-5] * 10 + [1e-5] * 0
     lrs = dylr(1e-4, 1e-6)
     lr = lrs[epoch]
     print("\n------------------------------------------------")
@@ -293,6 +291,8 @@ def test(SEED, testset_info, model_type, models_dir, model_name, test_logs_dir):
     roc_auc = roc_auc_score(y_test, mean_prediction[:, 1])
     roc_line = roc_curve(y_test, mean_prediction[:, 1], pos_label=1)
 
+    tn, fp, fn, tp = confusion_matrix(y_test, arg_prediction).ravel()
+
     df = pd.DataFrame(data={"seed": SEED,
                             "acc": total_accuracy,
                             "hgg_acc": hgg_accuracy,
@@ -304,12 +304,16 @@ def test(SEED, testset_info, model_type, models_dir, model_name, test_logs_dir):
                             "lgg_precision": lgg_precision,
                             "hgg_recall": hgg_recall,
                             "lgg_recall": lgg_recall,
-                            "roc_auc": roc_auc}, index=[0])
+                            "roc_auc": roc_auc,
+                            "TN": tn,
+                            "FP": fp,
+                            "FN": fn,
+                            "TP": tp}, index=[0])
     df = df[["seed", "acc", "hgg_acc", "lgg_acc",
              "loss", "hgg_loss", "lgg_loss",
              "hgg_precision", "hgg_recall",
              "lgg_precision", "lgg_recall",
-             "roc_auc"]]
+             "roc_auc", "TN", "FP", "FN", "TP"]]
 
     subject_log_dir = os.path.join(test_logs_dir, model_name)
     create_dir(subject_log_dir)
@@ -380,12 +384,9 @@ if __name__ == "__main__":
     trainset_info = hgg_train + lgg_train
     testset_info = hgg_test + lgg_test
 
-    # save_to_csv(trainset_info, "train.csv")
-    # save_to_csv(testset_info, "test.csv")
-
-    models_dir = os.path.join(parent_dir, "models")
-    logs_dir = os.path.join(parent_dir, "logs")
-    test_logs_dir = os.path.join(parent_dir, "test_logs")
+    models_dir = os.path.join(parent_dir, "models_0")
+    logs_dir = os.path.join(parent_dir, "logs_0")
+    test_logs_dir = os.path.join(parent_dir, "test_logs_0")
 
     if mode == "train":
         train(trainset_info, testset_info,
@@ -393,3 +394,21 @@ if __name__ == "__main__":
               logs_dir, opt_type, model_name, False)
     else:
         test(SEED, testset_info, model_type, models_dir, model_name, test_logs_dir)
+
+
+# LOGS
+
+# Configuration 1
+# T1ce, Adam, 60 epoches, pyramid, [1e-4, 1e-6], batch size 8, splits 4
+# L2 5e-5, bn momentum 0.9, initializer glorot uniform, dropout 0.5
+# Saved in models_0
+
+# Configuration 2
+# T1ce, Adam, 30 epoches, pyramid, [1e-4, 1e-6], batch size 8, splits 4
+# L2 5e-5, bn momentum 0.9, initializer glorot uniform, dropout 0.5
+# Saved in models_1
+
+# Configuration 1
+# T1ce, AdaGrade, 30 epoches, pyramid, [1e-4, 1e-6], batch size 8, splits 4
+# L2 5e-5, bn momentum 0.9, initializer glorot uniform, dropout 0.5
+# Saved in models_2
