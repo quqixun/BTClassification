@@ -2,12 +2,12 @@ import os
 import numpy as np
 import pandas as pd
 from scipy import interp
-from sklearn.metrics import auc
 import matplotlib.pyplot as plt
 
 
 parent_dir = os.path.dirname(os.getcwd())
-test_logs_dir = os.path.join(parent_dir, "test_logs")
+test_logs_dir = os.path.join(parent_dir, "test_logs_2")
+data_dir = os.path.join(parent_dir, "models_2", "t1ce_pyramid_adagrade_17")
 
 subject_dirs = os.listdir(test_logs_dir)
 metrics_paths, roc_curves = [], []
@@ -39,10 +39,11 @@ metrics = [hgg_precision, hgg_recall,
 # Boxplot of accuracy
 plt.figure(num="Accuracy")
 plt.title("Prediction Accuracy for Different Data", fontsize=14)
-plt.boxplot(accs, 0, "k.", labels=["Total", "HGG", "LGG"])
+plt.boxplot(accs, 0, "k.", labels=["Total", "HGG", "LGG"], showmeans=True)
 plt.grid("on", linestyle="--", linewidth=0.5, alpha=0.3)
 axes = plt.gca()
 axes.set_ylim([0.5, 1.02])
+plt.legend()
 plt.ylabel("Accuracy", fontsize=14)
 plt.xticks(fontsize=12)
 plt.yticks(fontsize=12)
@@ -50,7 +51,7 @@ plt.yticks(fontsize=12)
 # Boxplot of loss
 plt.figure(num="Loss")
 plt.title("Prediction Cross Entropy for Different Data", fontsize=14)
-plt.boxplot(losses, 0, "k.", labels=["Total", "HGG", "LGG"])
+plt.boxplot(losses, 0, "k.", labels=["Total", "HGG", "LGG"], showmeans=True)
 plt.grid("on", linestyle="--", linewidth=0.5, alpha=0.3)
 axes = plt.gca()
 axes.set_ylim([0, 1])
@@ -63,7 +64,7 @@ plt.figure(num="Other Metrics of Predictions")
 plt.title("Precision and Recall for HGG and LGG", fontsize=14)
 plt.boxplot(metrics, 0, "k.", labels=["HGG\nPrecision", "HGG\nRecall",
                                       "LGG\nPrecision", "LGG\nRecall",
-                                      "ROC\nAccuracy"])
+                                      "ROC\nAccuracy"], showmeans=True)
 plt.grid("on", linestyle="--", linewidth=0.5, alpha=0.3)
 axes = plt.gca()
 axes.set_ylim([0.5, 1.02])
@@ -106,3 +107,62 @@ plt.xticks(fontsize=12)
 plt.yticks(fontsize=12)
 plt.legend(fontsize=12)
 plt.show()
+
+# Learning Curve
+
+# data_dir = os.path.join(parent_dir, "models_1", "t1ce_pyramid_adam_17")
+
+acc, loss = [], []
+val_acc, val_loss = [], []
+kfolds = ["kfold0", "kfold1", "kfold2", "kfold3"]
+
+for kfold in kfolds:
+    kfold_dir = os.path.join(data_dir, kfold)
+    data_path = os.path.join(kfold_dir, "learning_curv.csv")
+    pdf = pd.read_csv(data_path, sep=";")
+    acc.append(pdf["acc"].values)
+    loss.append(pdf["loss"].values)
+    val_acc.append(pdf["val_acc"].values)
+    val_loss.append(pdf["val_loss"].values)
+
+epoch_num = len(acc[0])
+x = np.arange(epoch_num)
+
+
+def plot_metric(data, kfolds, window_name, ylabel, title, loc=1):
+    x = np.arange(len(data[0]))
+    plt.figure(num=window_name)
+    for i in range(len(kfolds)):
+        plt.plot(x, data[i], label=kfolds[i], alpha=0.7)
+    plt.grid("on", linestyle="--", linewidth=0.5, alpha=0.3)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.legend(fontsize=12, loc=loc)
+    plt.xlabel("Epoches", fontsize=14)
+    plt.ylabel(ylabel, fontsize=14)
+    plt.title(title, fontsize=14)
+    plt.show()
+    return
+
+
+plot_metric(acc, kfolds, "Training Accuracy", "Accuracy", "Training Accuracy of Four Folds", 4)
+plot_metric(loss, kfolds, "Training Loss", "Loss", "Training Loss of Four Folds", 1)
+plot_metric(val_acc, kfolds, "Validation Accuracy", "Accuracy", "Validation Accuracy of Four Folds", 4)
+plot_metric(val_loss, kfolds, "Validation Loss", "Loss", "Validation Loss of Four Folds", 1)
+
+
+# Confusion Matrix
+
+pnum = 42
+nnum = 15
+
+tn = np.array(df["TN"].values) / nnum
+fp = np.array(df["FP"].values) / nnum
+fn = np.array(df["FN"].values) / pnum
+tp = np.array(df["TP"].values) / pnum
+
+
+print("True Negative: {0:.3f} +/- {1:.3f}".format(np.mean(tn), np.std(tn)))
+print("False Positive: {0:.3f} +/- {1:.3f}".format(np.mean(fp), np.std(fp)))
+print("False Negative: {0:.3f} +/- {1:.3f}".format(np.mean(fn), np.std(fn)))
+print("True Positive: {0:.3f} +/- {1:.3f}".format(np.mean(tp), np.std(tp)))
