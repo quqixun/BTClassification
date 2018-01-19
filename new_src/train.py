@@ -1,5 +1,6 @@
 import os
 import json
+import pickle
 import shutil
 import argparse
 import numpy as np
@@ -147,7 +148,6 @@ def test(SEED, x, y,
     model_path = os.path.join(model_dir, "last.h5")
     model.load_weights(model_path)
     prediction = model.predict(x)
-    print(mode, prediction)
 
     arg_prediction = np.reshape(np.argmax(prediction, axis=1).astype(np.int), (-1, 1))
 
@@ -348,6 +348,18 @@ if __name__ == "__main__":
     trainset_info = hgg_train + lgg_train
     validset_info = hgg_valid + lgg_valid
     testset_info = hgg_test + lgg_test
+
+    with open("trainset_info", "wb") as fp:
+        pickle.dump(trainset_info, fp)
+
+    with open("validset_info", "wb") as fp:
+        pickle.dump(validset_info, fp)
+
+    with open("testset_info", "wb") as fp:
+        pickle.dump(testset_info, fp)
+
+    # with open ('trainset_info', 'rb') as fp:
+    #     itemlist = pickle.load(fp)
 
     models_dir = os.path.join(parent_dir, "models")
     logs_dir = os.path.join(parent_dir, "logs")
