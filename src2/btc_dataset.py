@@ -187,10 +187,10 @@ class BTCDataset(object):
         return trainset, validset, testset
 
     @staticmethod
-    def load_data(info, mode):
+    def load_data(dataset, mode):
         x, y = [], []
         print("Loading {} data ...".format(mode))
-        for subject in info:
+        for subject in dataset:
             volume_path, label = subject[0], subject[1]
             volume = nib.load(volume_path).get_data()
             volume = np.transpose(volume, axes=[1, 0, 2])
