@@ -119,12 +119,12 @@ class BTCModels(object):
         conv8 = self._conv3d(sum3_bn, 32, 3, name="conv8")
         # 56 * 48 * 48 * 32
 
-        fts0 = self._extract_features(conv5, name="fc1_0")  # 256    -->   256
-        fts1 = self._extract_features(conv6, name="fc1_1")  # 1024   -->   256
-        fts2 = self._extract_features(conv7, name="fc1_2")  # 4096   -->   256
-        fts3 = self._extract_features(conv8, name="fc1_3")  # 16384  -->   256
+        fts1 = self._extract_features(conv5, name="fc1_1")  # 256    -->   256
+        fts2 = self._extract_features(conv6, name="fc1_2")  # 1024   -->   256
+        fts3 = self._extract_features(conv7, name="fc1_3")  # 4096   -->   256
+        fts4 = self._extract_features(conv8, name="fc1_4")  # 16384  -->   256
 
-        fts = Concatenate(name="fts_all")([fts0, fts1, fts2, fts3])  # 1024
+        fts = Concatenate(name="fts_all")([fts1, fts2, fts3, fts4])  # 1024
         fts_dp = Dropout(rate=self.drop_rate, name="fts_all_dp")(fts)
         fc2 = self._dense(fts_dp, 256, "relu", name="fc2")
         fc2_bn = BatchNormalization(momentum=self.bn_momentum, name="fc2_bn")(fc2)
