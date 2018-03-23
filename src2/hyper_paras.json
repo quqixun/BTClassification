@@ -1,0 +1,30 @@
+{
+	"paras-1": {
+	    "comment": "Optimizer - Adam",
+		"model_name": "pyramid",
+		"input_shape": [112, 96, 96, 1],
+		"pooling": "max",
+		"l2_coeff": 5e-5,
+		"drop_rate": 0.5,
+		"bn_momentum": 0.9,
+		"initializer": "glorot_uniform",
+		"optimizer": "adam",
+		"lr_start": 1e-3,
+		"epochs_num": 100,
+		"batch_size": 16
+	},
+	"paras-2": {
+		"comment": "Optimizer - SGD",
+		"model_name": "pyramid",
+		"input_shape": [112, 96, 96, 1],
+		"pooling": "max",
+		"l2_coeff": 5e-5,
+		"drop_rate": 0.5,
+		"bn_momentum": 0.9,
+		"initializer": "glorot_uniform",
+		"optimizer": "adam",
+		"lr_start": 1e-3,
+		"epochs_num": 100,
+		"batch_size": 16
+	}
+}
