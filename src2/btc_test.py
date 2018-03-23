@@ -20,25 +20,25 @@ class BTCTest(object):
     def __init__(self,
                  paras_name,
                  paras_json_path,
-                 weights_saved_dir,
+                 weights_save_dir,
                  results_save_dir,
-                 weights="last",
+                 test_weights="last",
                  pred_trainset=False):
         '''_INIT__
         '''
 
-        if not os.path.isdir(weights_saved_dir):
+        if not os.path.isdir(weights_save_dir):
             raise IOError("Model directory is not exist.")
 
         self.paras_name = paras_name
         self.results_save_dir = results_save_dir
-        self.weights = weights
+        self.weights = test_weights
         self.pred_trainset = pred_trainset
         self.paras = self.load_paras(paras_json_path, paras_name)
         self._resolve_paras()
 
-        self.weights_path = os.path.join(weights_saved_dir,
-                                         paras_name, weights + ".h5")
+        self.weights_path = os.path.join(weights_save_dir,
+                                         paras_name, test_weights + ".h5")
         self.results_dir = os.path.join(results_save_dir, paras_name)
         self.create_dir(self.results_dir, rm=False)
 
@@ -118,6 +118,8 @@ class BTCTest(object):
         '''RUN
         '''
 
+        print("\nTesting the model.\n")
+
         self._load_model()
         self.model.load_weights(self.weights_path)
 
@@ -150,26 +152,26 @@ if __name__ == "__main__":
     from btc_dataset import BTCDataset
 
     parent_dir = os.path.dirname(os.getcwd())
-    data_dir = os.path.join(parent_dir, "data", "BraTS")
+    data_dir = os.path.join(parent_dir, "data")
     hgg_dir = os.path.join(data_dir, "HGGSegTrimmed")
     lgg_dir = os.path.join(data_dir, "LGGSegTrimmed")
 
     data = BTCDataset(hgg_dir, lgg_dir,
                       volume_type="t1ce",
-                      pre_split=True,
                       pre_trainset_path="DataSplit/trainset.csv",
                       pre_validset_path="DataSplit/validset.csv",
                       pre_testset_path="DataSplit/testset.csv")
+    data.run(pre_split=True)
 
     paras_name = "paras-1"
-    paras_json_path = "paras.json"
-    weights_saved_dir = os.path.join(parent_dir, "weights")
+    paras_json_path = "hyper_paras.json"
+    weights_save_dir = os.path.join(parent_dir, "weights")
     results_save_dir = os.path.join(parent_dir, "results")
 
     test = BTCTest(paras_name=paras_name,
                    paras_json_path=paras_json_path,
-                   weights_saved_dir=weights_saved_dir,
+                   weights_save_dir=weights_save_dir,
                    results_save_dir=results_save_dir,
-                   weights="last",
+                   test_weights="last",
                    pred_trainset=True)
     test.run(data)
