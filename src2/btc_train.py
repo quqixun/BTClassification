@@ -16,8 +16,10 @@ from keras.callbacks import (CSVLogger,
 class BTCTrain(object):
 
     def __init__(self,
-                 paras_name, paras_json_path,
-                 weights_save_dir, logs_save_dir,
+                 paras_name,
+                 paras_json_path,
+                 weights_save_dir,
+                 logs_save_dir,
                  save_best_weights=True):
         self.data = None
         self.save_best_weights = save_best_weights
@@ -108,6 +110,8 @@ class BTCTrain(object):
 
     def run(self, data):
 
+        print("\nTraining the model.\n")
+
         self.data = data
 
         self._load_model()
@@ -159,10 +163,10 @@ if __name__ == "__main__":
 
     data = BTCDataset(hgg_dir, lgg_dir,
                       volume_type="t1ce",
-                      pre_split=True,
                       pre_trainset_path="DataSplit/trainset.csv",
                       pre_validset_path="DataSplit/validset.csv",
                       pre_testset_path="DataSplit/testset.csv")
+    data.run(pre_split=True)
 
     paras_name = "paras-1"
     paras_json_path = "paras.json"

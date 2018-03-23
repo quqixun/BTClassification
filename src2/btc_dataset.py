@@ -18,9 +18,6 @@ class BTCDataset(object):
                  valid_prop=0.2,
                  random_state=0,
                  is_augment=True,
-                 save_split=False,
-                 save_dir=None,
-                 pre_split=False,
                  pre_trainset_path=None,
                  pre_validset_path=None,
                  pre_testset_path=None,
@@ -46,6 +43,12 @@ class BTCDataset(object):
         self.valid_x, self.valid_y = None, None
         self.test_x, self.test_y = None, None
 
+        return
+
+    def run(self, pre_split=False,
+            save_split=False,
+            save_split_dir=None):
+        print("\nSplitting dataset to train, valide and test.\n")
         trainset, validset, testset = \
             self._get_pre_datasplit() if pre_split else \
             self._get_new_datasplit()
@@ -53,9 +56,8 @@ class BTCDataset(object):
         self._load_dataset(trainset, validset, testset)
 
         if save_split and (not pre_split):
-            self.save_dir = save_dir
+            self.save_split_dir = save_split_dir
             self._save_dataset(trainset, validset, testset)
-
         return
 
     def _get_pre_datasplit(self):
@@ -121,9 +123,9 @@ class BTCDataset(object):
 
     def _save_dataset(self, trainset, validset, testset):
         ap = str(self.random_state) + ".csv"
-        trainset_path = os.path.join(self.save_dir, "trainset_" + ap)
-        validset_path = os.path.join(self.save_dir, "validset_" + ap)
-        testset_path = os.path.join(self.save_dir, "testset_" + ap)
+        trainset_path = os.path.join(self.save_split_dir, "trainset_" + ap)
+        validset_path = os.path.join(self.save_split_dir, "validset_" + ap)
+        testset_path = os.path.join(self.save_split_dir, "testset_" + ap)
 
         self.save_datasplit(trainset, trainset_path)
         self.save_datasplit(validset, validset_path)
@@ -238,14 +240,14 @@ if __name__ == "__main__":
                       volume_type="t1ce",
                       train_prop=0.6,
                       valid_prop=0.2,
-                      random_state=0,
-                      save_split=True,
-                      save_dir="DataSplit")
+                      random_state=0)
+    data.run(save_split=True,
+             save_dir="DataSplit")
 
     # Load dataset which has been splitted
     data = BTCDataset(hgg_dir, lgg_dir,
                       volume_type="t1ce",
-                      pre_split=True,
                       pre_trainset_path="DataSplit/trainset.csv",
                       pre_validset_path="DataSplit/validset.csv",
                       pre_testset_path="DataSplit/testset.csv")
+    data.run(pre_split=True)
