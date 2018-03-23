@@ -22,11 +22,10 @@ class BTCPreprocess(object):
     def __init__(self, input_dirs, output_dirs, volume_type=None):
         self.in_paths, self.out_paths, self.mask_paths = \
             self.generate_paths(input_dirs, output_dirs, volume_type)
-        print(len(self.in_paths), len(self.out_paths), len(self.mask_paths))
         return
 
-    def preprocess(self, non_mask_coeff=0.333, is_mask=True, processes=-1):
-        print("Preprocessing on the sample in BraTS dataset.\n")
+    def run(self, is_mask=True, non_mask_coeff=0.333, processes=-1):
+        print("\nPreprocessing on the sample in BraTS dataset.\n")
         num = len(self.in_paths)
         paras = zip([self] * num, self.in_paths, self.out_paths, self.mask_paths,
                     [non_mask_coeff] * num, [is_mask] * num)
@@ -39,7 +38,7 @@ class BTCPreprocess(object):
     def _preprocess(self, in_path, to_path, mask_path,
                     non_mask_coeff=0.333, is_mask=True):
         try:
-            print("Rescaling on: " + in_path)
+            print("Preprocessing on: " + in_path)
             volume = self.load_nii(in_path)
             if is_mask:
                 mask = self.load_nii(mask_path)
@@ -140,19 +139,19 @@ class BTCPreprocess(object):
         return trimmed
 
     @staticmethod
-    def resize(trimmed, target_shape):
-        old_shape = list(trimmed.shape)
+    def resize(volume, target_shape):
+        old_shape = list(volume.shape)
         factor = [n / float(o) for n, o in zip(target_shape, old_shape)]
-        resized = zoom(trimmed, zoom=factor, order=1, prefilter=False)
+        resized = zoom(volume, zoom=factor, order=1, prefilter=False)
         resized = resized[:, 8:104, :]
         return resized
 
     @staticmethod
-    def save2nii(to_path, resized):
-        resized = resized.astype(np.int16)
-        resized = np.rot90(resized, 3)
-        resized_nii = nib.Nifti1Image(resized, np.eye(4))
-        nib.save(resized_nii, to_path)
+    def save2nii(to_path, volume):
+        volume = volume.astype(np.int16)
+        volume = np.rot90(volume, 3)
+        volume_nii = nib.Nifti1Image(volume, np.eye(4))
+        nib.save(volume_nii, to_path)
         return
 
 
@@ -172,8 +171,8 @@ if __name__ == "__main__":
     output_dirs = [hgg_output_dir, lgg_output_dir]
 
     prep = BTCPreprocess(input_dirs, output_dirs, "t1ce")
-    prep.preprocess(non_mask_coeff=non_mask_coeff,
-                    is_mask=is_mask, processes=-1)
+    prep.run(non_mask_coeff=non_mask_coeff,
+             is_mask=is_mask, processes=-1)
 
     # Non-Enhanced Tumor
     is_mask = False
@@ -182,4 +181,4 @@ if __name__ == "__main__":
     output_dirs = [hgg_output_dir, lgg_output_dir]
 
     prep = BTCPreprocess(input_dirs, output_dirs, "t1ce")
-    prep.preprocess(is_mask=is_mask, processes=-1)
+    prep.run(is_mask=is_mask, processes=-1)
