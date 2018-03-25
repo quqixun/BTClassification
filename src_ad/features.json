@@ -1,0 +1,9 @@
+{
+    "b1": {
+        "comment": "Best 1",
+        "weight_name": "best1.h5",
+        "seed": 325000,
+        "data_type": "sepsubj",
+        "model_type": "pyramid4"
+    }
+}
