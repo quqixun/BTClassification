@@ -1,6 +1,6 @@
 {
 	"paras-1": {
-	    "comment": "Optimizer - Adam",
+	    "comment": "baseline",
 		"model_name": "pyramid",
 		"input_shape": [112, 96, 96, 1],
 		"pooling": "max",
@@ -14,7 +14,7 @@
 		"batch_size": 16
 	},
 	"paras-2": {
-		"comment": "Optimizer - SGD",
+		"comment": "smaller learning rate",
 		"model_name": "pyramid",
 		"input_shape": [112, 96, 96, 1],
 		"pooling": "max",
@@ -23,7 +23,7 @@
 		"bn_momentum": 0.9,
 		"initializer": "glorot_uniform",
 		"optimizer": "adam",
-		"lr_start": 1e-3,
+		"lr_start": 5e-4,
 		"epochs_num": 100,
 		"batch_size": 16
 	}
