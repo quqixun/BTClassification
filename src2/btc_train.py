@@ -6,6 +6,7 @@ import json
 import shutil
 from btc_models import BTCModels
 
+from keras import backend as K
 from keras.optimizers import Adam
 from keras.callbacks import (CSVLogger,
                              TensorBoard,
@@ -74,12 +75,12 @@ class BTCTrain(object):
         lrs = [self.lr_start] * 40 + \
               [self.lr_start * 0.1] * 30 + \
               [self.lr_start * 0.01] * 30
+        print("Learning rate:", lrs[epoch])
         return lrs[epoch]
 
     def _set_callbacks(self):
         csv_logger = CSVLogger(self.curves_path,
-                               append=True,
-                               separator=",")
+                               append=True, separator=",")
         lr_scheduler = LearningRateScheduler(self._set_lr_scheduler)
         tb = TensorBoard(log_dir=self.logs_dir,
                          batch_size=self.batch_size)
@@ -133,6 +134,7 @@ class BTCTrain(object):
 
         self.model.save(self.last_weights_path)
         self._print_score()
+        K.clear_session()
 
         return
 
@@ -157,7 +159,7 @@ if __name__ == "__main__":
     from btc_dataset import BTCDataset
 
     parent_dir = os.path.dirname(os.getcwd())
-    data_dir = os.path.join(parent_dir, "data", "BraTS")
+    data_dir = os.path.join(parent_dir, "data")
     hgg_dir = os.path.join(data_dir, "HGGSegTrimmed")
     lgg_dir = os.path.join(data_dir, "LGGSegTrimmed")
 

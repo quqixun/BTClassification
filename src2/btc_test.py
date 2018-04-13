@@ -6,6 +6,7 @@ import json
 import shutil
 import numpy as np
 import pandas as pd
+from keras import backend as K
 from btc_models import BTCModels
 from sklearn.metrics import (log_loss,
                              roc_curve,
@@ -128,6 +129,7 @@ class BTCTest(object):
 
         self._pred_evaluate(data.valid_x, data.valid_y, "valid")
         self._pred_evaluate(data.test_x, data.test_y, "test")
+        K.clear_session()
 
         return
 
