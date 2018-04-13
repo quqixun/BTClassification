@@ -158,7 +158,7 @@ class BTCPreprocess(object):
 if __name__ == "__main__":
 
     parent_dir = os.path.dirname(os.getcwd())
-    data_dir = os.path.join(parent_dir, "data", "BraTS")
+    data_dir = os.path.join(parent_dir, "data")
     hgg_input_dir = os.path.join(data_dir, "HGG")
     lgg_input_dir = os.path.join(data_dir, "LGG")
     input_dirs = [hgg_input_dir, lgg_input_dir]
