@@ -29,12 +29,12 @@ def main(hyper_paras_name):
     results_save_dir = os.path.join(parent_dir, pre_paras["results_save_dir"])
 
     # Preprocessing
-    prep = BTCPreprocess([hgg_in_dir, lgg_in_dir],
-                         [hgg_out_dir, lgg_out_dir],
-                         pre_paras["volume_type"])
-    prep.run(is_mask=pre_paras["is_mask"],
-             non_mask_coeff=pre_paras["non_mask_coeff"],
-             processes=pre_paras["processes_num"])
+    # prep = BTCPreprocess([hgg_in_dir, lgg_in_dir],
+    #                      [hgg_out_dir, lgg_out_dir],
+    #                      pre_paras["volume_type"])
+    # prep.run(is_mask=pre_paras["is_mask"],
+    #          non_mask_coeff=pre_paras["non_mask_coeff"],
+    #          processes=pre_paras["processes_num"])
 
     # Getting splitted dataset
     data = BTCDataset(hgg_out_dir, lgg_out_dir,
