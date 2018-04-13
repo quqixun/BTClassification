@@ -23,7 +23,7 @@
 		"bn_momentum": 0.9,
 		"initializer": "glorot_uniform",
 		"optimizer": "adam",
-		"lr_start": 5e-4,
+		"lr_start": 1e-3,
 		"epochs_num": 100,
 		"batch_size": 16
 	}
