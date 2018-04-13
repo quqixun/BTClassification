@@ -107,13 +107,13 @@ class BTCDataset(object):
 
     def _load_dataset(self, trainset, validset, testset):
 
-        self.test_x, test_y = self.load_data(testset, "testset")
+        self.test_x, test_y = self.load_data(testset, "test set")
         self.test_y = to_categorical(test_y, num_classes=2)
 
-        self.valid_x, valid_y = self.load_data(validset, "validset")
+        self.valid_x, valid_y = self.load_data(validset, "valid set")
         self.valid_y = to_categorical(valid_y, num_classes=2)
 
-        train_x, train_y = self.load_data(trainset, "trainset")
+        train_x, train_y = self.load_data(trainset, "train set")
         if self.is_augment:
             train_x, train_y = self.augment(train_x, train_y)
         self.train_x = train_x
