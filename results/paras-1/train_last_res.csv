@@ -1,2 +1,0 @@
-name,acc,hgg_acc,lgg_acc,loss,hgg_loss,lgg_loss,hgg_precision,hgg_recall,lgg_precision,lgg_recall,roc_auc,tn,fp,fn,tp
-paras-1,1.0,1.0,1.0,0.0009297840969153454,0.0011950543135904512,0.0005584057935701973,1.0,1.0,1.0,1.0,1.0,90,0,0,126
