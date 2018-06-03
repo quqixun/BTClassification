@@ -14,7 +14,7 @@
         "batch_size": 16
     },
     "paras-2": {
-        "comment": "smaller learning rate",
+        "comment": "another set of hyperparameters",
         "model_name": "pyramid",
         "input_shape": [112, 96, 96, 1],
         "pooling": "max",
