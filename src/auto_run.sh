@@ -28,6 +28,16 @@
 # Parameters:
 # - paras: hyperparameters set in hyper_paras.json
 
+# Using enhanced tumor regions to train model:
+# In pre_paras.json, set
+#    "hgg_out": "HGGSegTrimmed"
+#    "lgg_out": "LGGSegTrimmed"
+
+# Using non-enhanced tumor regions to train model:
+# In pre_paras.json, set
+#    "hgg_out": "HGGTrimmed"
+#    "lgg_out": "LGGTrimmed"
+
 python btc.py --paras=paras-1
 # python btc.py --paras=paras-2
 
